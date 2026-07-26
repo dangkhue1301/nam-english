@@ -1068,6 +1068,12 @@ select,
   line-height: 1.35;
 }
 
+form[data-answer-form] {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .option-list {
   display: flex;
   flex-direction: column;
