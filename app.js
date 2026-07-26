@@ -3,13 +3,19 @@ import {
   displayAnswer,
   evaluateAnswer,
   formatDate,
+  SESSION_QUESTION_LIMIT,
   stableShuffle,
   TYPE_LABELS,
 } from "./core.js";
 import {
+  clearStudySession,
   createRepository,
   getSessionQuestions,
   readDashboard,
+  readSelectedQuestionSet,
+  restoreStudySession,
+  saveSelectedQuestionSet,
+  saveStudySession,
 } from "./storage.js";
 
 const CAMBRIDGE_TOPICS = [
@@ -90,7 +96,9 @@ const DESTINATION_B2_TOPICS = [
 
 const EMPTY_STATS = {
   grammar: 0,
+  grammarRemaining: 0,
   vocabulary: 0,
+  vocabularyRemaining: 0,
   due: 0,
   today: 0,
   topics: 0,
@@ -103,6 +111,8 @@ const state = {
   stats: EMPTY_STATS,
   topics: [],
   imports: [],
+  sets: [],
+  selectedSetId: null,
   queue: [],
   sessionDomain: null,
   sessionTarget: 0,
@@ -157,11 +167,26 @@ function showNotice(message) {
   render();
 }
 
+function persistCurrentSession() {
+  saveStudySession({
+    queue: state.queue,
+    selectedSetId: state.selectedSetId,
+    sessionDomain: state.sessionDomain,
+    sessionTarget: state.sessionTarget,
+    sessionDone: state.sessionDone,
+    sessionCorrect: state.sessionCorrect,
+    result: state.result,
+  });
+}
+
 async function refreshDashboard({ repaint = true } = {}) {
-  const dashboard = await readDashboard(repository);
+  const dashboard = await readDashboard(repository, state.selectedSetId);
   state.stats = dashboard.stats;
   state.topics = dashboard.topics;
   state.imports = dashboard.imports;
+  state.sets = dashboard.sets;
+  state.selectedSetId = dashboard.selectedSetId;
+  saveSelectedQuestionSet(state.selectedSetId);
   if (repaint) render();
 }
 
@@ -187,6 +212,7 @@ function availableTopics() {
 }
 
 function changeView(view) {
+  clearStudySession();
   state.view = view;
   state.queue = [];
   state.sessionDomain = null;
@@ -199,8 +225,48 @@ function changeView(view) {
   render();
 }
 
+async function selectQuestionSet(setId) {
+  if (
+    state.loading ||
+    !setId ||
+    !state.sets.some((set) => set.id === setId)
+  ) {
+    return;
+  }
+  clearStudySession();
+  state.selectedSetId = setId;
+  saveSelectedQuestionSet(setId);
+  state.queue = [];
+  state.sessionDomain = null;
+  state.sessionTarget = 0;
+  state.sessionDone = 0;
+  state.sessionCorrect = 0;
+  state.result = null;
+  state.levelFilter = "all";
+  state.topicFilter = "all";
+  state.notice = "";
+  resetAnswer();
+  state.loading = true;
+  render();
+  try {
+    await refreshDashboard({ repaint: false });
+  } catch (error) {
+    state.notice =
+      error instanceof Error ? error.message : "Không thể đổi bộ câu hỏi.";
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
 async function beginSession(domain) {
   if (state.loading) return;
+  if (!state.selectedSetId) {
+    state.notice = "Hãy nhập hoặc chọn một bộ câu hỏi trước.";
+    render();
+    return;
+  }
+  clearStudySession();
   state.loading = true;
   state.notice = "";
   state.sessionDomain = null;
@@ -219,17 +285,18 @@ async function beginSession(domain) {
           item.domain === domain && item.topic === state.topicFilter,
       );
     const questions = await getSessionQuestions(repository, {
+      setId: state.selectedSetId,
       domain,
       level: state.levelFilter,
       topic: topicExistsForDomain ? state.topicFilter : "all",
-      limit: 10,
+      limit: SESSION_QUESTION_LIMIT,
     });
 
     if (questions.length === 0) {
       state.notice =
         domain === "vocabulary"
-          ? "Chưa có từ đến hạn. Hãy nhập CSV hoặc đổi bộ lọc."
-          : "Chưa có câu phù hợp. Hãy nhập CSV hoặc đổi bộ lọc.";
+          ? "Bạn đã làm hết từ mới trong bộ này và hiện chưa có từ đến hạn."
+          : "Bạn đã làm hết câu Grammar phù hợp trong bộ này.";
       return;
     }
 
@@ -237,6 +304,7 @@ async function beginSession(domain) {
     state.queue = questions;
     state.sessionTarget = questions.length;
     resetAnswer(questions[0]);
+    persistCurrentSession();
   } catch (error) {
     state.notice =
       error instanceof Error ? error.message : "Không thể bắt đầu buổi học.";
@@ -292,6 +360,7 @@ async function submitAnswer() {
       correctAnswer: displayAnswer(question.answer),
       review,
     };
+    persistCurrentSession();
     await refreshDashboard({ repaint: false });
   } catch (error) {
     state.notice =
@@ -315,10 +384,12 @@ function continueSession() {
     : state.queue.slice(1);
   state.result = null;
   resetAnswer(state.queue[0]);
+  persistCurrentSession();
   render();
 }
 
 function endSession() {
+  clearStudySession();
   state.queue = [];
   state.sessionDomain = null;
   state.sessionTarget = 0;
@@ -396,10 +467,14 @@ async function importCsv() {
   render();
   try {
     const { rows, filename } = state.csvPreview;
-    await repository.importQuestions(rows, filename);
+    const importedSet = await repository.importQuestions(rows, filename);
+    state.selectedSetId = importedSet.id;
+    saveSelectedQuestionSet(importedSet.id);
+    state.levelFilter = "all";
+    state.topicFilter = "all";
     state.csvPreview = null;
     await refreshDashboard({ repaint: false });
-    state.notice = `Đã lưu ${rows.length} câu trên thiết bị này.`;
+    state.notice = `Đã tạo bộ “${importedSet.name}” với ${rows.length} câu.`;
   } catch (error) {
     state.notice =
       error instanceof Error ? error.message : "Không thể nhập bộ câu hỏi.";
@@ -469,14 +544,60 @@ function filtersMarkup() {
   `;
 }
 
+function questionSetPickerMarkup() {
+  if (state.sets.length === 0) return "";
+  return `
+    <section class="set-picker" aria-labelledby="set-picker-title">
+      <div class="set-picker-heading">
+        <div>
+          <span class="eyebrow">BỘ CÂU HỎI</span>
+          <h2 id="set-picker-title">Chọn bộ muốn làm</h2>
+        </div>
+        <span>${state.sets.length} bộ đã lưu</span>
+      </div>
+      <div class="set-list">
+        ${state.sets
+          .map(
+            (set) => `
+              <button
+                class="set-option${
+                  state.selectedSetId === set.id ? " selected" : ""
+                }"
+                data-action="select-set"
+                data-set-id="${escapeHtml(set.id)}"
+                type="button"
+                aria-pressed="${
+                  state.selectedSetId === set.id ? "true" : "false"
+                }"
+              >
+                <span class="set-check" aria-hidden="true">${
+                  state.selectedSetId === set.id ? "✓" : ""
+                }</span>
+                <span class="set-option-copy">
+                  <strong>${escapeHtml(set.name)}</strong>
+                  <small>${set.count} câu · ${formatDate(
+                    set.importedAt,
+                  )}</small>
+                </span>
+              </button>
+            `,
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
 function learnHomeMarkup() {
   return `
     <section class="learn-home">
       <div class="hero-copy">
         <span class="eyebrow">GRAMMAR + VOCABULARY</span>
         <h1>Một câu mỗi lần.<br><span>Nhớ lâu hơn.</span></h1>
-        <p>Chấm ngay. Giải thích gọn. Từ sai sẽ quay lại.</p>
+        <p>Mỗi lượt tối đa 30 câu. Chấm ngay, từ sai sẽ quay lại.</p>
       </div>
+
+      ${questionSetPickerMarkup()}
 
       <div class="quick-stats" aria-label="Tóm tắt tiến độ">
         <div><strong>${state.stats.due}</strong><span>từ đến hạn</span></div>
@@ -488,18 +609,18 @@ function learnHomeMarkup() {
 
       <div class="mode-grid">
         <button class="mode-card grammar" data-action="begin" data-domain="grammar" type="button" ${
-          state.loading ? "disabled" : ""
+          state.loading || !state.selectedSetId ? "disabled" : ""
         }>
           <span class="mode-letter">G</span>
           <span class="mode-content">
-            <small>${state.stats.grammar} câu</small>
+            <small>${state.stats.grammarRemaining} câu chưa làm</small>
             <strong>Grammar</strong>
             <span>Luyện đa dạng + nhắc lý thuyết</span>
           </span>
           <span class="mode-arrow" aria-hidden="true">→</span>
         </button>
         <button class="mode-card vocabulary" data-action="begin" data-domain="vocabulary" type="button" ${
-          state.loading ? "disabled" : ""
+          state.loading || !state.selectedSetId ? "disabled" : ""
         }>
           <span class="mode-letter">V</span>
           <span class="mode-content">
@@ -787,6 +908,16 @@ function questionMarkup(question) {
 }
 
 function finishMarkup() {
+  const remaining =
+    state.sessionDomain === "vocabulary"
+      ? state.stats.due
+      : state.stats.grammarRemaining;
+  const hasActiveFilters =
+    state.levelFilter !== "all" || state.topicFilter !== "all";
+  const nextBatchSize = hasActiveFilters
+    ? 0
+    : Math.min(SESSION_QUESTION_LIMIT, remaining);
+
   return `
     <section class="finish-card">
       <span class="finish-kicker">HOÀN THÀNH</span>
@@ -799,9 +930,27 @@ function finishMarkup() {
         <strong>${state.sessionCorrect}</strong>
         <span>/ ${state.sessionTarget} câu đúng</span>
       </div>
-      <button data-action="end-session" class="primary-button" type="button">
-        Về trang học
-      </button>
+      ${
+        nextBatchSize > 0
+          ? `
+            <button
+              data-action="begin"
+              data-domain="${escapeHtml(state.sessionDomain)}"
+              class="primary-button"
+              type="button"
+            >
+              Làm lượt tiếp theo · ${nextBatchSize} câu
+            </button>
+            <button data-action="end-session" class="text-button" type="button">
+              Về trang học
+            </button>
+          `
+          : `
+            <button data-action="end-session" class="primary-button" type="button">
+              Về trang học
+            </button>
+          `
+      }
     </section>
   `;
 }
@@ -1124,6 +1273,8 @@ root.addEventListener("click", (event) => {
     render();
   } else if (action === "begin") {
     void beginSession(button.dataset.domain);
+  } else if (action === "select-set") {
+    void selectQuestionSet(button.dataset.setId);
   } else if (action === "end-session") {
     endSession();
   } else if (action === "select-option") {
@@ -1228,7 +1379,23 @@ async function start() {
   try {
     repository = await createRepository();
     state.storageMode = repository.mode;
-    await refreshDashboard();
+    state.selectedSetId = readSelectedQuestionSet();
+    await refreshDashboard({ repaint: false });
+    const restored = await restoreStudySession(repository);
+    if (restored) {
+      state.view = "learn";
+      state.selectedSetId = restored.selectedSetId;
+      saveSelectedQuestionSet(restored.selectedSetId);
+      await refreshDashboard({ repaint: false });
+      state.queue = restored.queue;
+      state.sessionDomain = restored.sessionDomain;
+      state.sessionTarget = restored.sessionTarget;
+      state.sessionDone = restored.sessionDone;
+      state.sessionCorrect = restored.sessionCorrect;
+      state.result = restored.result;
+      resetAnswer(state.queue[0]);
+    }
+    render();
   } catch (error) {
     showNotice(
       error instanceof Error

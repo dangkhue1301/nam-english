@@ -6,6 +6,10 @@ nhập file CSV, làm bài và chấm ngay trên trình duyệt.
 ## Chức năng
 
 - Nhập CSV UTF-8 theo đúng 16 cột và xem lỗi trước khi lưu.
+- Mỗi file CSV là một bộ riêng; học sinh chọn đúng bộ muốn làm và tiến độ
+  không bị trộn giữa các bộ, kể cả khi ID câu hỏi trùng nhau.
+- Mỗi lượt tối đa 30 câu. Bộ 50 câu được chia thành 30 + 20; câu Grammar đã
+  làm sẽ không xuất hiện lại trong bộ đó.
 - Hỗ trợ đủ 8 dạng bài: chọn đáp án, chọn nhiều, điền chỗ trống, sửa lỗi,
   viết lại câu, dạng từ, sắp xếp và ghép cặp.
 - Grammar có gợi ý, phần nhắc lý thuyết và giải thích sau khi chấm.

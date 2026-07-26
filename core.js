@@ -9,6 +9,8 @@ export const QUESTION_TYPES = [
   "matching",
 ];
 
+export const SESSION_QUESTION_LIMIT = 30;
+
 export const TYPE_LABELS = {
   mcq: "Chọn đáp án",
   multiple_select: "Chọn nhiều",
@@ -114,7 +116,18 @@ export function orderingAnswerUsesOptions(options, answers) {
 }
 
 export function buildCsvPreview(text, filename = "questions.csv") {
-  const matrix = parseCsv(String(text).replace(/^\uFEFF/, ""));
+  const content = String(text).replace(/^\uFEFF/, "");
+  if (content.includes("\uFFFD")) {
+    return {
+      filename,
+      rows: [],
+      errors: [
+        "File có ký tự lỗi mã hóa. Hãy lưu lại dưới dạng CSV UTF-8 rồi thử lại.",
+      ],
+    };
+  }
+
+  const matrix = parseCsv(content);
   if (matrix.length < 2) {
     return { filename, rows: [], errors: ["File chưa có dòng dữ liệu."] };
   }
@@ -375,6 +388,17 @@ export function learningKeyFor(question) {
   return question.learningKey || question.id;
 }
 
+export function vocabularyFirstPassComplete(review) {
+  return Boolean(
+    review?.firstCompletedAt != null ||
+      (Number.isFinite(review?.repetitions) && review.repetitions > 0) ||
+      (Number.isFinite(review?.lastGrade) && review.lastGrade >= 3) ||
+      (review &&
+        review.lastGrade == null &&
+        Number.isFinite(review.dueAt)),
+  );
+}
+
 export function shuffle(values, random = Math.random) {
   const copy = [...values];
   for (let index = copy.length - 1; index > 0; index -= 1) {
@@ -403,16 +427,22 @@ export function selectQuestions(
   questions,
   reviews,
   {
+    setId = null,
     domain,
     level = "all",
     topic = "all",
-    limit = 10,
+    limit = SESSION_QUESTION_LIMIT,
     now = Date.now(),
+    completedQuestionIds = [],
+    completedLearningKeys = [],
   },
 ) {
+  const completedQuestions = new Set(completedQuestionIds);
+  const completedVocabulary = new Set(completedLearningKeys);
   const filtered = questions.filter(
     (question) =>
       question.active !== false &&
+      (!setId || question.setId === setId) &&
       question.domain === domain &&
       (level === "all" ||
         question.level.toLocaleLowerCase("en") ===
@@ -422,17 +452,38 @@ export function selectQuestions(
           topic.toLocaleLowerCase("en")),
   );
 
-  if (domain === "grammar") return shuffle(filtered).slice(0, limit);
+  if (domain === "grammar") {
+    return shuffle(
+      filtered.filter((question) => !completedQuestions.has(question.id)),
+    ).slice(0, limit);
+  }
 
   const variants = new Map();
   for (const question of shuffle(filtered)) {
     const key = learningKeyFor(question);
-    const review = reviews.find((item) => item.learningKey === key);
-    if ((!review || review.dueAt <= now) && !variants.has(key)) {
-      variants.set(key, question);
-    }
+    if (!variants.has(key)) variants.set(key, question);
   }
-  return shuffle([...variants.values()]).slice(0, limit);
+
+  const reviewByKey = new Map(
+    reviews.map((review) => [review.learningKey, review]),
+  );
+  const unseen = [];
+  const due = [];
+
+  for (const [key, question] of variants) {
+    const review = reviewByKey.get(key);
+    // Việc "đã học lần đầu" thuộc bộ đang chọn. Lịch ôn của từ vẫn dùng
+    // chung toàn cục, nhưng không được làm một từ ở bộ A rồi bỏ qua từ đó
+    // khi học bộ B lần đầu.
+    const firstPassComplete = completedVocabulary.has(key);
+
+    if (!firstPassComplete) unseen.push(question);
+    else if (review && review.dueAt <= now) due.push(question);
+  }
+
+  // Không để câu SRS cũ chen vào trước những từ chưa từng làm đúng.
+  const candidates = unseen.length > 0 ? unseen : due;
+  return shuffle(candidates).slice(0, limit);
 }
 
 export function buildLibrary(questions, imports) {
@@ -474,18 +525,45 @@ export function buildStats(
   now = Date.now(),
 ) {
   const active = questions.filter((question) => question.active !== false);
+  const activeById = new Map(
+    active.map((question) => [question.id, question]),
+  );
+  const completedGrammarIds = new Set();
+  const completedVocabularyKeys = new Set();
+
+  attempts.forEach((attempt) => {
+    const question = activeById.get(attempt.questionId);
+    if (!question) return;
+    if (question.domain === "grammar") {
+      completedGrammarIds.add(question.id);
+    } else if (question.domain === "vocabulary" && attempt.correct) {
+      completedVocabularyKeys.add(learningKeyFor(question));
+    }
+  });
+
   const reviewByKey = new Map(
     reviews.map((review) => [review.learningKey, review]),
   );
-  const dueKeys = new Set();
+  const vocabularyKeys = new Set(
+    active
+      .filter((question) => question.domain === "vocabulary")
+      .map(learningKeyFor),
+  );
+  const unseenKeys = new Set();
 
-  active
-    .filter((question) => question.domain === "vocabulary")
-    .forEach((question) => {
-      const key = learningKeyFor(question);
-      const review = reviewByKey.get(key);
-      if (!review || review.dueAt <= now) dueKeys.add(key);
-    });
+  vocabularyKeys.forEach((key) => {
+    if (!completedVocabularyKeys.has(key)) unseenKeys.add(key);
+  });
+
+  const dueKeys =
+    unseenKeys.size > 0
+      ? unseenKeys
+      : new Set(
+          [...vocabularyKeys].filter((key) => {
+            const review = reviewByKey.get(key);
+            return review && review.dueAt <= now;
+          }),
+        );
 
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
@@ -499,9 +577,15 @@ export function buildStats(
 
   return {
     grammar: active.filter((question) => question.domain === "grammar").length,
+    grammarRemaining: active.filter(
+      (question) =>
+        question.domain === "grammar" &&
+        !completedGrammarIds.has(question.id),
+    ).length,
     vocabulary: active.filter(
       (question) => question.domain === "vocabulary",
     ).length,
+    vocabularyRemaining: unseenKeys.size,
     due: dueKeys.size,
     today: todayAttempts.length,
     topics: new Set(active.map((question) => question.topic)).size,
