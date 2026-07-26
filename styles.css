@@ -488,7 +488,10 @@ a {
 }
 
 .primary-button:disabled {
-  opacity: 0.45;
+  /* Dùng màu đặc thay vì làm mờ để không nhìn xuyên thấy viền phía sau. */
+  opacity: 1;
+  background: var(--line-strong);
+  color: var(--surface);
   cursor: not-allowed;
   box-shadow: none;
 }
@@ -1004,6 +1007,8 @@ select,
   flex-direction: column;
   gap: 16px;
   animation: card-in 0.3s ease;
+  /* Chốt chặn: không phần tử con nào được tràn ra ngoài card. */
+  overflow: hidden;
 }
 
 @keyframes card-in {
@@ -1248,6 +1253,13 @@ select,
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* Nút Chấm luôn bám mép phải, kể cả khi hàng công cụ phải xuống dòng. */
+.question-tools .primary-button {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .theory-inline summary {

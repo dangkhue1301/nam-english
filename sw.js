@@ -1,6 +1,6 @@
 // Service worker: ưu tiên mạng, dự phòng cache để dùng offline.
 // Tăng số phiên bản khi cần buộc làm mới toàn bộ cache.
-const CACHE_NAME = "nam-english-v2";
+const CACHE_NAME = "nam-english-v3";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
