@@ -5,13 +5,44 @@ import {
   nextReview,
   selectQuestions,
 } from "./core.js";
+import { mistakeQuestions } from "./stats.js";
 
 const DATABASE_NAME = "nam-english-local";
 const DATABASE_VERSION = 2;
 const LOCAL_PREFIX = "nam-english:";
 const ACTIVE_SESSION_KEY = `${LOCAL_PREFIX}active-session`;
 const SELECTED_SET_KEY = `${LOCAL_PREFIX}selected-set`;
+const SETTINGS_KEY = `${LOCAL_PREFIX}settings`;
 const LEGACY_SET_ID = "legacy-v1";
+
+export const DEFAULT_SETTINGS = {
+  theme: "system",
+  dailyGoal: 20,
+  ttsEnabled: true,
+  ttsRate: 0.95,
+  autoSpeak: false,
+};
+
+export function questionSetIdOf(question) {
+  return question.setId || LEGACY_SET_ID;
+}
+
+export function readSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
+    return { ...DEFAULT_SETTINGS, ...saved };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+export function saveSettings(settings) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch (error) {
+    console.warn("Không thể lưu cài đặt:", error);
+  }
+}
 
 function requestResult(request) {
   return new Promise((resolve, reject) => {
@@ -251,7 +282,7 @@ class IndexedDatabaseRepository {
     return set;
   }
 
-  async recordAttempt(question, answer, correct) {
+  async recordAttempt(question, answer, correct, extra = {}) {
     const now = Date.now();
     const stores =
       question.domain === "vocabulary"
@@ -267,6 +298,7 @@ class IndexedDatabaseRepository {
       correct,
       grade: correct ? 4 : 1,
       attemptedAt: now,
+      ...extra,
     });
 
     let review;
@@ -287,6 +319,99 @@ class IndexedDatabaseRepository {
     await transactionDone(transaction);
     return review;
   }
+
+  async renameSet(setId, name) {
+    const trimmed = String(name ?? "").trim();
+    if (!trimmed) throw new Error("Tên bộ không được để trống.");
+    const imports = await this.all("imports");
+    const record = imports.find((item) => (item.setId || item.id) === setId);
+    if (!record) throw new Error("Không tìm thấy bộ câu hỏi.");
+    const transaction = this.database.transaction("imports", "readwrite");
+    transaction.objectStore("imports").put({ ...record, name: trimmed });
+    await transactionDone(transaction);
+  }
+
+  async deleteSet(setId) {
+    const snapshot = await this.snapshot();
+    const removal = planSetRemoval(snapshot, setId);
+    const transaction = this.database.transaction(
+      ["questions", "attempts", "imports", "reviews"],
+      "readwrite",
+    );
+    const questionStore = transaction.objectStore("questions");
+    removal.questionIds.forEach((id) => questionStore.delete(id));
+    const attemptStore = transaction.objectStore("attempts");
+    removal.attemptIds.forEach((id) => attemptStore.delete(id));
+    const importStore = transaction.objectStore("imports");
+    removal.importIds.forEach((id) => importStore.delete(id));
+    const reviewStore = transaction.objectStore("reviews");
+    removal.reviewKeys.forEach((key) => reviewStore.delete(key));
+    await transactionDone(transaction);
+  }
+
+  async replaceAll(snapshot) {
+    const transaction = this.database.transaction(
+      ["questions", "attempts", "imports", "reviews"],
+      "readwrite",
+    );
+    const questionStore = transaction.objectStore("questions");
+    questionStore.clear();
+    (snapshot.questions ?? []).forEach((question) =>
+      questionStore.put(question),
+    );
+    const reviewStore = transaction.objectStore("reviews");
+    reviewStore.clear();
+    (snapshot.reviews ?? []).forEach((review) => reviewStore.put(review));
+    const attemptStore = transaction.objectStore("attempts");
+    attemptStore.clear();
+    (snapshot.attempts ?? []).forEach((attempt) => attemptStore.put(attempt));
+    const importStore = transaction.objectStore("imports");
+    importStore.clear();
+    (snapshot.imports ?? []).forEach((item) => importStore.put(item));
+    await transactionDone(transaction);
+  }
+
+  async clearAll() {
+    await this.replaceAll({
+      questions: [],
+      reviews: [],
+      attempts: [],
+      imports: [],
+    });
+  }
+}
+
+// Tính trước mọi thứ cần xóa khi gỡ một bộ: câu hỏi, lượt làm, bản ghi
+// nhập và các lịch ôn không còn câu hỏi nào tham chiếu.
+function planSetRemoval(snapshot, setId) {
+  const removedQuestions = snapshot.questions.filter(
+    (question) => questionSetId(question) === setId,
+  );
+  const removedIds = new Set(removedQuestions.map((question) => question.id));
+  const remainingVocabularyKeys = new Set(
+    snapshot.questions
+      .filter(
+        (question) =>
+          !removedIds.has(question.id) &&
+          question.domain === "vocabulary",
+      )
+      .map(learningKeyFor),
+  );
+  return {
+    questionIds: [...removedIds],
+    attemptIds: snapshot.attempts
+      .filter(
+        (attempt) =>
+          attempt.setId === setId || removedIds.has(attempt.questionId),
+      )
+      .map((attempt) => attempt.id),
+    importIds: snapshot.imports
+      .filter((item) => (item.setId || item.id) === setId)
+      .map((item) => item.id),
+    reviewKeys: snapshot.reviews
+      .filter((review) => !remainingVocabularyKeys.has(review.learningKey))
+      .map((review) => review.learningKey),
+  };
 }
 
 class LocalStorageRepository {
@@ -379,7 +504,7 @@ class LocalStorageRepository {
     return set;
   }
 
-  async recordAttempt(question, answer, correct) {
+  async recordAttempt(question, answer, correct, extra = {}) {
     const now = Date.now();
     const attempts = this.read("attempts");
     attempts.push({
@@ -391,6 +516,7 @@ class LocalStorageRepository {
       correct,
       grade: correct ? 4 : 1,
       attemptedAt: now,
+      ...extra,
     });
     this.write("attempts", attempts);
 
@@ -411,6 +537,61 @@ class LocalStorageRepository {
     else reviews.push(review);
     this.write("reviews", reviews);
     return review;
+  }
+
+  async renameSet(setId, name) {
+    const trimmed = String(name ?? "").trim();
+    if (!trimmed) throw new Error("Tên bộ không được để trống.");
+    const imports = this.read("imports");
+    const index = imports.findIndex(
+      (item) => (item.setId || item.id) === setId,
+    );
+    if (index < 0) throw new Error("Không tìm thấy bộ câu hỏi.");
+    imports[index] = { ...imports[index], name: trimmed };
+    this.write("imports", imports);
+  }
+
+  async deleteSet(setId) {
+    const snapshot = await this.snapshot();
+    const removal = planSetRemoval(snapshot, setId);
+    const questionIds = new Set(removal.questionIds);
+    const attemptIds = new Set(removal.attemptIds);
+    const importIds = new Set(removal.importIds);
+    const reviewKeys = new Set(removal.reviewKeys);
+    this.write(
+      "questions",
+      snapshot.questions.filter((question) => !questionIds.has(question.id)),
+    );
+    this.write(
+      "attempts",
+      snapshot.attempts.filter((attempt) => !attemptIds.has(attempt.id)),
+    );
+    this.write(
+      "imports",
+      snapshot.imports.filter((item) => !importIds.has(item.id)),
+    );
+    this.write(
+      "reviews",
+      snapshot.reviews.filter(
+        (review) => !reviewKeys.has(review.learningKey),
+      ),
+    );
+  }
+
+  async replaceAll(snapshot) {
+    this.write("questions", snapshot.questions ?? []);
+    this.write("reviews", snapshot.reviews ?? []);
+    this.write("attempts", snapshot.attempts ?? []);
+    this.write("imports", snapshot.imports ?? []);
+  }
+
+  async clearAll() {
+    await this.replaceAll({
+      questions: [],
+      reviews: [],
+      attempts: [],
+      imports: [],
+    });
   }
 }
 
@@ -523,6 +704,10 @@ export async function readDashboard(repository, requestedSetId = null) {
     ...buildLibrary(questions, sets),
     sets,
     selectedSetId,
+    snapshot,
+    questions,
+    attempts,
+    mistakes: mistakeQuestions(questions, attempts).length,
     stats: buildStats(
       questions,
       snapshot.reviews,
@@ -536,20 +721,23 @@ export function saveStudySession({
   queue,
   selectedSetId,
   sessionDomain,
+  sessionMode,
   sessionTarget,
   sessionDone,
   sessionCorrect,
   result,
 }) {
-  if (!selectedSetId || !sessionDomain || sessionTarget <= 0) return;
+  const mode = sessionMode || sessionDomain;
+  if (!selectedSetId || !mode || sessionTarget <= 0) return;
   try {
     localStorage.setItem(
       ACTIVE_SESSION_KEY,
       JSON.stringify({
-        version: 2,
+        version: 3,
         queueIds: queue.map((question) => question.id),
         selectedSetId,
-        sessionDomain,
+        sessionDomain: sessionDomain ?? null,
+        mode,
         sessionTarget,
         sessionDone,
         sessionCorrect,
@@ -579,9 +767,11 @@ export async function restoreStudySession(repository) {
     return null;
   }
 
+  const mode =
+    saved?.version === 3 ? saved.mode : saved?.sessionDomain;
   if (
-    ![1, 2].includes(saved?.version) ||
-    !["grammar", "vocabulary"].includes(saved.sessionDomain) ||
+    ![1, 2, 3].includes(saved?.version) ||
+    !["grammar", "vocabulary", "mistakes"].includes(mode) ||
     !Array.isArray(saved.queueIds) ||
     !Number.isFinite(saved.sessionTarget) ||
     saved.sessionTarget <= 0
@@ -598,17 +788,20 @@ export async function restoreStudySession(repository) {
     .map((id) => questionsById.get(id))
     .filter(Boolean);
   const selectedSetId =
-    saved.version === 2
+    saved.version >= 2
       ? saved.selectedSetId
       : queue[0]
         ? questionSetId(queue[0])
         : LEGACY_SET_ID;
   const sessionDone = Math.max(0, Number(saved.sessionDone) || 0);
+  const domainMatches =
+    mode === "mistakes" ||
+    queue.every((question) => question.domain === mode);
 
   if (
     !selectedSetId ||
     queue.some((question) => questionSetId(question) !== selectedSetId) ||
-    queue.some((question) => question.domain !== saved.sessionDomain) ||
+    !domainMatches ||
     sessionDone + queue.length !== saved.sessionTarget
   ) {
     clearStudySession();
@@ -618,7 +811,8 @@ export async function restoreStudySession(repository) {
   return {
     queue,
     selectedSetId,
-    sessionDomain: saved.sessionDomain,
+    sessionDomain: mode === "mistakes" ? null : mode,
+    sessionMode: mode,
     sessionTarget: saved.sessionTarget,
     sessionDone,
     sessionCorrect: Math.max(0, Number(saved.sessionCorrect) || 0),

@@ -1,0 +1,19 @@
+{
+  "name": "NẮM English",
+  "short_name": "NẮM",
+  "description": "Luyện ngữ pháp và từ vựng tiếng Anh: chấm ngay, flashcards và spaced repetition.",
+  "lang": "vi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f2ea",
+  "theme_color": "#e0562f",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
