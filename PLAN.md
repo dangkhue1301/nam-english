@@ -7,7 +7,10 @@ Cập nhật: 09/09/2026.
 - Terra Max đã hoàn tất phần triển khai. `npm test`: 64/64 đạt; `npm run build`: đạt, 12 tệp, phiên bản kiểm thử local `5195cf211793`.
 - Agent chính đã rà soát và kiểm tra trình duyệt: nhập CSV Vật lí lớp 8, chấm đúng/sai, tải lại ở màn hình đáp án và kết quả, hoàn tất bộ với 0 câu chưa làm. Câu khoa học sai không lặp lại.
 - Các mẫu CSV cho đủ bốn môn đã được kiểm tra bằng chính parser. Guide không yêu cầu nguồn hoặc số trang cho grammar; vocabulary giữ hướng dẫn SRS.
-- Đã đối chiếu nhánh với GitHub mới nhất, không có thay đổi remote cần hợp nhất. Đang chuẩn bị commit/push; chưa xác nhận bản live đa môn.
+- Đã đẩy commit mã triển khai `5afb003bc395b91229193555d2d0c4f720397cca` lên `main` theo fast-forward, không force. Dùng tài khoản chủ repo cho riêng lệnh Git; không đổi cấu hình đăng nhập lưu trên máy, không ảnh hưởng tài khoản khác.
+- [GitHub Actions 34355746950](https://github.com/dangkhue1301/nam-english/actions/runs/34355746950) đã hoàn tất thành công. Website live đã được mở và xác minh: tên Tiếng Anh · Hóa · Lí · Sinh, kho mặc định trống, hộp thêm CSV hoạt động, không có console error/warning trong lần kiểm tra.
+- Phiên bản tài nguyên live `0e6e757b9c5d` khớp mã đã commit trên GitHub. Hash local khác do kiểu xuống dòng Windows; toàn bộ mô-đun/CSS trên mỗi bản vẫn dùng cùng một phiên bản.
+- Agent chính chạy độc lập 63 kiểm thử logic/dữ liệu: đạt 63/63. Tổng bộ kiểm thử do Terra và CI chạy là 64 bài, gồm cả kiểm thử build.
 
 ## Quy tắc làm việc
 
@@ -86,8 +89,8 @@ Phạm vi hiện tại là ứng dụng tĩnh: IndexedDB trên từng trình duy
 - [x] Test các khối CSV trong Markdown guide qua chính parser.
 - [x] Build không chứa CSV mẫu/test; mọi import JS và CSS dùng cùng phiên bản.
 - [x] Tóm tắt file thay đổi, kết quả test và hạn chế còn lại để agent chính rà soát trước khi xuất bản.
-- [ ] Sau rà soát, cập nhật GitHub Pages bằng push không force, xác minh deploy thành công và web live mở được.
-- [x] Chép guide và PLAN vào thư mục `outputs/` của workspace để người dùng tải; cập nhật lại trạng thái xuất bản sau khi xác minh.
+- [x] Sau rà soát, cập nhật GitHub Pages bằng push không force, xác minh deploy thành công và web live mở được.
+- [x] Chép guide và PLAN vào thư mục `outputs/` của workspace để người dùng tải, đã cập nhật trạng thái xuất bản sau khi xác minh.
 
 ## Tiêu chí hoàn tất
 
