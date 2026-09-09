@@ -3,7 +3,9 @@ import {
   mkdir,
   readFile,
   rm,
+  writeFile,
 } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,9 +23,7 @@ const files = [
   "sw.js",
   "manifest.webmanifest",
   "favicon.svg",
-  "sample_questions.csv",
   "QUESTION_CSV_GUIDE.md",
-  "og.png",
   ".nojekyll",
 ];
 
@@ -52,4 +52,22 @@ await Promise.all(
   ),
 );
 
-console.log(`Đã tạo bản tĩnh gồm ${files.length} tệp trong dist/.`);
+// Mọi mô-đun dùng chung phiên bản tính từ nội dung để tránh trộn bản cũ và mới.
+const sources = await Promise.all(files.filter((file) => /\.(js|css)$/.test(file)).map((file) => readFile(path.join(projectDirectory, file))));
+const hash = createHash("sha256");
+sources.forEach((source) => hash.update(source));
+const version = hash.digest("hex").slice(0, 12);
+for (const file of files.filter((file) => /\.(js|html)$/.test(file))) {
+  const location = path.join(outputDirectory, file);
+  let content = await readFile(location, "utf8");
+  if (file.endsWith(".js") && file !== "sw.js") {
+    content = content.replace(/from "\.\/([a-z-]+\.js)"/g, `from "./$1?v=${version}"`);
+  }
+  if (file === "index.html") {
+    content = content.replace(/\.\/(app\.js|styles\.css)(?:\?[^"']*)?/g, `./$1?v=${version}`);
+    content = content.replace("<head>", `<head>\n    <meta name="build-version" content="${version}">`);
+  }
+  await writeFile(location, content, "utf8");
+}
+
+console.log(`Đã tạo ${files.length} tệp, phiên bản ${version}.`);

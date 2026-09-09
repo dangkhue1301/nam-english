@@ -11,6 +11,13 @@ export const QUESTION_TYPES = [
 
 export const SESSION_QUESTION_LIMIT = 30;
 
+export const SUBJECTS = {
+  english: { name: "Tiếng Anh", short: "Anh", description: "Ngữ pháp và từ vựng" },
+  chemistry: { name: "Hóa học", short: "Hóa", description: "Chất, phản ứng và tính toán" },
+  physics: { name: "Vật lí", short: "Lí", description: "Hiện tượng, quy luật và bài tập" },
+  biology: { name: "Sinh học", short: "Sinh", description: "Sự sống và thế giới tự nhiên" },
+};
+
 export const TYPE_LABELS = {
   mcq: "Chọn đáp án",
   multiple_select: "Chọn nhiều",
@@ -23,6 +30,8 @@ export const TYPE_LABELS = {
 };
 
 export const CSV_HEADERS = [
+  "subject",
+  "grade",
   "id",
   "domain",
   "type",
@@ -53,6 +62,7 @@ export function parseCsv(text) {
   let row = [];
   let field = "";
   let inQuotes = false;
+  let closedQuote = false;
 
   for (let index = 0; index < text.length; index += 1) {
     const char = text[index];
@@ -62,19 +72,27 @@ export function parseCsv(text) {
       if (inQuotes && next === '"') {
         field += '"';
         index += 1;
+      } else if (inQuotes) {
+        inQuotes = false;
+        closedQuote = true;
+      } else if (!field && !closedQuote) {
+        inQuotes = true;
       } else {
-        inQuotes = !inQuotes;
+        throw new Error('CSV có dấu ngoặc kép sai vị trí. Dấu " trong ô phải viết thành "" và bọc cả ô bằng ngoặc kép.');
       }
     } else if (char === "," && !inQuotes) {
       row.push(field);
       field = "";
+      closedQuote = false;
     } else if ((char === "\n" || char === "\r") && !inQuotes) {
       if (char === "\r" && next === "\n") index += 1;
       row.push(field);
       field = "";
+      closedQuote = false;
       if (row.some((cell) => cell.trim())) rows.push(row);
       row = [];
     } else {
+      if (closedQuote && !inQuotes) throw new Error("CSV có ký tự thừa sau dấu ngoặc kép đóng.");
       field += char;
     }
   }
@@ -85,29 +103,29 @@ export function parseCsv(text) {
   return rows;
 }
 
-export function normalizeText(value) {
-  return String(value ?? "")
+export function normalizeText(value, { caseSensitive = false } = {}) {
+  const text = String(value ?? "")
     .normalize("NFKC")
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/[.!?]+$/g, "")
-    .toLocaleLowerCase("en");
+    .replace(/[.!?]+$/g, "");
+  return caseSensitive ? text : text.toLocaleLowerCase("en");
 }
 
-function tokenBag(parts) {
+function tokenBag(parts, settings = {}) {
   return parts
     .flatMap((part) => String(part).split(/\s+/))
-    .map(normalizeText)
+    .map((part) => normalizeText(part, settings))
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b, "en"));
 }
 
-export function orderingAnswerUsesOptions(options, answers) {
-  const optionTokens = tokenBag(options);
-  return answers.some((answer) => {
-    const answerTokens = tokenBag([answer]);
+export function orderingAnswerUsesOptions(options, answers, settings = {}) {
+  const optionTokens = tokenBag(options, settings);
+  return answers.length > 0 && answers.every((answer) => {
+    const answerTokens = tokenBag([answer], settings);
     return (
       optionTokens.length === answerTokens.length &&
       optionTokens.every((token, index) => token === answerTokens[index])
@@ -117,6 +135,9 @@ export function orderingAnswerUsesOptions(options, answers) {
 
 export function buildCsvPreview(text, filename = "questions.csv") {
   const content = String(text).replace(/^\uFEFF/, "");
+  if (new TextEncoder().encode(content).length > 5 * 1024 * 1024) {
+    return { filename, rows: [], errors: ["File vượt quá 5 MB."] };
+  }
   if (content.includes("\uFFFD")) {
     return {
       filename,
@@ -127,7 +148,12 @@ export function buildCsvPreview(text, filename = "questions.csv") {
     };
   }
 
-  const matrix = parseCsv(content);
+  let matrix;
+  try {
+    matrix = parseCsv(content);
+  } catch (error) {
+    return { filename, rows: [], errors: [error.message] };
+  }
   if (matrix.length < 2) {
     return { filename, rows: [], errors: ["File chưa có dòng dữ liệu."] };
   }
@@ -140,12 +166,13 @@ export function buildCsvPreview(text, filename = "questions.csv") {
   const headerIsExact =
     headers.length === CSV_HEADERS.length &&
     CSV_HEADERS.every((header, index) => headers[index] === header);
-  if (!headerIsExact) {
+  const isLegacyEnglish = headers.length === 16 && CSV_HEADERS.slice(2).every((header, index) => headers[index] === header);
+  if (!headerIsExact && !isLegacyEnglish) {
     return {
       filename,
       rows: [],
       errors: [
-        `Header phải có đúng 16 cột theo thứ tự: ${CSV_HEADERS.join(",")}`,
+        `Header phải có đúng 18 cột theo thứ tự: ${CSV_HEADERS.join(",")}. File tiếng Anh cũ 16 cột vẫn được hỗ trợ.`,
       ],
     };
   }
@@ -173,7 +200,15 @@ export function buildCsvPreview(text, filename = "questions.csv") {
       const raw = Object.fromEntries(
         headers.map((header, column) => [header, (cells[column] ?? "").trim()]),
       );
+      if (cells.some((cell) => cell.length > 10_000)) {
+        throw new Error("mỗi ô chỉ được chứa tối đa 10.000 ký tự");
+      }
       const id = raw.id;
+      const subject = isLegacyEnglish ? "english" : raw.subject.toLowerCase();
+      const grade = raw.grade || "";
+      if (!Object.hasOwn(SUBJECTS, subject)) throw new Error("subject phải là english, chemistry, physics hoặc biology");
+      if (subject !== "english" && !["6", "7", "8", "9"].includes(grade)) throw new Error("Hóa, Lí và Sinh cần grade là 6, 7, 8 hoặc 9");
+      if (grade && !["6", "7", "8", "9"].includes(grade)) throw new Error("grade chỉ nhận lớp 6 đến lớp 9");
       const domain =
         raw.domain.toLowerCase() === "vocab"
           ? "vocabulary"
@@ -188,8 +223,8 @@ export function buildCsvPreview(text, filename = "questions.csv") {
           "id chỉ dùng chữ, số, dấu chấm, gạch ngang hoặc gạch dưới",
         );
       }
-      if (!["grammar", "vocabulary"].includes(domain)) {
-        throw new Error("domain phải là grammar hoặc vocabulary");
+      if (subject === "english" ? !["grammar", "vocabulary"].includes(domain) : domain !== "practice") {
+        throw new Error("Tiếng Anh dùng domain grammar/vocabulary; Hóa, Lí và Sinh dùng practice");
       }
       if (!QUESTION_TYPES.includes(type)) {
         throw new Error(`type không hỗ trợ: ${raw.type}`);
@@ -197,14 +232,25 @@ export function buildCsvPreview(text, filename = "questions.csv") {
       if (!raw.topic || !raw.prompt) {
         throw new Error("thiếu topic hoặc prompt");
       }
-      if (domain === "grammar" && !raw.theory) {
-        throw new Error("grammar cần theory bằng tiếng Việt có dấu");
+      if (!raw.explanation) throw new Error("thiếu explanation (giải thích đáp án)");
+      if (raw.difficulty && !/^[1-5]$/.test(raw.difficulty)) {
+        throw new Error("difficulty phải là số nguyên từ 1 đến 5");
+      }
+      if (domain !== "vocabulary" && !raw.theory) {
+        throw new Error("grammar và practice cần theory bằng tiếng Việt có dấu");
       }
       if (domain === "vocabulary" && !raw.learning_key) {
         throw new Error("vocabulary cần learning_key");
       }
 
       const optionItems = splitList(raw.options);
+      const tags = splitList(raw.tags);
+      const normalize = (value) => normalizeText(value, { caseSensitive: tags.includes("case-sensitive") });
+      if (optionItems.length > 30) throw new Error("mỗi câu nhận tối đa 30 options");
+      if (["mcq", "multiple_select"].includes(type) &&
+          new Set(optionItems.map(normalize)).size !== optionItems.length) {
+        throw new Error("options bị trùng sau khi chuẩn hóa chữ và dấu câu");
+      }
       let options = optionItems;
       let answer = splitList(raw.answer);
 
@@ -223,8 +269,8 @@ export function buildCsvPreview(text, filename = "questions.csv") {
           throw new Error("matching cần ít nhất 2 cặp hợp lệ");
         }
         if (
-          new Set(pairs.map((pair) => pair.left)).size !== pairs.length ||
-          new Set(pairs.map((pair) => pair.right)).size !== pairs.length
+          new Set(pairs.map((pair) => normalize(pair.left))).size !== pairs.length ||
+          new Set(pairs.map((pair) => normalize(pair.right))).size !== pairs.length
         ) {
           throw new Error(
             "matching không được trùng vế trái hoặc vế phải",
@@ -246,13 +292,15 @@ export function buildCsvPreview(text, filename = "questions.csv") {
         if (type === "mcq" && answers.length !== 1) {
           throw new Error("mcq cần đúng 1 đáp án");
         }
+        if (type === "multiple_select" && (new Set(answers.map(normalize)).size < 2 || new Set(answers.map(normalize)).size !== answers.length)) {
+          throw new Error("multiple_select cần ít nhất 2 đáp án đúng khác nhau");
+        }
         if (
           ["mcq", "multiple_select"].includes(type) &&
           !answers.every((item) =>
             optionItems.some(
               (option) =>
-                option.toLocaleLowerCase("en") ===
-                item.toLocaleLowerCase("en"),
+                normalize(option) === normalize(item),
             ),
           )
         ) {
@@ -260,7 +308,9 @@ export function buildCsvPreview(text, filename = "questions.csv") {
         }
         if (
           type === "ordering" &&
-          !orderingAnswerUsesOptions(optionItems, answers)
+          !orderingAnswerUsesOptions(optionItems, answers, {
+            caseSensitive: tags.includes("case-sensitive"),
+          })
         ) {
           throw new Error("answer không dùng đúng tập token trong options");
         }
@@ -269,6 +319,8 @@ export function buildCsvPreview(text, filename = "questions.csv") {
 
       ids.add(id);
       rows.push({
+        subject,
+        grade,
         id,
         domain,
         type,
@@ -282,7 +334,7 @@ export function buildCsvPreview(text, filename = "questions.csv") {
         explanation: raw.explanation,
         theory: raw.theory,
         hint: raw.hint,
-        tags: splitList(raw.tags),
+        tags,
         difficulty: Math.min(
           5,
           Math.max(1, Number(raw.difficulty) || 2),
@@ -297,13 +349,15 @@ export function buildCsvPreview(text, filename = "questions.csv") {
     }
   });
 
+  if (new Set(rows.map((row) => row.subject)).size > 1) errors.push("Mỗi CSV chỉ chứa một môn. Hãy tách thành file riêng cho từng môn.");
   return { filename, rows: errors.length ? [] : rows, errors };
 }
 
-export function evaluateAnswer(expected, received, type) {
+export function evaluateAnswer(expected, received, type, settings = {}) {
+  const normalize = (value) => normalizeText(value, settings);
   if (type === "matching") {
     if (
-      !received ||
+      !expected || !received ||
       typeof received !== "object" ||
       Array.isArray(received) ||
       Array.isArray(expected)
@@ -313,17 +367,18 @@ export function evaluateAnswer(expected, received, type) {
     const expectedEntries = Object.entries(expected);
     return (
       expectedEntries.length > 0 &&
+      Object.keys(received).length === expectedEntries.length &&
       expectedEntries.every(
         ([left, right]) =>
-          normalizeText(received[left]) === normalizeText(right),
+          normalize(received[left]) === normalize(right),
       )
     );
   }
 
   if (type === "multiple_select") {
     if (!Array.isArray(expected) || !Array.isArray(received)) return false;
-    const expectedSet = new Set(expected.map(normalizeText));
-    const receivedSet = new Set(received.map(normalizeText));
+    const expectedSet = new Set(expected.map(normalize));
+    const receivedSet = new Set(received.map(normalize));
     return (
       expectedSet.size === receivedSet.size &&
       [...expectedSet].every((answer) => receivedSet.has(answer))
@@ -331,15 +386,15 @@ export function evaluateAnswer(expected, received, type) {
   }
 
   if (!Array.isArray(expected)) return false;
-  const submitted = normalizeText(
+  const submitted = normalize(
     Array.isArray(received) ? received.join(" ") : received,
   );
-  return expected.some((answer) => normalizeText(answer) === submitted);
+  return Boolean(submitted) && expected.some((answer) => normalize(answer) === submitted);
 }
 
 export function displayAnswer(expected) {
   if (Array.isArray(expected)) return expected.join(" / ");
-  return Object.entries(expected)
+  return Object.entries(expected ?? {})
     .map(([left, right]) => `${left} → ${right}`)
     .join(" · ");
 }
@@ -431,6 +486,7 @@ export function selectQuestions(
     domain,
     level = "all",
     topic = "all",
+    grade = "all",
     limit = SESSION_QUESTION_LIMIT,
     now = Date.now(),
     completedQuestionIds = [],
@@ -444,6 +500,7 @@ export function selectQuestions(
       question.active !== false &&
       (!setId || question.setId === setId) &&
       question.domain === domain &&
+      (grade === "all" || question.grade === grade) &&
       (level === "all" ||
         question.level.toLocaleLowerCase("en") ===
           level.toLocaleLowerCase("en")) &&
@@ -452,7 +509,7 @@ export function selectQuestions(
           topic.toLocaleLowerCase("en")),
   );
 
-  if (domain === "grammar") {
+  if (domain !== "vocabulary") {
     return shuffle(
       filtered.filter((question) => !completedQuestions.has(question.id)),
     ).slice(0, limit);
@@ -491,11 +548,13 @@ export function buildLibrary(questions, imports) {
   questions
     .filter((question) => question.active !== false)
     .forEach((question) => {
-      const key = `${question.domain}\u0000${question.level}\u0000${question.topic}`;
+      const key = `${question.subject || "english"}\u0000${question.grade || ""}\u0000${question.domain}\u0000${question.level}\u0000${question.topic}`;
       const current = grouped.get(key);
       if (current) current.count += 1;
       else {
         grouped.set(key, {
+          subject: question.subject || "english",
+          grade: question.grade || "",
           domain: question.domain,
           level: question.level,
           topic: question.topic,
@@ -507,6 +566,8 @@ export function buildLibrary(questions, imports) {
   return {
     topics: [...grouped.values()].sort(
       (a, b) =>
+        a.subject.localeCompare(b.subject) ||
+        a.grade.localeCompare(b.grade) ||
         a.domain.localeCompare(b.domain) ||
         a.level.localeCompare(b.level) ||
         a.topic.localeCompare(b.topic),
@@ -529,6 +590,7 @@ export function buildStats(
     active.map((question) => [question.id, question]),
   );
   const completedGrammarIds = new Set();
+  const completedPracticeIds = new Set();
   const completedVocabularyKeys = new Set();
 
   attempts.forEach((attempt) => {
@@ -536,6 +598,8 @@ export function buildStats(
     if (!question) return;
     if (question.domain === "grammar") {
       completedGrammarIds.add(question.id);
+    } else if (question.domain === "practice") {
+      completedPracticeIds.add(question.id);
     } else if (question.domain === "vocabulary" && attempt.correct) {
       completedVocabularyKeys.add(learningKeyFor(question));
     }
@@ -576,6 +640,8 @@ export function buildStats(
   )[0];
 
   return {
+    practice: active.filter((q) => q.domain === "practice").length,
+    practiceRemaining: active.filter((q) => q.domain === "practice" && !completedPracticeIds.has(q.id)).length,
     grammar: active.filter((question) => question.domain === "grammar").length,
     grammarRemaining: active.filter(
       (question) =>

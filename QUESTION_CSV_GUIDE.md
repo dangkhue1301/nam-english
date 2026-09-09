@@ -1,283 +1,180 @@
-# Hướng dẫn tạo CSV câu hỏi cho NẮM English
+# Hướng dẫn tạo bộ CSV cho NẮM Học tập
 
-Tài liệu này dùng để gửi cho ChatGPT, Claude, Gemini hoặc AI khác tạo ngân hàng
-câu hỏi tương thích với website NẮM English.
+NẮM là website tự luyện trên trình duyệt cho Tiếng Anh, Hóa học, Vật lí và Sinh học lớp 6–9. Mỗi file CSV tạo thành **một bộ riêng**; một file chỉ được chứa **một môn**. Website chấm bằng đáp án đã có trong CSV, không gửi câu hỏi lên AI hay máy chủ.
 
-## 1. Yêu cầu đầu ra
+## Prompt dùng ngay
 
-- Xuất đúng **một file CSV mã hóa UTF-8**.
-- Dòng đầu tiên phải là header bên dưới, đúng tên và đúng thứ tự.
-- File thật không có dấu ``` và không kèm lời giải thích ngoài CSV.
-- Mỗi lần tối đa 2.000 câu, dung lượng tối đa 5 MB.
-- Nội dung câu hỏi, ngữ cảnh, lựa chọn và đáp án viết bằng tiếng Anh.
-- `theory`, `hint`, `explanation` viết bằng tiếng Việt có dấu, ngắn và rõ.
-- Câu hỏi phải do AI tự soạn, không sao chép nguyên văn bài tập trong sách.
+Gửi cả file hướng dẫn này cho AI tạo câu hỏi, rồi dùng một trong các prompt dưới đây. Thay phần trong ngoặc vuông.
 
-Header bắt buộc:
+### Tiếng Anh — grammar
 
-```csv
+```text
+Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo hướng dẫn tôi đính kèm.
+
+- Môn: english
+- Phần học: grammar
+- Trình độ: [A1/A2/B1/B2/mixed]
+- Chủ điểm được giao: [ví dụ: Present perfect]
+- Số câu: [50]
+- Tên file: [english-present-perfect.csv]
+
+Tự soạn câu mới chỉ theo chủ điểm được giao; không cần nguồn, tên sách hay số trang. Dùng đa dạng dạng bài phù hợp, mỗi câu có theory và explanation bằng tiếng Việt có dấu. Trả một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
+```
+
+### Tiếng Anh — vocabulary
+
+```text
+Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo hướng dẫn tôi đính kèm.
+
+- Môn: english
+- Phần học: vocabulary
+- Trình độ: [A1/A2/B1/B2/mixed]
+- Chủ đề hoặc danh sách từ: [điền ở đây]
+- Số mục từ: [50]
+- Tên file: [english-work-vocabulary.csv]
+
+Mỗi mục phải có learning_key ổn định theo từ/cụm từ + từ loại + nghĩa. Cùng nghĩa dùng cùng key, nghĩa khác dùng key khác. Explanation và hint viết bằng tiếng Việt có dấu; theory có thể để trống. Trả một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
+```
+
+### Hóa học
+
+```text
+Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo hướng dẫn tôi đính kèm.
+
+- Môn: chemistry
+- Lớp: [6/7/8/9]
+- Chủ điểm: [ví dụ: Công thức hóa học]
+- Số câu: [30]
+- Tên file: [chemistry-grade-8-formulas.csv]
+
+Đặt subject=chemistry, grade đúng lớp đã giao và domain=practice cho mọi dòng. Viết prompt, context, explanation, theory, hint bằng tiếng Việt có dấu; dùng kiến thức cơ bản, đáp án xác định được bằng máy. Khi cần phân biệt CO với Co hoặc ký hiệu/đơn vị hoa-thường, thêm tags=case-sensitive. Trả một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
+```
+
+### Vật lí hoặc Sinh học
+
+```text
+Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo hướng dẫn tôi đính kèm.
+
+- Môn: [physics hoặc biology]
+- Lớp: [6/7/8/9]
+- Chủ điểm: [điền ở đây]
+- Số câu: [30]
+- Tên file: [physics-or-biology-grade-x-topic.csv]
+
+Đặt subject đúng môn, grade đúng lớp đã giao và domain=practice cho mọi dòng. Viết prompt, context, explanation, theory, hint bằng tiếng Việt có dấu; dùng kiến thức cơ bản và đáp án xác định được bằng máy. Với đáp án số, nêu đơn vị ngay trong đề rồi chỉ yêu cầu học sinh nhập số. Trả một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
+```
+
+## Hợp đồng dữ liệu CSV
+
+- File `.csv` dùng UTF-8 (có hoặc không BOM), dấu phân cách là dấu phẩy `,`.
+- Mỗi file nhận 1–2.000 câu, tối đa 5 MB; mỗi ô tối đa 10.000 ký tự.
+- Dòng đầu phải đúng **18 cột**, đúng thứ tự sau:
+
+```text
+subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
+```
+
+- Mỗi dòng dữ liệu phải có đúng 18 ô. Nên bọc mọi ô bằng dấu ngoặc kép thẳng `"`. Dấu `"` bên trong ô phải viết thành `""`; ô trống viết `""`.
+- Không dùng dấu chấm phẩy để ngăn cột. Không dùng `||` như văn bản thông thường vì ký hiệu này phân tách lựa chọn/đáp án.
+- ID phải duy nhất trong **file**, dùng chữ Latin, số, `.`, `_`, `-`. ID trùng ở hai file khác vẫn an toàn: mỗi file là một bộ riêng.
+- Không trộn Hóa, Lí, Sinh và Tiếng Anh trong cùng một CSV. Nếu có nhiều môn, tách thành nhiều file/bộ.
+
+| Cột | Cách điền |
+|---|---|
+| `subject` | Bắt buộc: `english`, `chemistry`, `physics`, hoặc `biology`. Mọi dòng trong một file phải cùng giá trị. |
+| `grade` | Tiếng Anh để trống. Hóa/Lí/Sinh bắt buộc là đúng một trong `6`, `7`, `8`, `9`. |
+| `id` | Bắt buộc, duy nhất trong file; ví dụ `c-formula-001`. |
+| `domain` | Tiếng Anh: `grammar` hoặc `vocabulary`. Hóa/Lí/Sinh: luôn là `practice`. |
+| `type` | Một trong 8 dạng ở bảng bên dưới. |
+| `level` | Hữu ích cho Tiếng Anh (`A1`…`C2`, `mixed`); có thể để `mixed` cho khoa học. |
+| `topic` | Bắt buộc; tên chủ điểm nhất quán để lọc. |
+| `subtopic` | Trọng tâm nhỏ; có thể trống. |
+| `prompt` | Bắt buộc; yêu cầu rõ ràng. Khoa học dùng tiếng Việt có dấu. |
+| `context` | Câu, số liệu hoặc đoạn cần xử lý; có thể trống nếu prompt đã đủ ngữ cảnh. |
+| `options` | Lựa chọn/từ/cặp ghép, ngăn bằng `||`; cách dùng theo `type`. |
+| `answer` | Đáp án; các cách viết tương đương được chấp nhận ngăn bằng `||`. Riêng `matching` để trống. |
+| `explanation` | Bắt buộc; giải thích đáp án bằng tiếng Việt có dấu. |
+| `theory` | Bắt buộc với `grammar` và `practice`; nhắc lý thuyết ngắn bằng tiếng Việt có dấu. `vocabulary` có thể trống. |
+| `hint` | Gợi ý ngắn không lộ đáp án; có thể trống. |
+| `tags` | Nhãn ngăn bằng `||`; dùng chính xác `case-sensitive` khi cần phân biệt hoa/thường. |
+| `difficulty` | Số nguyên `1`–`5`; để trống thì mặc định `2`. |
+| `learning_key` | Bắt buộc với `vocabulary`; các domain khác để trống. |
+
+### Tương thích file Tiếng Anh cũ
+
+File Tiếng Anh 16 cột cũ vẫn nhập được nếu header đúng thứ tự dưới đây. Website tự hiểu `subject=english` và `grade` trống. File mới nên luôn dùng 18 cột.
+
+```text
 id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
 ```
 
-## 2. Ý nghĩa từng cột
+## Tám dạng bài và cách chấm
 
-| Cột | Quy tắc |
-|---|---|
-| `id` | ID duy nhất và ổn định. Chỉ dùng chữ, số, `.`, `_`, `-`. Ví dụ `g-b1-present-001`. |
-| `domain` | Chỉ nhận `grammar` hoặc `vocabulary`. |
-| `type` | Một trong 8 loại ở mục 3. |
-| `level` | Nên dùng `A1`, `A2`, `B1`, `B2`, `C1`, `C2` hoặc `mixed`. |
-| `topic` | Tên chủ điểm chính, viết thống nhất giữa các câu. |
-| `subtopic` | Chủ điểm nhỏ; có thể để trống. |
-| `prompt` | Yêu cầu ngắn bằng tiếng Anh. |
-| `context` | Câu, đoạn ngắn hoặc ngữ cảnh cần xử lý; có thể để trống. |
-| `options` | Các lựa chọn/từ/cặp, phân cách bằng `||`. Quy tắc tùy `type`. |
-| `answer` | Đáp án máy chấm. Nhiều đáp án dùng `||`. |
-| `explanation` | Vì sao đáp án đúng, viết tiếng Việt có dấu; nên dưới 500 ký tự. |
-| `theory` | Bắt buộc với grammar: lý thuyết cốt lõi, viết tiếng Việt có dấu; nên dưới 350 ký tự. |
-| `hint` | Gợi ý không lộ toàn bộ đáp án; nên dưới 160 ký tự. |
-| `tags` | Tag phân cách bằng `||`, ví dụ `present-perfect||experience`. |
-| `difficulty` | Số nguyên từ `1` đến `5`. |
-| `learning_key` | Bắt buộc với vocabulary; để trống với grammar. Xem mục 4. |
+| `type` | `options` | `answer` |
+|---|---|---|
+| `mcq` | 2–30 lựa chọn khác nhau | Đúng 1 lựa chọn, ghi nguyên nội dung, không ghi A/B/C/D. |
+| `multiple_select` | 2–30 lựa chọn khác nhau | Ít nhất 2 đáp án đúng khác nhau, ngăn bằng `||`; phải chọn đúng đủ. |
+| `fill_blank` | Để trống | Từ, cụm từ hoặc số cần điền. |
+| `error_correction` | Để trống | Toàn bộ câu đã sửa; chỉ tạo lỗi có một đáp án rõ ràng. |
+| `sentence_transformation` | Để trống | Toàn bộ câu viết lại; cung cấp từ khóa/ràng buộc để đáp án không mơ hồ. |
+| `word_formation` | Để trống | Dạng từ cần điền; nêu từ gốc trong prompt/context. |
+| `ordering` | 2–30 từ/cụm ngăn bằng `||` | Câu hoàn chỉnh phải dùng đúng toàn bộ token, đúng số lần, không thêm bớt. |
+| `matching` | 2–30 cặp `left=>right`, ngăn bằng `||` | Để trống; đáp án lấy từ chính các cặp, không trùng vế trái/vế phải. |
 
-Nếu một ô chứa dấu phẩy, dấu ngoặc kép hoặc xuống dòng, phải bọc ô bằng dấu
-ngoặc kép theo chuẩn CSV. Dấu `"` bên trong ô phải viết thành `""`.
+Máy chấm chuẩn hóa Unicode, khoảng trắng thừa, nháy cong/thẳng và dấu `.`, `!`, `?` cuối câu. Mặc định không phân biệt hoa/thường. Khi `tags` có `case-sensitive`, máy giữ nguyên hoa/thường ở cả options, đáp án, ordering và chấm nhập chữ. Ví dụ `CO` (carbon monoxide) và `Co` (cobalt) phải có tag này.
 
-## 3. Tám loại bài tập
+Máy **không** tự hiểu từ đồng nghĩa, lỗi chính tả, đáp án gần đúng hay bài tự luận. Với nhập chữ, `answer="is not||isn't"` nghĩa là chấp nhận một trong hai cách viết. Với bài số, nêu đơn vị trong prompt/context, ví dụ “đơn vị g/cm³ đã cho sẵn”, và để `answer` chỉ là số như `2`; không dùng dung sai hoặc chấm bằng AI.
 
-### `mcq`
+## Ví dụ từng môn
 
-- Một đáp án đúng.
-- `options`: ít nhất 2 lựa chọn, phân cách bằng `||`.
-- `answer`: đúng chính tả như một lựa chọn trong `options`.
+Các khối dưới đây là file riêng, hợp lệ để kiểm tra định dạng; chúng không phải kho bài mặc định.
 
-Ví dụ:
+### Tiếng Anh
 
 ```csv
-"g-b1-001","grammar","mcq","B1","Present simple & continuous","","Choose the correct option.","Mia ___ a lesson right now.","takes||is taking||took||has taken","is taking","Cụm right now cho biết hành động đang diễn ra.","Hiện tại tiếp diễn: am/is/are + V-ing.","Chú ý cụm chỉ thời gian.","present-continuous||time-marker","1",""
+subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
+"english","","g-ptc-001","grammar","mcq","B1","Present continuous","","Choose the correct option.","Mia ___ a lesson right now.","takes||is taking||took||has taken","is taking","Cụm right now cho biết hành động đang diễn ra, nên dùng is taking.","Hiện tại tiếp diễn: S + am/is/are + V-ing.","Chú ý cụm chỉ thời gian.","present-continuous","1",""
+"english","","v-work-001","vocabulary","word_formation","B1","Work","","Use the correct form of RELY.","We need a ___ assistant.","","reliable","Trước assistant cần tính từ reliable, nghĩa là đáng tin cậy.","","Cần một tính từ.","adjectives","2","vocab:reliable:adjective:dependable"
 ```
 
-### `multiple_select`
+### Hóa học lớp 8
 
-- Có từ 2 đáp án đúng trở lên.
-- `options`: toàn bộ lựa chọn, phân cách bằng `||`.
-- `answer`: chỉ các lựa chọn đúng, cũng phân cách bằng `||`.
-- Thứ tự các đáp án đúng không ảnh hưởng kết quả chấm.
-
-### `fill_blank`
-
-- Dùng `___` trong `context` để đánh dấu phần thiếu.
-- `options` để trống.
-- `answer`: câu trả lời cần nhập. Nếu chấp nhận nhiều cách viết, phân cách
-  bằng `||`.
-- Nếu có nhiều chỗ trống, người học nhập cả cụm đáp án theo đúng thứ tự.
-
-### `error_correction`
-
-- `context`: câu có lỗi.
-- `options` để trống.
-- `answer`: toàn bộ câu đã sửa. Các phương án tương đương phân cách bằng `||`.
-
-### `sentence_transformation`
-
-- `context`: câu gốc và từ khóa nếu có.
-- `answer`: toàn bộ câu viết lại. Liệt kê rõ mọi phương án được chấp nhận.
-- Không dùng biểu thức chính quy, mã JavaScript hoặc đáp án mơ hồ.
-
-### `word_formation`
-
-- Nêu từ gốc bằng chữ in hoa trong `prompt` hoặc `context`.
-- `answer`: dạng từ chính xác cần điền.
-
-### `ordering`
-
-- `options`: các từ/cụm từ đã xáo trộn, phân cách bằng `||`.
-- `answer`: câu hoàn chỉnh đúng thứ tự.
-- Giữ dấu câu gắn với token liên quan, ví dụ `earlier,` hoặc `time.`.
-
-### `matching`
-
-- `options`: mỗi cặp viết theo dạng `vế trái=>vế phải`.
-- Nhiều cặp phân cách bằng `||`.
-- `answer` để trống; website tự tạo đáp án từ các cặp và xáo trộn vế phải.
-
-Ví dụ:
-
-```text
-who=>people||which=>things||where=>places||whose=>possession
+```csv
+subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
+"chemistry","8","c-formula-001","practice","mcq","mixed","Công thức hóa học","Phân biệt kí hiệu","Công thức nào là carbon monoxide (cacbon monoxit)?","","CO||Co||CO2","CO","CO là công thức của carbon monoxide; Co là kí hiệu nguyên tố cobalt.","Kí hiệu hóa học phân biệt chữ hoa và chữ thường; công thức cho biết thành phần chất.","So sánh số chữ cái viết hoa.","case-sensitive","1",""
+"chemistry","8","c-molar-002","practice","fill_blank","mixed","Khối lượng mol","","Điền số; đơn vị g/mol đã cho sẵn.","Khối lượng mol của H2O là ___ g/mol.","","18","H2O gồm 2 H (2 g/mol) và 1 O (16 g/mol), tổng là 18 g/mol.","Khối lượng mol bằng tổng nguyên tử khối của các nguyên tử trong công thức.","Cộng 2 × 1 và 16.","","2",""
 ```
 
-## 4. Quy tắc riêng cho vocabulary và spaced repetition
+### Vật lí lớp 8
 
-- `learning_key` là bắt buộc với mọi câu `domain=vocabulary`.
-- Một `learning_key` đại diện cho **một từ/cụm từ + từ loại + một nghĩa**.
-- Các dạng bài khác nhau của cùng một nghĩa phải dùng chung `learning_key`.
-- Hai nghĩa khác nhau hoặc hai từ loại khác nhau phải dùng key khác nhau.
-
-Mẫu khuyên dùng:
-
-```text
-vocab:<từ-hoặc-cụm-từ>:<từ-loại>:<nghĩa-ngắn>
+```csv
+subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
+"physics","8","p-force-001","practice","mcq","mixed","Lực","Đơn vị đo","Đơn vị SI của lực là gì?","","N||J||W","N","Newton, kí hiệu N, là đơn vị SI của lực.","Lực được đo bằng newton, kí hiệu N.","Phân biệt lực với năng lượng và công suất.","case-sensitive","1",""
+"physics","8","p-density-002","practice","fill_blank","mixed","Khối lượng riêng","Tính toán","Điền số; đơn vị g/cm³ đã cho sẵn.","Một vật có khối lượng 200 g và thể tích 100 cm³. Khối lượng riêng là ___ g/cm³.","","2","Khối lượng riêng bằng 200 chia 100, bằng 2 g/cm³.","Khối lượng riêng D = m / V.","Lấy khối lượng chia thể tích.","","2",""
 ```
 
-Ví dụ:
+### Sinh học lớp 7
 
-```text
-vocab:allocate:verb:set-aside
-vocab:record:noun:stored-information
-vocab:record:verb:store-information
+```csv
+subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
+"biology","7","b-photo-001","practice","mcq","mixed","Quang hợp","Cơ quan thực hiện","Bộ phận nào của cây xanh thực hiện quang hợp chủ yếu?","","Rễ||Lá||Hoa||Hạt","Lá","Lá chứa nhiều lục lạp nên là cơ quan quang hợp chủ yếu.","Quang hợp chủ yếu diễn ra ở lá, nơi có lục lạp chứa diệp lục.","Nghĩ về bộ phận nhận nhiều ánh sáng.","","1",""
+"biology","7","b-cell-002","practice","fill_blank","mixed","Tế bào","Đơn vị cơ bản","Điền cụm từ thích hợp.","Tế bào là đơn vị cấu tạo và chức năng cơ bản của ___ .","","cơ thể sống","Tế bào tạo nên cơ thể sống và thực hiện các chức năng sống cơ bản.","Tế bào là đơn vị cấu tạo và chức năng của cơ thể sống.","Đây là khái niệm nền tảng của sinh học.","","1",""
 ```
 
-Website chỉ đưa một biến thể của cùng `learning_key` vào một lượt ôn. Nếu làm
-sai, câu đó quay lại cuối hàng đợi. Nếu làm đúng, lịch ôn được giãn dần.
+## Vocabulary và lịch ôn
 
-Vocabulary có thể ở level bất kỳ và chủ đề tự do. Nên trộn:
+Mỗi `learning_key` đại diện cho một từ/cụm từ + từ loại + nghĩa cụ thể, ví dụ `vocab:record:noun:stored-information`. Cùng key có thể có nhiều câu biến thể, nhưng website chỉ chọn một biến thể trong một lượt.
 
-- nghĩa từ và chọn định nghĩa;
-- từ đồng nghĩa/trái nghĩa;
-- collocation;
-- phrasal verb;
-- word formation;
-- điền từ theo ngữ cảnh;
-- ghép từ với nghĩa;
-- sắp xếp thành câu tự nhiên.
+- Lần học đầu được tính riêng theo từng bộ.
+- Lịch ôn theo `learning_key` dùng chung giữa các bộ.
+- Trả lời sai vocabulary/thẻ ghi nhớ sẽ quay lại cuối lượt đến khi đúng.
+- Đúng lần đầu hẹn ôn sau 1 ngày, lần hai sau 6 ngày, rồi giãn dần; sai hẹn lại sau 10 phút.
+- `grammar` và `practice` không dùng SRS: câu đã chấm, đúng hay sai, sẽ không lặp trong bộ.
 
-## 5. Quy tắc riêng cho grammar
+## Kiểm tra và nhập file
 
-Mỗi câu grammar bắt buộc có `theory` và nên có:
+Trước khi giao CSV, tự kiểm tra header, 18 ô mỗi dòng, UTF-8, ngoặc kép, ID, subject/grade/domain, type, options, đáp án và theory/explanation bắt buộc. Một dòng lỗi khiến website từ chối toàn bộ file, không nhập một phần.
 
-- một mục tiêu ngữ pháp rõ ràng;
-- `theory` nhắc đúng một quy tắc cốt lõi;
-- `explanation` giải thích vì sao đáp án đúng trong ngữ cảnh cụ thể;
-- `hint` giúp nhớ dấu hiệu nhưng không đọc thẳng đáp án;
-- distractor hợp lý, không đánh đố bằng lỗi chính tả vô nghĩa.
+Mở [NẮM Học tập](https://dangkhue1301.github.io/nam-english/) → **Thêm bộ CSV** → chọn file → xem kết quả kiểm tra → đặt tên bộ → **Thêm vào kho**. Chọn môn/bộ/lớp rồi bắt đầu lượt học. Mỗi lượt tối đa 30 câu; bộ grammar hoặc practice 50 câu sẽ chia thành 30 rồi 20, không lặp câu đã chấm.
 
-Nên phân phối đều 8 dạng bài, không tạo toàn bộ dưới dạng trắc nghiệm.
-
-Người dùng có thể chọn topic từ danh sách dưới đây hoặc cung cấp một topic
-grammar tương đương. AI phải giữ nguyên topic được giao và tự soạn nội dung mới:
-
-### Cambridge Grammar for IELTS
-
-- Unit 1: Present tenses
-- Unit 2: Past tenses 1
-- Unit 3: Past tenses 2
-- Unit 4: Present perfect
-- Unit 5: Future forms 1
-- Unit 6: Future forms 2
-- Unit 7: Countable and uncountable nouns
-- Unit 8: Referring to nouns / determiners and articles
-- Unit 9: Pronouns and referencing
-- Unit 10: Adjectives and adverbs
-- Unit 11: Comparatives and comparisons
-- Unit 12: The noun phrase
-- Unit 13: Modal verbs 1
-- Unit 14: Modal verbs 2
-- Unit 15: Reported speech
-- Unit 16: Conditionals
-- Unit 17: The passive
-- Unit 18: Relative clauses
-- Unit 19: Linking ideas
-- Unit 20: Giving reasons and results
-- Unit 21: Verb + to-infinitive or -ing
-- Unit 22: Verbs and prepositions
-- Unit 23: Phrasal verbs
-- Unit 24: The subjunctive
-- Unit 25: Word order
-
-### Destination B1
-
-- Unit 1: Present simple, present continuous and stative verbs
-- Unit 2: Past simple, past continuous and used to
-- Unit 4: Present perfect simple and present perfect continuous
-- Unit 5: Past perfect simple and past perfect continuous
-- Unit 7: Future time
-- Unit 8: Prepositions of time and place
-- Unit 10: Passive voice 1
-- Unit 11: Passive voice 2
-- Unit 13: Countable and uncountable nouns
-- Unit 14: Articles
-- Unit 16: Pronouns and possessive determiners
-- Unit 17: Relative clauses
-- Unit 19: Modals: ability, permission and advice
-- Unit 20: Modals: obligation, probability and possibility
-- Unit 22: Modal perfect
-- Unit 23: Questions, question tags and indirect questions
-- Unit 25: So/such and too/enough
-- Unit 26: Comparatives and superlatives
-- Unit 28: Zero, first and second conditionals
-- Unit 29: Third conditional
-- Unit 31: Reported speech
-- Unit 32: Reported questions, orders and requests
-- Unit 34: Direct and indirect objects
-- Unit 35: Wish
-- Unit 37: -ing forms and infinitives
-- Unit 38: Both/either/neither and so/nor
-- Unit 40: Connectives
-- Unit 41: Causative
-
-### Destination B2
-
-- Unit 1: Present time
-- Unit 3: Past time
-- Unit 5: Future time; present tenses in time clauses; prepositions of time/place
-- Unit 7: Articles; countable/uncountable nouns; quantifiers
-- Unit 9: Zero, first, second, third, mixed and inverted conditionals
-- Unit 11: Comparatives/superlatives; so/such; enough/too
-- Unit 13: Modal verbs
-- Unit 15: Passive; causative; direct and indirect objects
-- Unit 17: -ing forms and infinitives; prefer/would rather/had better
-- Unit 19: Questions, question tags and indirect questions
-- Unit 21: Reported speech, reported questions and reporting verbs
-- Unit 23: Relative clauses and participles
-- Unit 25: Unreal past, wishes and contrast
-- Unit 27: Inversions and possessives
-
-Đây là danh sách topic gợi ý để người dùng lựa chọn. Khi người dùng đã cung cấp
-topic, AI chỉ cần tự soạn câu hỏi mới bám đúng topic đó. Dùng trọng tâm nhỏ hơn
-trong `subtopic`; không cần đọc lại PDF hoặc đối chiếu vị trí trong sách.
-
-## 6. Checklist trước khi trả file
-
-- Header đúng 16 cột và đúng thứ tự.
-- Tất cả `id` là duy nhất.
-- Mọi dòng có `domain`, `type`, `level`, `topic`, `prompt`, `answer` phù hợp.
-- `mcq` có đúng 1 đáp án và đáp án nằm trong `options`.
-- `multiple_select` chỉ liệt kê đáp án có trong `options`.
-- `matching` có ít nhất 2 cặp đúng cú pháp `left=>right`.
-- `ordering` có token đã xáo trộn và câu hoàn chỉnh trong `answer`.
-- Mọi vocabulary có `learning_key`.
-- Cùng một nghĩa từ dùng cùng `learning_key`.
-- Tiếng Việt có dấu đầy đủ trong `theory`, `hint`, `explanation`.
-- Không dùng HTML, script, regex, công thức bảng tính hoặc Markdown phức tạp.
-- Câu hỏi và ví dụ phải do AI tự soạn, không sao chép nguyên văn bài tập có bản quyền.
-
-## 7. Prompt sẵn để gửi cho AI khác
-
-Sao chép nguyên khối dưới đây, đính kèm tài liệu này và thay các phần trong
-ngoặc vuông:
-
-```text
-Hãy tạo [SỐ LƯỢNG] câu hỏi cho website NẮM English theo đúng file
-QUESTION_CSV_GUIDE.md tôi đính kèm.
-
-Phạm vi:
-- Domain: [grammar / vocabulary / cả hai]
-- Level: [A2 / B1 / B2 / mixed]
-- Topic: [DANH SÁCH TOPIC]
-- Tỷ lệ loại bài: phân phối đa dạng giữa mcq, multiple_select, fill_blank,
-  error_correction, sentence_transformation, word_formation, ordering, matching.
-
-Yêu cầu nội dung:
-- Câu hỏi, context, options và answer viết bằng tiếng Anh.
-- Theory, hint và explanation viết bằng tiếng Việt có dấu đầy đủ.
-- Với grammar, bám đúng topic người dùng cung cấp, tự soạn ví dụ mới và điền
-  `theory` cho từng câu.
-- Với vocabulary, mọi dòng phải có learning_key đúng quy tắc; các biến thể của
-  cùng một nghĩa dùng chung learning_key.
-- Không sao chép nguyên văn bài tập trong sách.
-- Kiểm tra đáp án, ID, số cột và dấu ngoặc kép trước khi xuất.
-
-Chỉ trả nội dung CSV UTF-8 hoàn chỉnh, bắt đầu bằng đúng header 16 cột.
-Không đặt CSV trong Markdown code fence và không viết thêm lời giải thích.
-```
+Dữ liệu nằm trên trình duyệt từng thiết bị. Không có máy chủ, tài khoản học sinh, đồng bộ tự động hay bảng điểm tập trung. Dùng **Dữ liệu → Tải sao lưu** và khôi phục JSON để chuyển cả tiến độ sang máy khác.

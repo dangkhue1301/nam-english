@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildCsvPreview } from "../core.js";
 import {
+  accuracyByDomain,
   buildAchievements,
   collectVocabularyKeys,
   computeStreaks,
@@ -126,6 +127,25 @@ test("mistakeQuestions chỉ lấy câu có lần làm gần nhất bị sai", (
   );
 });
 
+test("accuracyByDomain thống kê riêng practice cùng grammar và vocabulary", () => {
+  const accuracy = accuracyByDomain(
+    [
+      { id: "g", domain: "grammar" },
+      { id: "v", domain: "vocabulary" },
+      { id: "p", domain: "practice" },
+    ],
+    [
+      { questionId: "g", correct: true },
+      { questionId: "v", correct: false },
+      { questionId: "p", correct: true },
+      { questionId: "p", correct: false },
+    ],
+  );
+  assert.deepEqual(accuracy.grammar, { total: 1, correct: 1, accuracy: 100 });
+  assert.deepEqual(accuracy.vocabulary, { total: 1, correct: 0, accuracy: 0 });
+  assert.deepEqual(accuracy.practice, { total: 2, correct: 1, accuracy: 50 });
+});
+
 test("dueForecast gom lịch ôn về đúng ngày, quá hạn dồn vào hôm nay", () => {
   const now = new Date("2026-07-27T08:00:00").getTime();
   const reviews = [
@@ -181,7 +201,7 @@ test("questionsToCsv xuất lại được file mà buildCsvPreview chấp nhậ
   const source = [
     "id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key",
     '"g-1","grammar","mcq","B1","Tenses","","Choose.","She ___ now.","runs||is running","is running","Vì ""now"".","Hiện tại tiếp diễn: be + V-ing.","","tag1||tag2","2",""',
-    '"v-1","vocabulary","matching","B1","Words","","Match.","","cat=>mèo||dog=>chó","","","","","","1","vocab:cat:noun:animal"',
+    '"v-1","vocabulary","matching","B1","Words","","Match.","","cat=>mèo||dog=>chó","","Cat là mèo; dog là chó.","","","","1","vocab:cat:noun:animal"',
   ].join("\r\n");
   const preview = buildCsvPreview(source, "test.csv");
   assert.equal(preview.errors.length, 0);

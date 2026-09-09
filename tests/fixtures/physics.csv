@@ -1,0 +1,3 @@
+subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
+"physics","8","p-force-001","practice","mcq","mixed","Lực","Đơn vị đo","Đơn vị SI của lực là gì?","","N||J||W","N","Newton, kí hiệu N, là đơn vị SI của lực.","Lực được đo bằng newton, kí hiệu N.","Phân biệt lực với năng lượng và công suất.","case-sensitive","1",""
+"physics","8","p-density-002","practice","fill_blank","mixed","Khối lượng riêng","Tính toán","Điền số; đơn vị g/cm³ đã cho sẵn.","Một vật có khối lượng 200 g và thể tích 100 cm³. Khối lượng riêng là ___ g/cm³.","","2","Khối lượng riêng bằng 200 chia 100, bằng 2 g/cm³.","Khối lượng riêng D = m / V.","Lấy khối lượng chia thể tích.","","2",""

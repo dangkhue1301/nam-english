@@ -1,637 +1,212 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import {
-  buildCsvPreview,
-  buildStats,
-  CSV_HEADERS,
-  evaluateAnswer,
-  nextReview,
-  QUESTION_TYPES,
-  SESSION_QUESTION_LIMIT,
-  selectQuestions,
-} from "../core.js";
-import {
-  clearStudySession,
-  createRepository,
-  getSessionQuestions,
-  readDashboard,
-  readSelectedQuestionSet,
-  restoreStudySession,
-  saveSelectedQuestionSet,
-  saveStudySession,
-} from "../storage.js";
+import { buildCsvPreview, buildStats, CSV_HEADERS, evaluateAnswer, nextReview, normalizeText, parseCsv, QUESTION_TYPES, selectQuestions, stableShuffle } from "../core.js";
+import { questionsToCsv } from "../stats.js";
+import { question, vocabulary } from "./helpers.mjs";
 
-const testDirectory = path.dirname(fileURLToPath(import.meta.url));
-const projectDirectory = path.resolve(testDirectory, "..");
-
-test("CSV mẫu có đúng 16 header và đủ 8 dạng bài", async () => {
-  const text = await readFile(
-    path.join(projectDirectory, "sample_questions.csv"),
-    "utf8",
-  );
-  const firstLine = text.replace(/^\uFEFF/, "").split(/\r?\n/, 1)[0];
-  const header = firstLine
-    .split(",")
-    .map((item) => item.replaceAll('"', ""));
-  assert.deepEqual(header, CSV_HEADERS);
-
-  const preview = buildCsvPreview(text, "sample_questions.csv");
-  assert.deepEqual(preview.errors, []);
-  assert.equal(preview.rows.length, 24);
-  assert.deepEqual(
-    [...new Set(preview.rows.map((row) => row.type))].sort(),
-    [...QUESTION_TYPES].sort(),
-  );
+test("24 câu kiểm thử bao phủ cả 8 dạng, xuất CSV rồi nhập lại không mất nội dung", async () => {
+  const source = await readFile(new URL("./fixtures/exercises.csv", import.meta.url), "utf8");
+  const parsed = buildCsvPreview(source);
+  assert.deepEqual(parsed.errors, []);
+  assert.equal(parsed.rows.length, 24);
+  assert.deepEqual([...new Set(parsed.rows.map((q) => q.type))].sort(), [...QUESTION_TYPES].sort());
+  const exported = questionsToCsv(parsed.rows);
+  assert.equal(exported[0], "\uFEFF");
+  assert.notEqual(exported[1], "\uFEFF");
+  assert.deepEqual(buildCsvPreview(exported).rows, parsed.rows);
 });
 
-test("CSV từ chối header sai thứ tự hoặc không đúng 16 cột", () => {
-  const wrong = [
-    [...CSV_HEADERS].reverse().join(","),
-    Array.from({ length: 16 }, () => "x").join(","),
-  ].join("\n");
-  const preview = buildCsvPreview(wrong, "wrong.csv");
-  assert.equal(preview.rows.length, 0);
-  assert.match(preview.errors[0], /đúng 16 cột theo thứ tự/);
-
-  const uppercaseHeader = [
-    CSV_HEADERS.map((header) => header.toUpperCase()).join(","),
-    Array.from({ length: 16 }, () => "x").join(","),
-  ].join("\n");
-  assert.match(
-    buildCsvPreview(uppercaseHeader, "uppercase.csv").errors[0],
-    /đúng 16 cột theo thứ tự/,
-  );
-});
-
-test("CSV báo rõ khi file không còn đúng mã hóa UTF-8", () => {
-  const preview = buildCsvPreview(
-    `${CSV_HEADERS.join(",")}\n\uFFFD`,
-    "loi-ma-hoa.csv",
-  );
-  assert.equal(preview.rows.length, 0);
-  assert.match(preview.errors[0], /CSV UTF-8/);
-});
-
-test("grammar bắt buộc có phần theory", () => {
-  const row = {
-    id: "grammar-no-theory",
-    domain: "grammar",
-    type: "mcq",
-    level: "B1",
-    topic: "Present simple",
-    subtopic: "",
-    prompt: "Choose.",
-    context: "",
-    options: "is||are",
-    answer: "is",
-    explanation: "Is đi với chủ ngữ số ít.",
-    theory: "",
-    hint: "",
-    tags: "",
-    difficulty: "1",
-    learning_key: "",
-  };
-  const escape = (value) => `"${String(value).replaceAll('"', '""')}"`;
-  const csv = [
-    CSV_HEADERS.join(","),
-    CSV_HEADERS.map((header) => escape(row[header])).join(","),
-  ].join("\n");
-  const preview = buildCsvPreview(csv, "no-theory.csv");
-  assert.equal(preview.rows.length, 0);
-  assert.match(preview.errors[0], /grammar cần theory/);
-});
-
-test("chấm văn bản có chuẩn hóa dấu câu, khoảng trắng và Unicode", () => {
-  assert.equal(
-    evaluateAnswer(["Lena said she was tired."], "  Lena said she was tired! ", "fill_blank"),
-    true,
-  );
-  assert.equal(
-    evaluateAnswer(["don't"], "don’t", "fill_blank"),
-    true,
-  );
-});
-
-test("chấm chọn nhiều không phụ thuộc thứ tự và ghép cặp phải khớp toàn bộ", () => {
-  assert.equal(
-    evaluateAnswer(
-      ["must", "can't"],
-      ["can't", "must"],
-      "multiple_select",
-    ),
-    true,
-  );
-  assert.equal(
-    evaluateAnswer(
-      { who: "people", where: "places" },
-      { where: "places", who: "people" },
-      "matching",
-    ),
-    true,
-  );
-  assert.equal(
-    evaluateAnswer(
-      { who: "people", where: "places" },
-      { where: "people", who: "places" },
-      "matching",
-    ),
-    false,
-  );
-});
-
-test("SRS dùng nhịp 1 ngày, 6 ngày rồi giãn theo ease", () => {
-  const now = Date.UTC(2026, 6, 26);
-  const first = nextReview(undefined, true, now);
-  assert.equal(first.intervalDays, 1);
-  assert.equal(first.dueAt, now + 24 * 60 * 60 * 1_000);
-
-  const second = nextReview(first, true, now);
-  assert.equal(second.intervalDays, 6);
-
-  const third = nextReview(second, true, now);
-  assert.ok(third.intervalDays >= 15);
-
-  const lapse = nextReview(third, false, now);
-  assert.equal(lapse.intervalDays, 0);
-  assert.equal(lapse.dueAt, now + 10 * 60 * 1_000);
-  assert.equal(lapse.repetitions, 0);
-});
-
-test("vocabulary cùng learning_key chỉ xuất hiện một biến thể và dùng chung lịch", () => {
-  const questions = [
-    {
-      id: "v-1",
-      domain: "vocabulary",
-      level: "B1",
-      topic: "Work",
-      learningKey: "vocab:allocate",
-      active: true,
-    },
-    {
-      id: "v-2",
-      domain: "vocabulary",
-      level: "B1",
-      topic: "Work",
-      learningKey: "vocab:allocate",
-      active: true,
-    },
-    {
-      id: "v-3",
-      domain: "vocabulary",
-      level: "B1",
-      topic: "Work",
-      learningKey: "vocab:reliable",
-      active: true,
-    },
-  ];
-  const now = Date.UTC(2026, 6, 26);
-  const reviews = [
-    {
-      learningKey: "vocab:allocate",
-      dueAt: now + 86_400_000,
-    },
-  ];
-  const selected = selectQuestions(questions, reviews, {
-    domain: "vocabulary",
-    limit: 10,
-    now,
-    completedLearningKeys: ["vocab:allocate"],
+test("mọi ví dụ CSV trong guide nhập được thành từng file một môn", async () => {
+  const guide = await readFile(new URL("../QUESTION_CSV_GUIDE.md", import.meta.url), "utf8");
+  const blocks = [...guide.matchAll(/```csv\r?\n([\s\S]*?)```/g)].map((m) => m[1]);
+  assert.deepEqual(blocks.length, 4);
+  const expectedSubjects = ["english", "chemistry", "physics", "biology"];
+  blocks.forEach((block, index) => {
+    const parsed = buildCsvPreview(block, `guide-${index}.csv`);
+    assert.deepEqual(parsed.errors, []);
+    assert.ok(parsed.rows.length >= 2);
+    assert.deepEqual([...new Set(parsed.rows.map((q) => q.subject))], [expectedSubjects[index]]);
+    assert.ok(parseCsv(block).every((row) => row.length === CSV_HEADERS.length));
   });
-  assert.deepEqual(selected.map((item) => item.id), ["v-3"]);
 });
 
-test("50 câu Grammar được chia thành lượt 30 + 20, không lặp câu đã làm", () => {
-  const questions = Array.from({ length: 50 }, (_, index) => ({
-    id: `grammar-${index + 1}`,
-    domain: "grammar",
-    level: "B1",
-    topic: "Mixed grammar",
-    active: true,
+test("fixture Vật lí dùng để thử upload có 18 cột và chỉ practice lớp 8", async () => {
+  const source = await readFile(new URL("./fixtures/physics.csv", import.meta.url), "utf8");
+  const parsed = buildCsvPreview(source, "physics.csv");
+  assert.deepEqual(parsed.errors, []);
+  assert.equal(parsed.rows.length, 2);
+  assert.ok(parsed.rows.every((question) => question.subject === "physics" && question.grade === "8" && question.domain === "practice"));
+});
+
+test("CSV đọc đúng dấu phẩy, xuống dòng, ngoặc kép và tiếng Việt", () => {
+  const q = question({ explanation: 'Ví dụ: "Hello, Mai!"\nĐây là dòng thứ hai.' });
+  assert.deepEqual(buildCsvPreview(questionsToCsv([q])).rows[0], q);
+  assert.deepEqual(parseCsv('"a,b","He said ""hi"""\r\n"dòng\nmới",x'), [["a,b", 'He said "hi"'], ["dòng\nmới", "x"]]);
+});
+
+test("CSV từ chối ngoặc kép lỗi, sai cột, header sai, ký tự lỗi mã hóa", () => {
+  for (const value of ['a,"b', 'a,b"c', '"a"x,b']) assert.throws(() => parseCsv(value));
+  assert.match(buildCsvPreview('a,"b').errors[0], /ngoặc kép/);
+  const csv = questionsToCsv([question()]);
+  assert.match(buildCsvPreview(csv.replace("subject,grade", "grade,subject")).errors[0], /đúng 18 cột/);
+  assert.match(buildCsvPreview(csv.replace("subject,grade", "subject,subject")).errors[0], /trùng/);
+  assert.match(buildCsvPreview(csv.replace("She", "\uFFFD")).errors[0], /UTF-8/);
+  assert.match(buildCsvPreview(csv.trim() + ",thua").errors[0], /có 19 cột/);
+});
+
+test("CSV 18 cột hỗ trợ bốn môn, còn file Tiếng Anh 16 cột cũ vẫn hợp lệ", () => {
+  const science = [
+    ["chemistry", "6"],
+    ["physics", "7"],
+    ["biology", "8"],
+  ].map(([subject, grade]) => question({
+    subject,
+    grade,
+    id: `${subject}-1`,
+    domain: "practice",
+    level: "mixed",
+    topic: "Kiến thức cơ bản",
+    prompt: "Chọn đáp án đúng.",
+    context: "Dữ kiện có đáp án rõ ràng.",
+    theory: "Lý thuyết ngắn bằng tiếng Việt có dấu.",
   }));
-
-  const first = selectQuestions(questions, [], {
-    domain: "grammar",
-    limit: SESSION_QUESTION_LIMIT,
-  });
-  assert.equal(first.length, 30);
-
-  const firstIds = new Set(first.map((question) => question.id));
-  const second = selectQuestions(questions, [], {
-    domain: "grammar",
-    limit: SESSION_QUESTION_LIMIT,
-    completedQuestionIds: [...firstIds],
-  });
-  assert.equal(second.length, 20);
-  assert.equal(
-    second.some((question) => firstIds.has(question.id)),
-    false,
-  );
-  assert.equal(
-    new Set([...first, ...second].map((question) => question.id)).size,
-    50,
-  );
-
-  const third = selectQuestions(questions, [], {
-    domain: "grammar",
-    completedQuestionIds: [...first, ...second].map(
-      (question) => question.id,
-    ),
-  });
-  assert.equal(third.length, 0);
-});
-
-test("mỗi CSV là một bộ riêng: ID trùng vẫn độc lập, 30 + 20 không trộn bộ", async () => {
-  const values = new Map();
-  const hadIndexedDb = "indexedDB" in globalThis;
-  const originalIndexedDb = globalThis.indexedDB;
-  const originalLocalStorage = globalThis.localStorage;
-  delete globalThis.indexedDB;
-  globalThis.localStorage = {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => values.set(key, String(value)),
-    removeItem: (key) => values.delete(key),
-  };
-
-  const grammarRows = (topic) =>
-    Array.from({ length: 50 }, (_, index) => ({
-      id: `duplicate-${index + 1}`,
-      domain: "grammar",
-      level: "B1",
-      topic,
-      type: "mcq",
-      options: ["is", "are"],
-      answer: ["is"],
-      active: true,
-    }));
-  const vocabularyRow = (topic) => ({
-    id: "duplicate-vocabulary",
-    domain: "vocabulary",
-    level: "B1",
-    topic,
-    type: "fill_blank",
-    answer: ["allocate"],
-    learningKey: "vocab:allocate",
-    active: true,
-  });
-
-  try {
-    const repository = await createRepository();
-    const setA = await repository.importQuestions(
-      [...grammarRows("Bộ A"), vocabularyRow("Bộ A")],
-      "bo-a.csv",
-    );
-    const setB = await repository.importQuestions(
-      [...grammarRows("Bộ B"), vocabularyRow("Bộ B")],
-      "bo-b.csv",
-    );
-    const snapshot = await repository.snapshot();
-
-    assert.equal(snapshot.questions.length, 102);
-    assert.equal(new Set(snapshot.questions.map((item) => item.id)).size, 102);
-    assert.equal(
-      snapshot.questions.filter(
-        (item) => item.originalId === "duplicate-1",
-      ).length,
-      2,
-    );
-
-    const firstA = await getSessionQuestions(repository, {
-      setId: setA.id,
-      domain: "grammar",
-      limit: SESSION_QUESTION_LIMIT,
-    });
-    assert.equal(firstA.length, 30);
-    assert.ok(firstA.every((item) => item.setId === setA.id));
-    for (const question of firstA) {
-      await repository.recordAttempt(question, "is", true);
-    }
-
-    const secondA = await getSessionQuestions(repository, {
-      setId: setA.id,
-      domain: "grammar",
-      limit: SESSION_QUESTION_LIMIT,
-    });
-    assert.equal(secondA.length, 20);
-    assert.ok(secondA.every((item) => item.setId === setA.id));
-    assert.equal(
-      secondA.some((item) =>
-        firstA.some((first) => first.id === item.id),
-      ),
-      false,
-    );
-
-    const firstB = await getSessionQuestions(repository, {
-      setId: setB.id,
-      domain: "grammar",
-      limit: SESSION_QUESTION_LIMIT,
-    });
-    assert.equal(firstB.length, 30);
-    assert.ok(firstB.every((item) => item.setId === setB.id));
-
-    const vocabA = await getSessionQuestions(repository, {
-      setId: setA.id,
-      domain: "vocabulary",
-      limit: SESSION_QUESTION_LIMIT,
-    });
-    assert.equal(vocabA.length, 1);
-    await repository.recordAttempt(vocabA[0], "allocate", true);
-    assert.equal(
-      (
-        await getSessionQuestions(repository, {
-          setId: setA.id,
-          domain: "vocabulary",
-          limit: SESSION_QUESTION_LIMIT,
-        })
-      ).length,
-      0,
-    );
-
-    // SRS dùng chung learning_key, nhưng hoàn thành lần đầu vẫn tính riêng
-    // theo từng bộ nên bộ B không bị bỏ qua.
-    const vocabB = await getSessionQuestions(repository, {
-      setId: setB.id,
-      domain: "vocabulary",
-      limit: SESSION_QUESTION_LIMIT,
-    });
-    assert.equal(vocabB.length, 1);
-    assert.equal(vocabB[0].setId, setB.id);
-
-    const dashboardA = await readDashboard(repository, setA.id);
-    const dashboardB = await readDashboard(repository, setB.id);
-    assert.equal(dashboardA.stats.grammarRemaining, 20);
-    assert.equal(dashboardA.stats.vocabularyRemaining, 0);
-    assert.equal(dashboardB.stats.grammarRemaining, 50);
-    assert.equal(dashboardB.stats.vocabularyRemaining, 1);
-    assert.ok(
-      dashboardA.topics.every((item) => item.topic === "Bộ A"),
-    );
-    assert.ok(
-      dashboardB.topics.every((item) => item.topic === "Bộ B"),
-    );
-
-    const setACopy = await repository.importQuestions(
-      [vocabularyRow("Bộ A bản sao")],
-      "bo-a.csv",
-    );
-    assert.equal(setA.name, "bo-a");
-    assert.equal(setACopy.name, "bo-a (2)");
-
-    saveSelectedQuestionSet(setA.id);
-    assert.equal(readSelectedQuestionSet(), setA.id);
-  } finally {
-    if (hadIndexedDb) globalThis.indexedDB = originalIndexedDb;
-    else delete globalThis.indexedDB;
-    if (originalLocalStorage === undefined) delete globalThis.localStorage;
-    else globalThis.localStorage = originalLocalStorage;
+  for (const q of science) {
+    const preview = buildCsvPreview(questionsToCsv([q]));
+    assert.deepEqual(preview.errors, []);
+    assert.equal(preview.rows[0].subject, q.subject);
+    assert.equal(preview.rows[0].grade, q.grade);
+    assert.equal(preview.rows[0].domain, "practice");
   }
+  const legacy = [
+    "id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key",
+    '"old-1","grammar","fill_blank","A2","Be","","Complete.","She ___ here.","","is","She đi với is.","Hiện tại đơn của be.","","","1",""',
+  ].join("\r\n");
+  const parsedLegacy = buildCsvPreview(legacy, "english-old.csv");
+  assert.deepEqual(parsedLegacy.errors, []);
+  assert.equal(parsedLegacy.rows[0].subject, "english");
+  assert.equal(parsedLegacy.rows[0].grade, "");
 });
 
-test("Vocabulary ưu tiên 20 từ chưa đúng trước các từ SRS cũ đến hạn", () => {
-  const now = Date.UTC(2026, 6, 26);
-  const questions = Array.from({ length: 50 }, (_, index) => ({
-    id: `vocabulary-${index + 1}`,
-    domain: "vocabulary",
-    level: "B1",
-    topic: "Mixed vocabulary",
-    learningKey: `vocab:key-${index + 1}`,
-    active: true,
-  }));
-  const firstCompletedKeys = questions
-    .slice(0, 30)
-    .map((question) => question.learningKey);
-  const reviews = firstCompletedKeys.map((learningKey) => ({
-    learningKey,
-    firstCompletedAt: now - 86_400_000,
-    dueAt: now - 1,
-    repetitions: 1,
-  }));
+test("CSV từ chối môn/lớp/domain sai và trộn nhiều môn trong một file", () => {
+  const chemistry = question({ subject: "chemistry", grade: "8", id: "c-1", domain: "practice", level: "mixed", theory: "Lý thuyết." });
+  for (const invalid of [
+    { ...question({ id: "missing-subject" }), subject: "" },
+    { ...chemistry, grade: "10" },
+    { ...chemistry, grade: "" },
+    { ...chemistry, domain: "grammar" },
+    { ...chemistry, subject: "astronomy" },
+  ]) {
+    assert.ok(buildCsvPreview(questionsToCsv([invalid])).errors.length);
+  }
+  const biology = { ...chemistry, id: "b-1", subject: "biology", grade: "7" };
+  assert.match(buildCsvPreview(questionsToCsv([chemistry, biology])).errors[0], /một môn/);
+});
 
-  const second = selectQuestions(questions, reviews, {
-    domain: "vocabulary",
-    limit: SESSION_QUESTION_LIMIT,
-    now,
-    completedLearningKeys: firstCompletedKeys,
-  });
-  assert.equal(second.length, 20);
-  assert.ok(
-    second.every(
-      (question) => !firstCompletedKeys.includes(question.learningKey),
-    ),
-  );
-
-  const allReviews = [
-    ...reviews,
-    ...questions.slice(30).map((question) => ({
-      learningKey: question.learningKey,
-      firstCompletedAt: now - 1,
-      dueAt: now - 1,
-      repetitions: 1,
-    })),
+test("CSV kiểm tra bắt buộc và không nhập một phần nếu có dòng sai", () => {
+  const invalid = [
+    question({ id: "bad id" }), question({ topic: "" }), question({ prompt: "" }), question({ theory: "" }),
+    question({ explanation: "" }), question({ domain: "other" }), question({ type: "essay" }),
+    question({ difficulty: 6 }), question({ difficulty: 1.5 }), question({ answer: [] }), vocabulary({ learningKey: "" }),
   ];
-  const srsBatch = selectQuestions(questions, allReviews, {
-    domain: "vocabulary",
-    limit: SESSION_QUESTION_LIMIT,
-    now,
-    completedLearningKeys: questions.map(
-      (question) => question.learningKey,
-    ),
-  });
-  assert.equal(srsBatch.length, 30);
-});
-
-test("Vocabulary chỉ lưu firstCompletedAt khi đúng và giữ nguyên sau khi tải lại", async () => {
-  const values = new Map();
-  const hadIndexedDb = "indexedDB" in globalThis;
-  const originalIndexedDb = globalThis.indexedDB;
-  const originalLocalStorage = globalThis.localStorage;
-  delete globalThis.indexedDB;
-  globalThis.localStorage = {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => values.set(key, String(value)),
-    removeItem: (key) => values.delete(key),
-  };
-
-  try {
-    const question = {
-      id: "vocab-persistent",
-      domain: "vocabulary",
-      learningKey: "vocab:persistent",
-    };
-    const repository = await createRepository();
-
-    await repository.recordAttempt(question, "wrong", false);
-    let snapshot = await repository.snapshot();
-    assert.equal(snapshot.reviews[0].firstCompletedAt, undefined);
-
-    await repository.recordAttempt(question, "correct", true);
-    snapshot = await repository.snapshot();
-    const firstCompletedAt = snapshot.reviews[0].firstCompletedAt;
-    assert.ok(Number.isFinite(firstCompletedAt));
-
-    await repository.recordAttempt(question, "wrong again", false);
-    const reloadedRepository = await createRepository();
-    snapshot = await reloadedRepository.snapshot();
-    assert.equal(snapshot.reviews[0].firstCompletedAt, firstCompletedAt);
-  } finally {
-    if (hadIndexedDb) globalThis.indexedDB = originalIndexedDb;
-    else delete globalThis.indexedDB;
-    if (originalLocalStorage === undefined) delete globalThis.localStorage;
-    else globalThis.localStorage = originalLocalStorage;
+  for (const q of invalid) {
+    const preview = buildCsvPreview(questionsToCsv([question({ id: "valid" }), q]));
+    assert.ok(preview.errors.length, JSON.stringify(q));
+    assert.equal(preview.rows.length, 0);
   }
+  assert.match(buildCsvPreview(questionsToCsv([question(), question()])).errors[0], /trùng/);
 });
 
-test("lượt học đang làm được phục hồi đúng vị trí sau khi tải lại", async () => {
-  const values = new Map();
-  const hadIndexedDb = "indexedDB" in globalThis;
-  const originalIndexedDb = globalThis.indexedDB;
-  const originalLocalStorage = globalThis.localStorage;
-  delete globalThis.indexedDB;
-  globalThis.localStorage = {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => values.set(key, String(value)),
-    removeItem: (key) => values.delete(key),
-  };
-
-  try {
-    const question = {
-      id: "grammar-resume",
-      domain: "grammar",
-      level: "B1",
-      topic: "Present simple",
-      active: true,
-    };
-    const repository = await createRepository();
-    const set = await repository.importQuestions([question], "resume.csv");
-    const storedQuestion = (await repository.snapshot()).questions.find(
-      (item) => item.setId === set.id,
-    );
-    saveStudySession({
-      queue: [storedQuestion],
-      selectedSetId: set.id,
-      sessionDomain: "grammar",
-      sessionTarget: 13,
-      sessionDone: 12,
-      sessionCorrect: 9,
-      result: null,
-    });
-
-    const reloadedRepository = await createRepository();
-    const restored = await restoreStudySession(reloadedRepository);
-    assert.equal(restored.queue[0].originalId, question.id);
-    assert.equal(restored.selectedSetId, set.id);
-    assert.equal(restored.sessionTarget, 13);
-    assert.equal(restored.sessionDone, 12);
-    assert.equal(restored.sessionCorrect, 9);
-
-    clearStudySession();
-    assert.equal(await restoreStudySession(reloadedRepository), null);
-  } finally {
-    if (hadIndexedDb) globalThis.indexedDB = originalIndexedDb;
-    else delete globalThis.indexedDB;
-    if (originalLocalStorage === undefined) delete globalThis.localStorage;
-    else globalThis.localStorage = originalLocalStorage;
-  }
+test("CSV giới hạn kích thước, số dòng, số lựa chọn và độ dài ô", () => {
+  assert.match(buildCsvPreview("a".repeat(5 * 1024 * 1024 + 1)).errors[0], /5 MB/);
+  assert.match(buildCsvPreview(questionsToCsv([question({ prompt: "a".repeat(10001) })])).errors[0], /10.000/);
+  assert.match(buildCsvPreview(questionsToCsv(Array.from({ length: 2001 }, (_, i) => question({ id: `q${i}` })))).errors[0], /2.000/);
+  const q = question({ type: "mcq", options: Array.from({ length: 31 }, (_, i) => `${i}`), answer: ["0"] });
+  assert.match(buildCsvPreview(questionsToCsv([q])).errors[0], /30 options/);
 });
 
-test("dữ liệu phiên bản cũ được gom vào một bộ và giữ nguyên tiến độ", async () => {
-  const values = new Map();
-  const hadIndexedDb = "indexedDB" in globalThis;
-  const originalIndexedDb = globalThis.indexedDB;
-  const originalLocalStorage = globalThis.localStorage;
-  delete globalThis.indexedDB;
-  globalThis.localStorage = {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => values.set(key, String(value)),
-    removeItem: (key) => values.delete(key),
-  };
-
-  const importedAt = Date.UTC(2026, 6, 1);
-  values.set(
-    "nam-english:questions",
-    JSON.stringify([
-      {
-        id: "legacy-question",
-        domain: "grammar",
-        level: "B1",
-        topic: "Present simple",
-        active: true,
-        importedAt,
-      },
-    ]),
-  );
-  values.set(
-    "nam-english:attempts",
-    JSON.stringify([
-      {
-        id: "legacy-attempt",
-        questionId: "legacy-question",
-        correct: true,
-        attemptedAt: importedAt + 1,
-      },
-    ]),
-  );
-  values.set(
-    "nam-english:imports",
-    JSON.stringify([
-      {
-        id: "old-import-log",
-        filename: "old.csv",
-        count: 1,
-        importedAt,
-      },
-    ]),
-  );
-
-  try {
-    const repository = await createRepository();
-    const snapshot = await repository.snapshot();
-    assert.equal(snapshot.questions[0].setId, "legacy-v1");
-    assert.equal(snapshot.questions[0].originalId, "legacy-question");
-    assert.equal(snapshot.attempts[0].setId, "legacy-v1");
-
-    const dashboard = await readDashboard(repository);
-    assert.equal(dashboard.selectedSetId, "legacy-v1");
-    assert.equal(dashboard.sets[0].name, "Dữ liệu cũ");
-    assert.equal(dashboard.stats.grammar, 1);
-    assert.equal(dashboard.stats.grammarRemaining, 0);
-  } finally {
-    if (hadIndexedDb) globalThis.indexedDB = originalIndexedDb;
-    else delete globalThis.indexedDB;
-    if (originalLocalStorage === undefined) delete globalThis.localStorage;
-    else globalThis.localStorage = originalLocalStorage;
-  }
-});
-
-test("thống kê từ đến hạn khử trùng learning_key", () => {
-  const questions = [
-    {
-      id: "v-1",
-      domain: "vocabulary",
-      topic: "Work",
-      learningKey: "vocab:allocate",
-    },
-    {
-      id: "v-2",
-      domain: "vocabulary",
-      topic: "Work",
-      learningKey: "vocab:allocate",
-    },
+test("Các dạng lựa chọn từ chối trùng, thiếu và đáp án nằm ngoài options", () => {
+  const cases = [
+    question({ type: "mcq", options: ["is", "IS."], answer: ["is"] }),
+    question({ type: "mcq", options: ["is", "are"], answer: ["am"] }),
+    question({ type: "mcq", options: ["is", "are"], answer: ["is", "are"] }),
+    question({ type: "multiple_select", options: ["is", "are"], answer: ["is"] }),
+    question({ type: "multiple_select", options: ["is", "are"], answer: ["is", "is"] }),
+    question({ type: "matching", options: [{ left: "a", right: "x" }, { left: "A.", right: "y" }], answer: {} }),
+    question({ type: "matching", options: [{ left: "a", right: "x" }, { left: "b", right: "x" }], answer: {} }),
+    question({ type: "ordering", options: ["She", "is", "here"], answer: ["She is here", "She is not here"] }),
   ];
-  const stats = buildStats(questions, [], [], [], Date.now());
-  assert.equal(stats.vocabulary, 2);
-  assert.equal(stats.due, 1);
+  for (const q of cases) assert.ok(buildCsvPreview(questionsToCsv([q])).errors.length, q.type);
 });
 
-test("mọi tài nguyên trong HTML dùng đường dẫn tương đối", async () => {
-  const html = await readFile(
-    path.join(projectDirectory, "index.html"),
-    "utf8",
-  );
-  const app = await readFile(path.join(projectDirectory, "app.js"), "utf8");
-  assert.doesNotMatch(html, /(?:href|src)=["']\//i);
-  assert.doesNotMatch(app, /fetch\(["']\//);
-  assert.match(html, /<meta charset="UTF-8">/);
+test("Chấm văn bản chuẩn hóa Unicode, dấu câu, khoảng trắng; không chấp nhận trống", () => {
+  assert.equal(normalizeText("  SHE  IS HERE! "), "she is here");
+  assert.equal(evaluateAnswer(["isn't"], "ISN’T.", "fill_blank"), true);
+  assert.equal(evaluateAnswer(["is not"], "isn't", "fill_blank"), false);
+  assert.equal(evaluateAnswer(["is not", "isn't"], "isn't", "fill_blank"), true);
+  assert.equal(evaluateAnswer(["café"], "cafe\u0301", "fill_blank"), true);
+  assert.equal(evaluateAnswer([""], "", "fill_blank"), false);
+});
+
+test("Chấm chọn nhiều và matching yêu cầu đúng đủ toàn bộ", () => {
+  assert.equal(evaluateAnswer(["a", "b"], ["B", "A"], "multiple_select"), true);
+  for (const answer of [["a"], ["a", "b", "c"], "a"]) assert.equal(evaluateAnswer(["a", "b"], answer, "multiple_select"), false);
+  const expected = { borrow: "take", lend: "give" };
+  assert.equal(evaluateAnswer(expected, { lend: "Give.", borrow: "TAKE" }, "matching"), true);
+  for (const answer of [{ borrow: "take" }, { ...expected, extra: "x" }, null, []]) assert.equal(evaluateAnswer(expected, answer, "matching"), false);
+});
+
+test("Ordering giữ đủ số lượng từ trùng và xáo trộn ổn định", () => {
+  const q = question({ type: "ordering", options: ["I", "think", "that", "that", "is", "right"], answer: ["I think that that is right."] });
+  assert.deepEqual(buildCsvPreview(questionsToCsv([q])).errors, []);
+  assert.equal(evaluateAnswer(q.answer, q.options, "ordering"), true);
+  assert.deepEqual(stableShuffle(q.options, "key"), stableShuffle(q.options, "key"));
+});
+
+test("case-sensitive giữ nhất quán ở options, ordering và chấm Unicode", () => {
+  const q = question({
+    subject: "chemistry",
+    grade: "8",
+    id: "co-order-1",
+    domain: "practice",
+    type: "ordering",
+    level: "mixed",
+    topic: "Công thức hóa học",
+    prompt: "Sắp xếp câu đúng.",
+    options: ["CO", "là", "khí"],
+    answer: ["CO là khí"],
+    theory: "Công thức hóa học phân biệt chữ hoa và chữ thường.",
+    tags: ["case-sensitive"],
+  });
+  assert.deepEqual(buildCsvPreview(questionsToCsv([q])).errors, []);
+  assert.ok(buildCsvPreview(questionsToCsv([{ ...q, answer: ["Co là khí"] }])).errors.length);
+  assert.equal(evaluateAnswer(q.answer, "CO là khí", "ordering", { caseSensitive: true }), true);
+  assert.equal(evaluateAnswer(q.answer, "Co là khí", "ordering", { caseSensitive: true }), false);
+  assert.equal(evaluateAnswer(["Café"], "Cafe\u0301", "fill_blank", { caseSensitive: true }), true);
+});
+
+test("SRS: đúng giãn 1 ngày, 6 ngày; sai hẹn 10 phút, hệ số trong giới hạn", () => {
+  const now = 1_000_000, day = 86_400_000;
+  const first = nextReview(null, true, now), second = nextReview(first, true, now);
+  assert.equal(first.dueAt, now + day);
+  assert.equal(second.dueAt, now + 6 * day);
+  assert.ok(nextReview(second, true, now).intervalDays > 6);
+  let failed = second;
+  for (let i = 0; i < 20; i++) failed = nextReview(failed, false, now);
+  assert.equal(failed.dueAt, now + 600_000);
+  assert.equal(failed.repetitions, 0);
+  assert.equal(failed.ease, 1.3);
+});
+
+test("Vocabulary ưu tiên học hết từ mới trước từ SRS đến hạn, khử trùng key", () => {
+  const questions = Array.from({ length: 50 }, (_, i) => vocabulary({ id: `v${i}`, learningKey: `key${i}` }));
+  const completedLearningKeys = questions.slice(0, 30).map((q) => q.learningKey);
+  const reviews = completedLearningKeys.map((learningKey) => ({ learningKey, dueAt: 0 }));
+  const selected = selectQuestions([...questions, { ...questions[49], id: "variant" }], reviews, { domain: "vocabulary", completedLearningKeys });
+  assert.equal(selected.length, 20);
+  assert.equal(new Set(selected.map((q) => q.learningKey)).size, 20);
+  assert.ok(selected.every((q) => !completedLearningKeys.includes(q.learningKey)));
+  const stats = buildStats(questions, reviews, questions.slice(0, 30).map((q) => ({ questionId: q.id, correct: true })), []);
+  assert.equal(stats.vocabularyRemaining, 20);
+  assert.equal(stats.due, 20);
 });

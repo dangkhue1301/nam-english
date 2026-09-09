@@ -5,57 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta
       name="description"
-      content="Luyện ngữ pháp và từ vựng tiếng Anh từ CSV: chấm ngay, flashcards, spaced repetition, thống kê và chuỗi ngày học."
+      content="Tự luyện Tiếng Anh, Hóa học, Vật lí và Sinh học từ bộ CSV riêng; chấm ngay và lưu tiến độ trên thiết bị."
     >
-    <meta name="theme-color" content="#f5f2ea" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#15181a" media="(prefers-color-scheme: dark)">
-    <meta property="og:title" content="NẮM English">
+    <meta name="theme-color" content="#315d48">
+    <meta property="og:title" content="NẮM Học tập">
     <meta
       property="og:description"
-      content="Một câu mỗi lần. Nhớ lâu hơn."
+      content="Tự luyện đa môn, một câu mỗi lần."
     >
-    <meta property="og:image" content="./og.png">
     <meta property="og:type" content="website">
-    <title>NẮM English — Grammar & Vocabulary</title>
+    <title>NẮM Học tập — Tiếng Anh · Hóa · Lí · Sinh</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="./manifest.webmanifest">
-    <script>
-      // Đặt theme trước khi CSS tải để không bị chớp màu.
-      (function () {
-        try {
-          var saved = JSON.parse(
-            localStorage.getItem("nam-english:settings") || "{}"
-          );
-          var theme = saved.theme || "system";
-          if (theme === "system") {
-            theme = window.matchMedia("(prefers-color-scheme: dark)").matches
-              ? "dark"
-              : "light";
-          }
-          document.documentElement.dataset.theme = theme;
-        } catch (error) {
-          document.documentElement.dataset.theme = "light";
-        }
-      })();
-    </script>
-    <link rel="stylesheet" href="./styles.css?v=4">
-    <script type="module" src="./app.js?v=4"></script>
+    <link rel="stylesheet" href="./styles.css">
+    <script type="module" src="./app.js"></script>
   </head>
   <body>
+    <a class="skip-link" href="#main">Đến nội dung chính</a>
     <div id="app">
-      <main class="app-shell">
-        <header class="topbar">
-          <span class="brand">
-            <span class="brand-mark">N</span>
-            <span>NẮM</span>
-          </span>
-        </header>
-        <section class="boot-screen" aria-live="polite">
-          <span class="eyebrow">ĐANG MỞ KHO HỌC</span>
-          <h1>Một câu mỗi lần.<br><span>Nhớ lâu hơn.</span></h1>
-        </section>
-      </main>
+      <main id="main" class="boot-error" aria-live="polite"><span class="eyebrow">NẮM HỌC TẬP</span><h1>Đang mở kho bài...</h1></main>
     </div>
+    <dialog id="modal" aria-label="Quản lý dữ liệu học tập"></dialog>
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
     <noscript>Website cần JavaScript để nhập CSV và chấm bài.</noscript>
   </body>
 </html>
