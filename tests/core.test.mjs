@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { buildCsvPreview, buildStats, CSV_HEADERS, evaluateAnswer, nextReview, normalizeText, parseCsv, QUESTION_TYPES, selectQuestions, stableShuffle } from "../core.js";
+import { buildCsvPreview, buildStats, CSV_HEADERS, evaluateAnswer, nextReview, normalizeText, parseCsv, QUESTION_TYPES, selectQuestions, stableShuffle, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "../core.js";
 import { questionsToCsv } from "../stats.js";
 import { question, vocabulary } from "./helpers.mjs";
 
@@ -209,4 +209,35 @@ test("Vocabulary ưu tiên học hết từ mới trước từ SRS đến hạn
   const stats = buildStats(questions, reviews, questions.slice(0, 30).map((q) => ({ questionId: q.id, correct: true })), []);
   assert.equal(stats.vocabularyRemaining, 20);
   assert.equal(stats.due, 20);
+});
+
+test("chia sẻ qua link: encode/decode round-trip tiếng Việt, công thức khoa học, giới hạn 50 KB và bắt lỗi hỏng", async () => {
+  const source = await readFile(new URL("./fixtures/exercises.csv", import.meta.url), "utf8");
+  const parsed = buildCsvPreview(source);
+  assert.equal(parsed.errors.length, 0);
+
+  // 1. Round-trip với 24 câu đủ dạng
+  const csv = questionsToCsv(parsed.rows);
+  const encoded = encodeSharePayload(csv);
+  assert.ok(typeof encoded === "string" && encoded.length > 0);
+  assert.ok(/^[A-Za-z0-9+/=]+$/.test(encoded));
+
+  const decoded = decodeSharePayload(encoded);
+  assert.equal(decoded, csv);
+
+  const reimported = buildCsvPreview(decoded);
+  assert.deepEqual(reimported.errors, []);
+  assert.equal(reimported.rows.length, 24);
+
+  // 2. Kiểm tra giới hạn 50 KB (51.200 bytes)
+  const hugePayload = "A".repeat(50 * 1024 + 1);
+  assert.throws(() => decodeSharePayload(hugePayload), /vượt quá giới hạn 50 KB/);
+
+  // 3. Base64 bị hỏng
+  assert.throws(() => decodeSharePayload("Not-Valid-Base64!!#$"), /Base64/);
+
+  // 4. UTF-8 bị hỏng
+  // 0xFF 0xFF là byte UTF-8 không hợp lệ
+  const invalidUtf8Base64 = btoa(String.fromCharCode(0xff, 0xff, 0xff));
+  assert.throws(() => decodeSharePayload(invalidUtf8Base64), /UTF-8/);
 });

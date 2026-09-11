@@ -1,7 +1,7 @@
 // Các hàm thống kê, gamification và xuất dữ liệu. Tất cả đều thuần
 // (không đụng DOM hay storage) để test được bằng Node.
 
-import { CSV_HEADERS, learningKeyFor } from "./core.js";
+import { CSV_HEADERS, learningKeyFor, displayAnswer, SUBJECTS } from "./core.js";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
@@ -504,4 +504,234 @@ export function collectVocabularyKeys(questions) {
         .map(learningKeyFor),
     ),
   ];
+}
+
+export function searchQuestions(questions, query) {
+  if (!Array.isArray(questions) || typeof query !== "string") return [];
+  const term = query.trim().toLocaleLowerCase("vi");
+  if (!term) return [];
+  return questions.filter((q) => {
+    if (!q || q.active === false) return false;
+    if (q.prompt && String(q.prompt).toLocaleLowerCase("vi").includes(term)) return true;
+    if (q.context && String(q.context).toLocaleLowerCase("vi").includes(term)) return true;
+    if (q.topic && String(q.topic).toLocaleLowerCase("vi").includes(term)) return true;
+    if (q.subtopic && String(q.subtopic).toLocaleLowerCase("vi").includes(term)) return true;
+    const ans = displayAnswer(q.answer);
+    if (ans && String(ans).toLocaleLowerCase("vi").includes(term)) return true;
+    return false;
+  });
+}
+
+function escapeSpreadsheetCell(value) {
+  const str = String(value ?? "");
+  const sanitized = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+  if (/[",\n\r]/.test(sanitized)) {
+    return `"${sanitized.replaceAll('"', '""')}"`;
+  }
+  return sanitized;
+}
+
+export function generateReportMarkdown({ questions = [], attempts = [], imports = [], now = Date.now() }) {
+  const dateStr = new Intl.DateTimeFormat("vi-VN", {
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"
+  }).format(now);
+
+  const totalQuestions = questions.length;
+  const totalSets = imports.length;
+  const totalAttempts = attempts.length;
+  const correctAttempts = attempts.filter((a) => a.correct).length;
+  const incorrectAttempts = totalAttempts - correctAttempts;
+  const accuracy = totalAttempts > 0 ? Math.round((correctAttempts * 100) / totalAttempts) : 0;
+
+  const attemptedQIds = new Set(attempts.map((a) => a.questionId));
+  const distinctDone = questions.filter((q) => attemptedQIds.has(q.id)).length;
+
+  const streaks = computeStreaks(attempts, now);
+  const xp = xpFromAttempts(attempts);
+
+  const topicsMap = new Map();
+  for (const q of questions) {
+    const subj = q.subject || "english";
+    const subjName = SUBJECTS[subj]?.name || subj;
+    const key = `${subj}:${q.topic || "Khác"}`;
+    if (!topicsMap.has(key)) {
+      topicsMap.set(key, { subjectName: subjName, topic: q.topic || "Khác", total: 0, done: 0, attempts: 0, correct: 0 });
+    }
+    const item = topicsMap.get(key);
+    item.total += 1;
+    if (attemptedQIds.has(q.id)) item.done += 1;
+  }
+
+  const byQ = new Map(questions.map((q) => [q.id, q]));
+  for (const a of attempts) {
+    const q = byQ.get(a.questionId);
+    if (!q) continue;
+    const subj = q.subject || "english";
+    const key = `${subj}:${q.topic || "Khác"}`;
+    const item = topicsMap.get(key);
+    if (item) {
+      item.attempts += 1;
+      if (a.correct) item.correct += 1;
+    }
+  }
+
+  const mistakes = mistakeQuestions(questions, attempts);
+  const setMap = new Map(imports.map((s) => [s.id, s.name]));
+
+  let md = `# Báo cáo kết quả học tập NẮM\n\n`;
+  md += `- **Ngày xuất:** ${dateStr}\n`;
+  md += `- **Nguồn dữ liệu:** Lưu trữ cục bộ trên thiết bị này\n\n`;
+
+  md += `## 1. Tổng quan học tập\n\n`;
+  md += `- **Số bộ bài:** ${totalSets}\n`;
+  md += `- **Tổng số câu hỏi trong kho:** ${totalQuestions}\n`;
+  md += `- **Số câu duy nhất đã làm:** ${distinctDone}/${totalQuestions}\n`;
+  md += `- **Tổng số lần trả lời (attempts):** ${totalAttempts}\n`;
+  md += `- **Lần làm đúng:** ${correctAttempts}\n`;
+  md += `- **Lần làm chưa đúng:** ${incorrectAttempts}\n`;
+  md += `- **Độ chính xác trung bình:** ${accuracy}%\n`;
+  md += `- **Chuỗi ngày học liên tục:** ${streaks.current} ngày (dài nhất: ${streaks.longest} ngày)\n`;
+  md += `- **Điểm kinh nghiệm (XP):** ${xp} XP\n\n`;
+
+  md += `## 2. Thống kê theo môn & chủ điểm\n\n`;
+  if (!topicsMap.size) {
+    md += `*Chưa có dữ liệu chủ điểm.*\n\n`;
+  } else {
+    md += `| Môn học | Chủ điểm | Tổng số câu | Đã làm | Lần trả lời | Số lần đúng | Độ chính xác |\n`;
+    md += `| :--- | :--- | :---: | :---: | :---: | :---: | :---: |\n`;
+    for (const item of topicsMap.values()) {
+      const acc = item.attempts > 0 ? `${Math.round((item.correct * 100) / item.attempts)}%` : "Chưa làm";
+      md += `| ${item.subjectName} | ${item.topic} | ${item.total} | ${item.done} | ${item.attempts} | ${item.correct} | ${acc} |\n`;
+    }
+    md += `\n`;
+  }
+
+  md += `## 3. Danh sách câu sai gần nhất (${mistakes.length} câu)\n\n`;
+  if (!mistakes.length) {
+    md += `*Tuyệt vời! Không có câu nào đang bị sai gần nhất.*\n`;
+  } else {
+    mistakes.forEach((q, i) => {
+      const sName = setMap.get(q.setId) || "Bộ bài";
+      const subj = SUBJECTS[q.subject]?.name || q.subject || "";
+      md += `### ${i + 1}. [${subj} · ${sName}] ${q.prompt}\n\n`;
+      if (q.context) md += `*Ngữ cảnh:* ${q.context}\n\n`;
+      md += `- **Đáp án đúng:** ${displayAnswer(q.answer)}\n`;
+      if (q.explanation) md += `- **Giải thích:** ${q.explanation}\n`;
+      md += `\n`;
+    });
+  }
+
+  return md;
+}
+
+export function generateReportCsv({ questions = [], attempts = [], imports = [], now = Date.now() }) {
+  const dateStr = new Intl.DateTimeFormat("vi-VN", {
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"
+  }).format(now);
+
+  const attemptedQIds = new Set(attempts.map((a) => a.questionId));
+  const distinctDone = questions.filter((q) => attemptedQIds.has(q.id)).length;
+  const totalAttempts = attempts.length;
+  const correctAttempts = attempts.filter((a) => a.correct).length;
+  const accuracy = totalAttempts > 0 ? Math.round((correctAttempts * 100) / totalAttempts) : 0;
+  const streaks = computeStreaks(attempts, now);
+  const xp = xpFromAttempts(attempts);
+
+  const topicsMap = new Map();
+  for (const q of questions) {
+    const subj = q.subject || "english";
+    const subjName = SUBJECTS[subj]?.name || subj;
+    const key = `${subj}:${q.topic || "Khác"}`;
+    if (!topicsMap.has(key)) {
+      topicsMap.set(key, { subjectName: subjName, topic: q.topic || "Khác", total: 0, done: 0, attempts: 0, correct: 0 });
+    }
+    const item = topicsMap.get(key);
+    item.total += 1;
+    if (attemptedQIds.has(q.id)) item.done += 1;
+  }
+
+  const byQ = new Map(questions.map((q) => [q.id, q]));
+  for (const a of attempts) {
+    const q = byQ.get(a.questionId);
+    if (!q) continue;
+    const subj = q.subject || "english";
+    const key = `${subj}:${q.topic || "Khác"}`;
+    const item = topicsMap.get(key);
+    if (item) {
+      item.attempts += 1;
+      if (a.correct) item.correct += 1;
+    }
+  }
+
+  const mistakes = mistakeQuestions(questions, attempts);
+  const setMap = new Map(imports.map((s) => [s.id, s.name]));
+
+  const lines = [];
+  lines.push([escapeSpreadsheetCell("BÁO CÁO HỌC TẬP NẮM"), escapeSpreadsheetCell(`Ngày xuất: ${dateStr}`)].join(","));
+  lines.push([escapeSpreadsheetCell("Lưu ý: Dữ liệu được lưu trữ cục bộ trên thiết bị này")].join(","));
+  lines.push("");
+
+  lines.push([escapeSpreadsheetCell("TỔNG QUAN")].join(","));
+  lines.push([escapeSpreadsheetCell("Chỉ số"), escapeSpreadsheetCell("Giá trị")].join(","));
+  lines.push([escapeSpreadsheetCell("Số bộ bài"), escapeSpreadsheetCell(imports.length)].join(","));
+  lines.push([escapeSpreadsheetCell("Tổng số câu hỏi trong kho"), escapeSpreadsheetCell(questions.length)].join(","));
+  lines.push([escapeSpreadsheetCell("Số câu duy nhất đã làm"), escapeSpreadsheetCell(distinctDone)].join(","));
+  lines.push([escapeSpreadsheetCell("Tổng số lần trả lời (attempts)"), escapeSpreadsheetCell(totalAttempts)].join(","));
+  lines.push([escapeSpreadsheetCell("Số lần trả lời đúng"), escapeSpreadsheetCell(correctAttempts)].join(","));
+  lines.push([escapeSpreadsheetCell("Độ chính xác trung bình"), escapeSpreadsheetCell(`${accuracy}%`)].join(","));
+  lines.push([escapeSpreadsheetCell("Chuỗi ngày học liên tục"), escapeSpreadsheetCell(`${streaks.current} ngày`)].join(","));
+  lines.push([escapeSpreadsheetCell("Điểm kinh nghiệm (XP)"), escapeSpreadsheetCell(xp)].join(","));
+  lines.push("");
+
+  lines.push([escapeSpreadsheetCell("KẾT QUẢ THEO MÔN & CHỦ ĐIỂM")].join(","));
+  lines.push([
+    escapeSpreadsheetCell("Môn học"),
+    escapeSpreadsheetCell("Chủ điểm"),
+    escapeSpreadsheetCell("Tổng số câu"),
+    escapeSpreadsheetCell("Số câu đã làm"),
+    escapeSpreadsheetCell("Tổng lần trả lời"),
+    escapeSpreadsheetCell("Số lần đúng"),
+    escapeSpreadsheetCell("Độ chính xác"),
+  ].join(","));
+
+  for (const item of topicsMap.values()) {
+    const acc = item.attempts > 0 ? `${Math.round((item.correct * 100) / item.attempts)}%` : "0%";
+    lines.push([
+      escapeSpreadsheetCell(item.subjectName),
+      escapeSpreadsheetCell(item.topic),
+      escapeSpreadsheetCell(item.total),
+      escapeSpreadsheetCell(item.done),
+      escapeSpreadsheetCell(item.attempts),
+      escapeSpreadsheetCell(item.correct),
+      escapeSpreadsheetCell(acc),
+    ].join(","));
+  }
+  lines.push("");
+
+  lines.push([escapeSpreadsheetCell(`DANH SÁCH CÂU SAI GẦN NHẤT (${mistakes.length} CÂU)`)].join(","));
+  lines.push([
+    escapeSpreadsheetCell("STT"),
+    escapeSpreadsheetCell("Môn học"),
+    escapeSpreadsheetCell("Bộ bài"),
+    escapeSpreadsheetCell("Chủ điểm"),
+    escapeSpreadsheetCell("Câu hỏi"),
+    escapeSpreadsheetCell("Đáp án đúng"),
+    escapeSpreadsheetCell("Giải thích"),
+  ].join(","));
+
+  mistakes.forEach((q, i) => {
+    const sName = setMap.get(q.setId) || "Bộ bài";
+    const subj = SUBJECTS[q.subject]?.name || q.subject || "";
+    lines.push([
+      escapeSpreadsheetCell(i + 1),
+      escapeSpreadsheetCell(subj),
+      escapeSpreadsheetCell(sName),
+      escapeSpreadsheetCell(q.topic || ""),
+      escapeSpreadsheetCell(q.prompt || ""),
+      escapeSpreadsheetCell(displayAnswer(q.answer)),
+      escapeSpreadsheetCell(q.explanation || ""),
+    ].join(","));
+  });
+
+  return "\uFEFF" + lines.join("\r\n");
 }

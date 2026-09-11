@@ -7,7 +7,7 @@
       name="description"
       content="Tự luyện Tiếng Anh, Hóa học, Vật lí và Sinh học từ bộ CSV riêng; chấm ngay và lưu tiến độ trên thiết bị."
     >
-    <meta name="theme-color" content="#315d48">
+    <meta name="theme-color" content="#f4f3ee">
     <meta property="og:title" content="NẮM Học tập">
     <meta
       property="og:description"
@@ -17,6 +17,18 @@
     <title>NẮM Học tập — Tiếng Anh · Hóa · Lí · Sinh</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="./manifest.webmanifest">
+    <script>
+      (() => {
+        try {
+          const theme = localStorage.getItem("nam-theme");
+          if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+          const dark = theme === "dark" || (theme !== "light" && window.matchMedia?.("(prefers-color-scheme: dark)").matches);
+          document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#131a16" : "#f4f3ee");
+        } catch {
+          // Theme preference is optional; the application must still start.
+        }
+      })();
+    </script>
     <link rel="stylesheet" href="./styles.css">
     <script type="module" src="./app.js"></script>
   </head>
@@ -26,7 +38,12 @@
       <main id="main" class="boot-error" aria-live="polite"><span class="eyebrow">NẮM HỌC TẬP</span><h1>Đang mở kho bài...</h1></main>
     </div>
     <dialog id="modal" aria-label="Quản lý dữ liệu học tập"></dialog>
+    <div id="announcement" class="sr-only" role="status" aria-live="assertive" aria-atomic="true"></div>
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    <aside id="pwa-status" class="pwa-status" role="status" aria-live="polite" aria-atomic="true" hidden>
+      <span id="pwa-status-text"></span>
+      <button id="pwa-install" class="button subtle pwa-install" type="button" hidden>Cài ứng dụng</button>
+    </aside>
     <noscript>Website cần JavaScript để nhập CSV và chấm bài.</noscript>
   </body>
 </html>

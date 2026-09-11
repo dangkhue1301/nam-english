@@ -1,8 +1,98 @@
 # PLAN — NẮM: kho bài CSV đa môn
 
-Cập nhật: 09/09/2026.
+Cập nhật: 11/09/2026.
 
-## Tiến độ hiện tại
+## Đợt đang triển khai — Frontend theo yêu cầu ngày 10/09
+
+Người dùng đã xác nhận thực hiện `FRONTEND_PLAN.md` và yêu cầu gọi Terra Max triển khai. Agent chính lập kế hoạch, rà soát và kiểm chứng; Terra (`gpt-5.6-terra`, reasoning `max`) sửa mã, viết kiểm thử và build. Giữ toàn bộ kế hoạch frontend gốc để đối chiếu, không tự xóa các mục chưa làm.
+
+### Trình tự thực hiện
+
+- [x] Phase 0: nền cream/terracotta, kính mờ nhẹ, token màu thống nhất, chữ tiếng Việt dễ đọc và fallback không blur.
+- [x] Phase 1: trang Thống kê nối vào dữ liệu thật; trạng thái trống rõ ràng, chi tiết phụ thu gọn để không làm rối trang học.
+- [x] Phase 2: giao diện tự động/sáng/tối, lưu lựa chọn và khôi phục sau tải lại.
+- [x] Phase 3–5: hiệu ứng nhẹ, cải thiện thư viện/lượt học/kết quả, phím tắt và focus/ARIA; kiểm tra 390, 760, 1050 px.
+- [x] Phase 6: offline/PWA có phiên bản; chỉ dọn cache thuộc NẮM và không xóa IndexedDB. Không chép nguyên mẫu xóa mọi cache trong roadmap.
+- [x] Phase 7: ôn sai riêng, chia sẻ bộ nhỏ, tìm câu, lượt tùy chọn và báo cáo; giữ lần học mặc định theo từng bộ và không lặp câu đã chấm.
+- [x] Phase 8: hạn chế render thừa, CSS có cấu trúc, lỗi hiển thị thân thiện; chỉ tuyên bố hiệu năng tốt hơn khi đã đo.
+- [x] Rà soát mã, test/build và trình duyệt; đối chiếu từng mục roadmap, ghi rõ mục nào chưa kiểm chứng.
+- [ ] Chỉ commit/push sau rà soát; giữ remote và push không force. Xác minh bản phát hành thực tế trước khi báo đã lên web.
+
+### Giới hạn và kiểm tra bắt buộc
+
+- Làm trên `work/remote-live`, bắt đầu từ `f73e400`; không reset checkout `github-pages`. Giữ mọi bản sửa frontend/PWA đang có, cùng `FRONTEND_PLAN.md` và `pwa.js` chưa được Git theo dõi; không tự khôi phục các chỉnh sửa cũ đã được người dùng bỏ.
+- Giữ vanilla JS, GitHub Pages, lockfile và lưu cục bộ; không thêm server, framework, CDN hoặc dịch vụ mới. Định dạng CSV và guide đa môn giữ nguyên trừ khi có thay đổi bắt buộc đã được đối chiếu.
+- Giữ bộ 50 câu chia 30 + 20, tiến độ theo từng bộ, chấm idempotent và SRS theo `learning_key`. Ôn sai/tùy chọn không được phá các bất biến này hoặc tự trộn bộ trong chế độ thường.
+- Các ví dụ code trong roadmap là gợi ý, không thay cho API thật: dữ liệu học nằm trong `state.data.snapshot`, chữ ký hàm stats phải đọc từ mã hiện tại. Không bịa số liệu, so sánh hoặc điểm Lighthouse.
+- Thống kê và nội dung nhập từ CSV/backup/link phải được escape; link chia sẻ phải kiểm tra kích thước, hiển thị xác nhận trước khi nhập, không dùng dịch vụ QR bên ngoài để gửi nội dung bài.
+- Offline phải cache đúng URL có phiên bản, tách phiên bản cũ/mới an toàn và không ảnh hưởng ứng dụng khác cùng origin. Cài PWA phụ thuộc khả năng từng trình duyệt; không hứa có prompt trên mọi thiết bị.
+- Kiểm thử có dữ liệu và không dữ liệu, mọi môn, dark/light/auto, tải lại, phím tắt không kích hoạt khi đang nhập, zoom/chữ tiếng Việt và không tràn ngang. Tôn trọng `prefers-reduced-motion`.
+- Chỉ đánh dấu từng phần hoàn tất sau khi có bằng chứng. Agent chính không trực tiếp sửa mã sản phẩm; mọi yêu cầu sửa được gửi cho Terra Max.
+
+### Trạng thái triển khai bàn giao theo plan_continue.md (11/09/2026)
+
+Model tiếp nhận đã hoàn tất triển khai toàn bộ các đợt A–G theo `plan_continue.md`:
+
+1. **Đợt A (PWA Cache Self-Repair)**:
+   - `sw.js`: Bổ sung cơ chế `repairCache()` và `ensureCacheIntegrity()`. Nếu cache của worker active bị thiếu một phần hoặc mất hoàn toàn, tự động đối chiếu SHA-256 digest và tải lại đúng tài nguyên của phiên bản hiện tại mà không làm hỏng cache đang hoạt động hoặc kẹt lỗi 503.
+   - Thêm 6 kịch bản kiểm thử PWA cache repair trong `tests/pwa.test.mjs` (mất toàn bộ, mất một phần, server đổi SHA-256, mất mạng, lỗi quota, serialize đồng thời).
+2. **Đợt B (Lượt học tùy chọn trong một bộ)**:
+   - Cho phép chọn số câu (10/20/30 câu) và lọc dạng câu hỏi (`type`).
+   - `core.js` & `storage.js`: Bổ sung tham số và lưu cấu hình `limit`, `type` trong session/summary để tải lại và "Học tiếp" giữ nguyên bộ lọc.
+   - Giao diện dropdown chọn số câu và dạng câu trên Home view.
+3. **Đợt C (Ôn riêng các câu sai, tối đa 20 câu/lượt)**:
+   - Backend `storage.js`: Tách biệt `purpose: "review"` khỏi luồng học thường. Lấy tối đa 20 câu có lần làm gần nhất bị sai (`mistakeQuestions`). Lượt ôn sai không ảnh hưởng đến số câu còn lại và lịch SRS của chế độ thường.
+   - UI: Banner nhắc ôn câu sai trên trang chủ, giao diện làm bài gắn nhãn "Ôn câu sai", màn hình kết quả thông báo rõ ràng và cho phép tiếp tục ôn các câu còn lại.
+4. **Đợt D (Trộn nhiều bộ - Cross-set study)**:
+   - `storage.js`: Bổ sung hỗ trợ `setIds` trong `startSession`, `selection`, `validSession`, `validSummary`. Trộn các bộ cùng môn/domain.
+   - Khử trùng `learning_key` cho vocabulary trong cùng một phiên trộn.
+   - Xóa một bộ trong tab khác tự động dọn session an toàn.
+   - UI: Nút và hộp thoại "Trộn nhiều bộ" cho phép chọn nhiều bộ cùng môn, màn hình kết quả hiển thị breakdown chi tiết theo từng bộ.
+5. **Đợt E (Tìm câu hỏi & Xuất báo cáo giáo viên)**:
+   - `stats.js`: Thêm `searchQuestions()` tìm kiếm đa trường (prompt, context, topic, subtopic, answer) không làm biến dạng object answer.
+   - Thêm `generateReportMarkdown()` và `generateReportCsv()` với cơ chế chống Spreadsheet Formula Injection.
+   - UI: Tab tìm kiếm câu hỏi trong Thư viện (giữ caret/IME mượt mà khi gõ), nút xuất báo cáo Markdown/CSV trong mục Dữ liệu.
+6. **Đợt F (Chia sẻ bộ qua Link/QR)**:
+   - `core.js`: `encodeSharePayload()` và `decodeSharePayload()` chuẩn hóa UTF-8/Base64, giới hạn an toàn 50 KB, bảo toàn BOM.
+   - UI: Nút "Chia sẻ bộ" trong menu từng bộ bài, tạo link hash `#import=...`, cơ chế tự động phát hiện hash trên URL để hiển thị hộp thoại xác nhận trước khi thêm vào kho.
+7. **Đợt G (Performance & Error Boundary)**:
+   - Error boundary bao bọc toàn bộ giao diện `render()` với màn hình thông báo lỗi an toàn, vẫn cho phép truy cập mục Dữ liệu để sao lưu và nút tải lại trang.
+   - Cập nhật tối ưu DOM cho input/draft, mở rộng fallback CSS không hỗ trợ backdrop-filter.
+   - **Kết quả kiểm thử**: 88/88 test đạt (100% pass trên cả Node tests, PWA tests, IndexedDB và localStorage). Build Pages 13 tệp thành công.
+
+### Trạng thái bàn giao ngày 11/09 (Terra Max trước đó)
+
+- Terra Max `terra_phase6_finish` đã bàn giao Phase 6 cùng sửa Enter: build `3146210aa513`, 13 tệp, 71/71 test đạt. Chưa commit/push và chưa browser QA bản cuối. Core/storage/stats/guide không đổi.
+- Enter sau chấm đã dùng chung action `next`; Enter trên summary/link/control giữ hành vi mặc định. UI PWA dùng vùng riêng, không render lại root hoặc lấy focus khi báo trạng thái mạng/cập nhật.
+- Worker kiểm tra SHA-256 precache, đọc cache đúng scope/version, bảo toàn cache active khi cài lại lỗi; không ép cập nhật. Guide tải theo navigation trả đúng guide. Test A/B, lỗi precache, cache miss và lifecycle/mock đều đạt.
+- Còn điểm cần sửa trước phát hành: khi cache của worker active bị mất mà server chưa đổi SW, app có thể kẹt 503. Chưa có self-repair an toàn; đã đưa lên đầu tài liệu bàn giao, không yêu cầu xóa kho học để chữa.
+- Người dùng yêu cầu dừng mở rộng sau đợt Terra hiện tại và tạo `plan_continue.md` chi tiết để model khác triển khai nốt. Đã soạn hướng dẫn tự đủ ngữ cảnh: vị trí project/Git, kiến trúc, bất biến dữ liệu, kết quả thực tế, phần thiếu, trình tự Phase 7–8, test/QA/deploy và prompt dùng ngay.
+- Browser QA lượt trước bị bộ duyệt tự động chặn vì hạn mức; không dùng công cụ khác để lách chặn. Chưa có Lighthouse, screenshots/install mobile hoặc offline browser QA bản cuối; không đánh dấu những mục đó đã xong.
+- Website công khai vẫn là bản backend trước đợt frontend. Mọi thay đổi local được giữ nguyên; chỉ một tiến trình chạy build mỗi lần. Cổng QA riêng là 4187, không đụng dự án khác.
+
+### Bằng chứng kiểm tra trong đợt frontend
+
+- Bản cuối đợt Terra `3146210aa513`: 71/71 test, build 13 tệp, kiểm tra cú pháp nguồn/dist và `git diff --check` đạt. Agent chính chạy độc lập 69 test core/storage/stats/PWA: 69/69 đạt, xác minh meta version và danh sách tệp trong dist. Hai test còn lại trong tổng 71 thuộc build/tích hợp nguồn UI do Terra chạy.
+- Terra đã build bản 0–5 `f875044ef585`, 12 tệp; kiểm tra cú pháp, `git diff --check`, 64/64 test đạt. `pwa.js` chưa được tích hợp vào bản này.
+- Trên bản `f875044ef585`, agent chính đã kiểm tra: trang kết quả có focus tiêu đề, breakdown thật 0/1 và thời gian 38 giây; về bộ bài đúng, trang chủ có 14 XP và tiến độ đã lưu. Nút sao chép hiện thông báo thành công, nhưng chưa xác minh được nội dung clipboard.
+- Phím L mở thư viện và chuyển focus tiêu đề; lọc môn, sắp xếp và tìm kiếm giữ caret hoạt động trong lượt thử. Gõ H khi đang nhập chỉ chèn chữ, không đổi trang. Chưa thử composition IME thực, timer, Esc lưu nháp, flashcard, focus sau chấm/qua câu và responsive đủ ba kích thước trên bản này.
+- Ngày 11/09 agent chính chạy độc lập `node --test tests/core.test.mjs tests/storage.test.mjs tests/stats.test.mjs`: 63/63 đạt, không chạy build thay Terra.
+- Bản nền `544acf571eb2`: Terra chạy kiểm tra cú pháp, 64/64 test và build đạt. Agent chính mở bản này ở cổng QA 4187.
+- Đã kiểm chứng trang Thống kê với bộ Vật lí có 2 câu: 2 lần trả lời, 2 câu duy nhất, 12 XP, 50% đúng; chủ điểm Lực 0%, Khối lượng riêng 100%. Focus chuyển vào tiêu đề khi đổi trang.
+- Chuyển tự động → sáng → tối hoạt động; tải lại vẫn giữ tối. Đã xem ở 1050 px và 390 px; 390 px giữ 10 tuần heatmap, không tràn toàn trang. Cỡ nhãn nhỏ vẫn cần sửa, chưa đánh dấu Phase 0/5 hoàn tất.
+- Nhập CSV tiếng Anh 16 cột đủ 24 câu; chấm sai grammar rồi tải lại giữ nguyên đáp án/kết quả, kết thúc lượt không lặp câu sai. Chưa thấy console error/warning trong các lượt thử này. Focus sau chấm và UI kết quả đang được Terra hoàn thiện.
+
+### Điểm nối tiếp cần kiểm chứng
+
+1. Đọc `plan_continue.md` và giữ mọi bản sửa/untracked hiện tại; không reset hoặc khôi phục bản cũ. Source và dist đã kiểm tra cú pháp trong đợt Terra; không coi bản build là đã phát hành.
+2. Phase 3–5 đã có build `f875044ef585` và bằng chứng từng phần ở trên, chưa coi là hoàn tất toàn bộ. Cần kiểm tra: timer có ẩn/hiện và không chạy khi ẩn; composition tiếng Việt; Enter sau chọn MCQ thực sự chấm; bắt lỗi thao tác phím tắt; focus khi qua câu/kết quả và khi đóng dialog.
+3. Kiểm tra lại 390/760/1050 px, nhãn thường dùng ít nhất khoảng 14 px, metadata ít nhất 12 px, không che lỗi bố cục bằng `overflow-x: hidden`. Kiểm tra đủ light/dark/auto, reload, ô nhập và flashcard Space/trái/phải. Không tuyên bố điểm Lighthouse khi chưa chạy.
+4. Phase 6 đã tích hợp PWA, test/build cùng 13 tệp; app import PWA, guide có version và digest đúng. Cần triển khai self-repair cache bị mất, sau đó kiểm chứng lifecycle/offline trên trình duyệt thật. Không bỏ kiểm tra digest hoặc dùng fetch không xác minh để né 503.
+5. Contract PWA cuối cùng: `initPwa({ onConnectivityChange, onUpdateReady, onInstallAvailable })`; update chỉ thông báo và chờ lifecycle bình thường khi đóng các tab cũ, không `skipWaiting`/force reload. Không xóa cache bundle cũ khi tab cũ đang dùng; không xóa IndexedDB/cache ứng dụng khác. Shortcuts chỉ `?view=home|library|stats|data` (frontend đã có parse whitelist).
+6. Phase 7 vẫn chưa triển khai. Phase 8 mới có error boundary/CSS sections, chưa giảm render hoặc đo hiệu năng. Giữ nguyên các mục mở rộng trong roadmap, không đánh dấu đã xong.
+7. Sau khi build/test + QA toàn bộ phần phát hành đạt mới giao Terra commit/push non-force và kiểm chứng Actions/live. Không phát hành các thay đổi dở chỉ để có bản mới.
+
+## Mốc backend đã hoàn tất ngày 09/09
 
 - Terra Max đã hoàn tất phần triển khai. `npm test`: 64/64 đạt; `npm run build`: đạt, 12 tệp, phiên bản kiểm thử local `5195cf211793`.
 - Agent chính đã rà soát và kiểm tra trình duyệt: nhập CSV Vật lí lớp 8, chấm đúng/sai, tải lại ở màn hình đáp án và kết quả, hoàn tất bộ với 0 câu chưa làm. Câu khoa học sai không lặp lại.
@@ -16,7 +106,7 @@ Cập nhật: 09/09/2026.
 
 - Agent chính lập/cập nhật kế hoạch, rà soát và kiểm chứng kết quả.
 - Terra, mức suy luận Max, thực hiện các thay đổi mã, kiểm thử và build.
-- Ưu tiên backend/logic dữ liệu. Chỉ nối giao diện tối thiểu để chức năng dùng được; thiết kế frontend sẽ làm sau.
+- Backend/logic dữ liệu đã hoàn tất ở đợt trước. Đợt hiện tại triển khai frontend theo xác nhận mới, bảo vệ các quy tắc dữ liệu đã kiểm thử.
 - Giữ nguyên GitHub Pages và URL đang có; không chuyển sang Sites hoặc tạo dịch vụ có phí.
 
 ## Mục tiêu

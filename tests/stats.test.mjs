@@ -17,6 +17,9 @@ import {
   xpFromAttempts,
   XP_CORRECT,
   XP_INCORRECT,
+  searchQuestions,
+  generateReportMarkdown,
+  generateReportCsv,
 } from "../stats.js";
 
 const DAY = 24 * 60 * 60 * 1_000;
@@ -227,4 +230,117 @@ test("collectVocabularyKeys khử trùng lặp và bỏ câu đã tắt", () => 
     { domain: "grammar", id: "g1", active: true },
   ]);
   assert.deepEqual(keys, ["k1"]);
+});
+
+test("searchQuestions tìm chính xác trên prompt, context, topic, subtopic và đáp án không ra [object Object]", () => {
+  const questions = [
+    { id: "q1", subject: "physics", topic: "Cơ học", subtopic: "Lực ma sát", prompt: "Đơn vị của lực?", context: "Trong hệ SI", answer: ["Newton", "N"], active: true },
+    { id: "q2", subject: "english", topic: "Matching", subtopic: "", prompt: "Ghép từ", context: "", answer: { dog: "chó", cat: "mèo" }, active: true },
+    { id: "q3", subject: "chemistry", topic: "Nguyên tử", subtopic: "", prompt: "<script>alert(1)</script>", context: "Phân tử", answer: ["H2O"], active: true },
+    { id: "q4", subject: "biology", topic: "Tế bào", subtopic: "", prompt: "Cấu tạo tế bào?", context: "", answer: ["Màng sinh chất"], active: false },
+  ];
+
+  // Kho rỗng hoặc query rỗng
+  assert.deepEqual(searchQuestions([], "lực"), []);
+  assert.deepEqual(searchQuestions(questions, ""), []);
+  assert.deepEqual(searchQuestions(questions, "   "), []);
+
+  // Tìm theo prompt và context (tiếng Việt có dấu, case-insensitive)
+  const byPrompt = searchQuestions(questions, "ĐƠN VỊ");
+  assert.equal(byPrompt.length, 1);
+  assert.equal(byPrompt[0].id, "q1");
+
+  const bySubtopic = searchQuestions(questions, "ma sát");
+  assert.equal(bySubtopic.length, 1);
+  assert.equal(bySubtopic[0].id, "q1");
+
+  // Tìm theo đáp án object (không stringify thành [object Object])
+  const byAnswerObj = searchQuestions(questions, "mèo");
+  assert.equal(byAnswerObj.length, 1);
+  assert.equal(byAnswerObj[0].id, "q2");
+
+  assert.deepEqual(searchQuestions(questions, "[object"), []);
+
+  // Bỏ qua câu đã tắt (inactive)
+  const byInactive = searchQuestions(questions, "Tế bào");
+  assert.equal(byInactive.length, 0);
+
+  // Không thay đổi dữ liệu gốc
+  assert.equal(questions[0].id, "q1");
+});
+
+test("báo cáo học tập: Markdown và CSV xử lý đủ 4 môn, topic trùng tên giữa môn, escape công thức, đối chiếu số liệu", () => {
+  const now = new Date("2026-09-11T10:00:00Z").getTime();
+
+  // 1. Kho trống: không crash
+  const emptyMd = generateReportMarkdown({ questions: [], attempts: [], imports: [], now });
+  assert.ok(emptyMd.includes("Số bộ bài") && emptyMd.includes("0"));
+  assert.ok(emptyMd.includes("Tổng số câu hỏi") && emptyMd.includes("0"));
+  assert.ok(emptyMd.includes("0%"));
+
+  const emptyCsv = generateReportCsv({ questions: [], attempts: [], imports: [], now });
+  assert.ok(emptyCsv.startsWith("\uFEFF"));
+  assert.ok(emptyCsv.includes("TỔNG QUAN"));
+
+  // 2. Dữ liệu 4 môn, trong đó Physics và Biology cùng có topic "Năng lượng"
+  const imports = [
+    { id: "s-eng", name: "English Set" },
+    { id: "s-phy", name: "Physics Set" },
+    { id: "s-bio", name: "Biology Set" },
+    { id: "s-chm", name: "Chemistry Set" },
+  ];
+  const questions = [
+    { id: "q-eng", setId: "s-eng", subject: "english", topic: "Tenses", prompt: "He ___ here.", answer: ["lives"], explanation: "Simple present.", active: true },
+    { id: "q-phy", setId: "s-phy", subject: "physics", topic: "Năng lượng", prompt: "Định luật bảo toàn?", answer: ["Đúng"], explanation: "Năng lượng không tự mất đi.", active: true },
+    { id: "q-bio", setId: "s-bio", subject: "biology", topic: "Năng lượng", prompt: "Quang hợp tạo gì?", answer: ["Glucose"], explanation: "Tạo chất hữu cơ.", active: true },
+    { id: "q-chm", setId: "s-chm", subject: "chemistry", topic: "Phản ứng", prompt: "Phản ứng tỏa nhiệt?", answer: ["Tỏa nhiệt"], explanation: "Giải phóng năng lượng.", active: true },
+  ];
+
+  // Attempts:
+  // q-eng: đúng lần đầu
+  // q-phy: sai lần đầu, sai lần 2 -> sai gần nhất
+  // q-bio: đúng
+  // q-chm: chưa làm
+  const attempts = [
+    { id: "a1", questionId: "q-eng", correct: true, attemptedAt: now - 3600000, purpose: "study" },
+    { id: "a2", questionId: "q-phy", correct: false, attemptedAt: now - 7200000, purpose: "study" },
+    { id: "a3", questionId: "q-phy", correct: false, attemptedAt: now - 1800000, purpose: "study" },
+    { id: "a4", questionId: "q-bio", correct: true, attemptedAt: now - 900000, purpose: "study" },
+  ];
+
+  // 3. Kiểm tra Markdown
+  const md = generateReportMarkdown({ questions, attempts, imports, now });
+  assert.ok(md.includes("Số bộ bài") && md.includes("4"));
+  assert.ok(md.includes("Tổng số câu hỏi trong kho") && md.includes("4"));
+  assert.ok(md.includes("Số câu duy nhất đã làm") && md.includes("3/4"));
+  assert.ok(md.includes("Tổng số lần trả lời") && md.includes("4"));
+  assert.ok(md.includes("Lần làm đúng") && md.includes("2"));
+  assert.ok(md.includes("Lần làm chưa đúng") && md.includes("2"));
+  assert.ok(md.includes("Độ chính xác trung bình") && md.includes("50%"));
+
+  // Tách riêng topic trùng tên "Năng lượng" theo môn
+  assert.ok(md.includes("| Vật lí | Năng lượng | 1 | 1 | 2 | 0 | 0% |"));
+  assert.ok(md.includes("| Sinh học | Năng lượng | 1 | 1 | 1 | 1 | 100% |"));
+
+  // Danh sách câu sai gần nhất chỉ có q-phy
+  assert.ok(md.includes("Danh sách câu sai gần nhất (1 câu)"));
+  assert.ok(md.includes("Định luật bảo toàn?"));
+
+  // 4. Kiểm tra CSV và chống Formula Injection
+  const injectionQ = [
+    { id: "q-inj", setId: "s-phy", subject: "physics", topic: "=SUM(A1:A10)", prompt: "@dangerous_command", answer: ["+12345"], explanation: "-dangerous", active: true },
+  ];
+  const injectionAttempts = [
+    { id: "ai", questionId: "q-inj", correct: false, attemptedAt: now, purpose: "study" },
+  ];
+  const csv = generateReportCsv({ questions: injectionQ, attempts: injectionAttempts, imports, now });
+  assert.ok(csv.startsWith("\uFEFF"));
+  assert.ok(csv.includes("=SUM(A1:A10)"));
+  assert.ok(csv.includes("@dangerous_command"));
+  assert.ok(csv.includes("+12345"));
+  assert.ok(csv.includes("-dangerous"));
+  assert.ok(csv.includes("'=SUM(A1:A10)"));
+  assert.ok(csv.includes("'@dangerous_command"));
+  assert.ok(csv.includes("'+12345"));
+  assert.ok(csv.includes("'-dangerous"));
 });

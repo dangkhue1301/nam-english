@@ -318,6 +318,350 @@ for (const mode of ["localStorage", "IndexedDB"]) {
     assert.throws(() => repo.importQuestions([question(), question()], "duplicates.csv"), /trùng/);
     assert.deepEqual(await repo.snapshot(), before);
   });
+  test(`${mode}: tùy chọn số câu 10/20/30: bộ 50 chia 10 + 10 + 30, bộ 7 câu lấy hết 7`, async (t) => {
+    const { repo, open } = await setup(t, mode);
+    const set50 = await repo.importQuestions(Array.from({ length: 50 }, (_, i) => question({ id: `q50_${i}` })), "50q.csv");
+    let s1 = await repo.startSession({ setId: set50.id, mode: "grammar", limit: 10 });
+    assert.equal(s1.target, 10);
+    assert.equal(s1.filters.limit, 10);
+    while (s1) {
+      await repo.submit(s1.id, s1.step, "is");
+      await repo.advance(s1.id, s1.step);
+      s1 = (await repo.snapshot()).session;
+    }
+    const sum1 = (await repo.snapshot()).summary;
+    assert.equal(sum1.total, 10);
+    assert.equal(sum1.filters.limit, 10);
+
+    let s2 = await repo.startSession({ setId: set50.id, mode: "grammar", limit: 10 });
+    assert.equal(s2.target, 10);
+    while (s2) {
+      await repo.submit(s2.id, s2.step, "is");
+      await repo.advance(s2.id, s2.step);
+      s2 = (await repo.snapshot()).session;
+    }
+
+    let s3 = await repo.startSession({ setId: set50.id, mode: "grammar", limit: 30 });
+    assert.equal(s3.target, 30);
+    while (s3) {
+      await repo.submit(s3.id, s3.step, "is");
+      await repo.advance(s3.id, s3.step);
+      s3 = (await repo.snapshot()).session;
+    }
+    assert.equal((await repo.snapshot()).attempts.filter((a) => a.setId === set50.id).length, 50);
+
+    const set7 = await repo.importQuestions(Array.from({ length: 7 }, (_, i) => question({ id: `q7_${i}` })), "7q.csv");
+    let s4 = await repo.startSession({ setId: set7.id, mode: "grammar", limit: 20 });
+    assert.equal(s4.target, 7);
+    assert.equal(s4.queue.length, 7);
+    assert.equal(s4.filters.limit, 20);
+  });
+
+  test(`${mode}: lọc type chỉ lấy đúng câu thuộc type đó, giữ cấu hình qua reload và next-batch`, async (t) => {
+    const { repo, open } = await setup(t, mode);
+    const set = await repo.importQuestions([
+      practice({ id: "mcq_1", type: "mcq" }),
+      practice({ id: "mcq_2", type: "mcq" }),
+      practice({ id: "fill_1", type: "fill_blank", answer: "H2O" }),
+      practice({ id: "fill_2", type: "fill_blank", answer: "NaCl" }),
+    ], "mixed-types.csv");
+
+    let s = await repo.startSession({ setId: set.id, mode: "practice", type: "mcq", limit: 10 });
+    assert.equal(s.target, 2);
+    assert.equal(s.filters.type, "mcq");
+    assert.equal(s.filters.limit, 10);
+    const snap = await repo.snapshot();
+    const qMap = new Map(snap.questions.map((q) => [q.id, q]));
+    assert.deepEqual(s.queue.map((id) => qMap.get(id).originalId).sort(), ["mcq_1", "mcq_2"]);
+
+    // Reload preserves session
+    const reloaded = await open();
+    let rs = (await reloaded.snapshot()).session;
+    assert.equal(rs.id, s.id);
+    assert.equal(rs.filters.type, "mcq");
+    assert.equal(rs.filters.limit, 10);
+
+    // Complete session
+    await reloaded.submit(rs.id, 0, "N");
+    await reloaded.advance(rs.id, 0);
+    rs = (await reloaded.snapshot()).session;
+    await reloaded.submit(rs.id, 1, "N");
+    await reloaded.advance(rs.id, 1);
+
+    const summary = (await reloaded.snapshot()).summary;
+    assert.equal(summary.filters.type, "mcq");
+    assert.equal(summary.filters.limit, 10);
+
+    // Hết câu mcq, bắt đầu lại với cùng filter phải reject
+    await assert.rejects(reloaded.startSession({ setId: set.id, mode: "practice", ...summary.filters }), /Đã hết câu phù hợp/);
+
+    // Lọc fill_blank vẫn còn 2 câu
+    let sFill = await reloaded.startSession({ setId: set.id, mode: "practice", type: "fill_blank", limit: 20 });
+    assert.equal(sFill.target, 2);
+    assert.deepEqual(sFill.queue.map((id) => qMap.get(id).originalId).sort(), ["fill_1", "fill_2"]);
+  });
+
+  test(`${mode}: ôn riêng các câu sai: tối đa 20 câu, nhiều bộ, submit idempotent, reload, không ảnh hưởng số câu thường và SRS, lần đúng loại khỏi danh sách sai, backup giữ purpose`, async (t) => {
+    const { repo, open } = await setup(t, mode);
+
+    // 1. Tạo 2 bộ: Set A (Vật lí, 10 câu), Set B (Grammar, 15 câu)
+    const physicsQuestions = Array.from({ length: 10 }, (_, i) => ({
+      subject: "physics",
+      grade: "8",
+      id: `phys-${i + 1}`,
+      domain: "practice",
+      type: "mcq",
+      level: "A1",
+      topic: "Lực",
+      subtopic: "",
+      prompt: `Câu hỏi vật lí số ${i + 1}`,
+      context: "",
+      options: ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
+      answer: "Đáp án A",
+      explanation: "Giải thích",
+      theory: "Lý thuyết",
+      hint: "",
+      tags: [],
+      difficulty: "1",
+      learning_key: "",
+    }));
+
+    const grammarQuestions = Array.from({ length: 15 }, (_, i) => ({
+      subject: "english",
+      grade: "",
+      id: `gram-${i + 1}`,
+      domain: "grammar",
+      type: "mcq",
+      level: "B1",
+      topic: "Tenses",
+      subtopic: "",
+      prompt: `Grammar question ${i + 1}`,
+      context: "",
+      options: ["Option A", "Option B", "Option C", "Option D"],
+      answer: "Option A",
+      explanation: "Explanation",
+      theory: "Grammar theory",
+      hint: "",
+      tags: [],
+      difficulty: "2",
+      learning_key: "",
+    }));
+
+    const setA = await repo.importQuestions(physicsQuestions, "physics.csv", "Vật lí 8");
+    const setB = await repo.importQuestions(grammarQuestions, "grammar.csv", "Grammar B1");
+
+    // 2. Học Set A: làm 4 câu: 1 đúng (phys-1), 3 sai (phys-2, phys-3, phys-4) -> 6 câu còn lại
+    let sessionA = await repo.startSession({ setId: setA.id, mode: "practice", limit: 4 });
+    await repo.submit(sessionA.id, 0, "Đáp án A"); await repo.advance(sessionA.id, 0); // Đúng
+    await repo.submit(sessionA.id, 1, "Đáp án B"); await repo.advance(sessionA.id, 1); // Sai
+    await repo.submit(sessionA.id, 2, "Đáp án B"); await repo.advance(sessionA.id, 2); // Sai
+    await repo.submit(sessionA.id, 3, "Đáp án B"); await repo.advance(sessionA.id, 3); // Sai
+
+    // 3. Học Set B: làm 4 câu: 2 đúng (gram-1, gram-2), 2 sai (gram-3, gram-4) -> 11 câu còn lại
+    let sessionB = await repo.startSession({ setId: setB.id, mode: "grammar", limit: 4 });
+    await repo.submit(sessionB.id, 0, "Option A"); await repo.advance(sessionB.id, 0); // Đúng
+    await repo.submit(sessionB.id, 1, "Option A"); await repo.advance(sessionB.id, 1); // Đúng
+    await repo.submit(sessionB.id, 2, "Option B"); await repo.advance(sessionB.id, 2); // Sai
+    await repo.submit(sessionB.id, 3, "Option B"); await repo.advance(sessionB.id, 3); // Sai
+
+    // Kiểm tra số câu sai hiện tại: 3 câu từ Set A + 2 câu từ Set B = 5 câu
+    const dashboardBefore = await readDashboard(repo);
+    assert.equal(dashboardBefore.mistakes.length, 5);
+
+    // Kiểm tra số câu còn lại trong chế độ thường trước khi ôn sai:
+    const remainingABefore = (await getSessionQuestions(repo, { setId: setA.id, domain: "practice" })).length;
+    const remainingBBefore = (await getSessionQuestions(repo, { setId: setB.id, domain: "grammar" })).length;
+    assert.equal(remainingABefore, 6, "Set A phải còn 6 câu chưa làm");
+    assert.equal(remainingBBefore, 11, "Set B phải còn 11 câu chưa làm");
+
+    // 4. Bắt đầu lượt ôn sai (tối đa 20 câu)
+    const reviewSession = await repo.startMistakesSession({ limit: 20 });
+    assert.equal(reviewSession.purpose, "review");
+    assert.equal(reviewSession.mode, "review");
+    assert.equal(reviewSession.target, 5);
+    assert.equal(reviewSession.queue.length, 5);
+    assert.ok(Array.isArray(reviewSession.setIds));
+    assert.equal(reviewSession.setIds.length, 2);
+
+    // Không cho mở session mới khi đang có lượt ôn sai
+    await assert.rejects(repo.startSession({ setId: setA.id, mode: "practice" }), /Hãy tiếp tục hoặc kết thúc lượt đang học trước/);
+
+    // 5. Submit idempotent
+    const q0Id = reviewSession.queue[0];
+    const q0 = (await repo.snapshot()).questions.find((q) => q.id === q0Id);
+    const sub1 = await repo.submit(reviewSession.id, 0, q0.answer);
+    const sub2 = await repo.submit(reviewSession.id, 0, q0.answer);
+    assert.deepEqual(sub1, sub2);
+    const snapMid = await repo.snapshot();
+    assert.equal(snapMid.attempts.filter((a) => a.id === `${reviewSession.id}:0`).length, 1);
+
+    // 6. Reload giữa đáp án/kết quả
+    const reloadedRepo = await open();
+    const reloadedSnap = await reloadedRepo.snapshot();
+    assert.ok(reloadedSnap.session);
+    assert.equal(reloadedSnap.session.id, reviewSession.id);
+    assert.equal(reloadedSnap.session.purpose, "review");
+    assert.ok(reloadedSnap.session.result);
+
+    // 7. Hoàn thành lượt ôn sai
+    await reloadedRepo.advance(reviewSession.id, 0); // Đã làm đúng câu 0
+
+    // Câu 1: trả lời ĐÚNG
+    const q1Id = (await reloadedRepo.snapshot()).session.queue[0];
+    const q1 = (await reloadedRepo.snapshot()).questions.find((q) => q.id === q1Id);
+    await reloadedRepo.submit(reviewSession.id, 1, q1.answer);
+    await reloadedRepo.advance(reviewSession.id, 1);
+
+    // Câu 2: trả lời SAI
+    await reloadedRepo.submit(reviewSession.id, 2, "Sai hoàn toàn");
+    await reloadedRepo.advance(reviewSession.id, 2);
+
+    // Câu 3: trả lời ĐÚNG
+    const q3Id = (await reloadedRepo.snapshot()).session.queue[0];
+    const q3 = (await reloadedRepo.snapshot()).questions.find((q) => q.id === q3Id);
+    await reloadedRepo.submit(reviewSession.id, 3, q3.answer);
+    await reloadedRepo.advance(reviewSession.id, 3);
+
+    // Câu 4: trả lời SAI
+    await reloadedRepo.submit(reviewSession.id, 4, "Sai hoàn toàn");
+    await reloadedRepo.advance(reviewSession.id, 4);
+
+    // Kết thúc lượt ôn: session null, summary có purpose: "review"
+    const finishedSnap = await reloadedRepo.snapshot();
+    assert.equal(finishedSnap.session, null);
+    assert.ok(finishedSnap.summary);
+    assert.equal(finishedSnap.summary.purpose, "review");
+    assert.equal(finishedSnap.summary.total, 5);
+    assert.equal(finishedSnap.summary.correct, 3);
+    assert.equal(finishedSnap.summary.repeats, 0);
+
+    // 8. BẤT BIẾN: Số câu còn lại trong chế độ thường KHÔNG THAY ĐỔI
+    const remainingAAfter = (await getSessionQuestions(reloadedRepo, { setId: setA.id, domain: "practice" })).length;
+    const remainingBAfter = (await getSessionQuestions(reloadedRepo, { setId: setB.id, domain: "grammar" })).length;
+    assert.equal(remainingAAfter, 6, "Set A vẫn phải còn đúng 6 câu chưa làm");
+    assert.equal(remainingBAfter, 11, "Set B vẫn phải còn đúng 11 câu chưa làm");
+
+    // 9. Lần ôn ĐÚNG loại câu khỏi danh sách câu sai; câu vẫn SAI tiếp tục nằm trong danh sách
+    const dashboardAfter = await readDashboard(reloadedRepo);
+    assert.equal(dashboardAfter.mistakes.length, 2, "Chỉ còn 2 câu sai sau khi ôn đúng 3 câu");
+
+    // 10. Backup giữ purpose và nhận backup cũ
+    const backup = exportBackup(finishedSnap);
+    const reviewAttempts = backup.snapshot.attempts.filter((a) => a.purpose === "review");
+    assert.equal(reviewAttempts.length, 5);
+    const validated = validateBackup(backup);
+    assert.equal(validated.attempts.filter((a) => a.purpose === "review").length, 5);
+
+    // Backup cũ không có purpose vẫn được nhận và mặc định là "study"
+    const legacyBackup = structuredClone(backup);
+    legacyBackup.snapshot.attempts.forEach((a) => {
+      delete a.purpose;
+      if (a.mode === "review") delete a.mode;
+    });
+    const validatedLegacy = validateBackup(legacyBackup);
+    assert.ok(validatedLegacy.attempts.every((a) => a.purpose === "study"));
+
+    // 11. Xóa một bộ trong lượt ôn sai: tab khác xóa bộ thì dọn session an toàn
+    const reviewSession2 = await reloadedRepo.startMistakesSession({ limit: 20 });
+    assert.equal(reviewSession2.target, 2);
+    // Xóa Set A
+    await reloadedRepo.deleteSet(setA.id);
+    const snapAfterDelete = await reloadedRepo.snapshot();
+    assert.equal(snapAfterDelete.session, null, "Session phải được dọn khi bộ trong setIds bị xóa");
+  });
+
+  test(`${mode}: trộn nhiều bộ: cùng mode, trùng ID gốc, hết câu, lọc type/grade, giới hạn, reload, xóa một bộ, vocabulary trùng key`, async (t) => {
+    const { repo, open } = await setup(t, mode);
+
+    // 1. Tạo 2 bộ Vật lí có ID gốc trùng nhau
+    const physics1Rows = [
+      practice({ id: "p1", prompt: "Bộ 1 - Lực là gì?", options: ["N", "J"], answer: ["N"] }),
+      practice({ id: "p2", prompt: "Bộ 1 - Quán tính là gì?", options: ["A", "B"], answer: ["A"] }),
+    ];
+    const physics2Rows = [
+      practice({ id: "p1", type: "multiple_select", prompt: "Bộ 2 - Các loại lực?", options: ["Ma sát", "Trọng lực", "Vận tốc"], answer: ["Ma sát", "Trọng lực"] }),
+      practice({ id: "p2", prompt: "Bộ 2 - Câu 2?", options: ["X", "Y"], answer: ["X"] }),
+      practice({ id: "p3", prompt: "Bộ 2 - Áp suất?", options: ["p=F/S", "p=F*S"], answer: ["p=F/S"] }),
+      practice({ id: "p4", type: "multiple_select", prompt: "Bộ 2 - Các đơn vị?", options: ["N", "Pa", "m/s"], answer: ["N", "Pa"] }),
+    ];
+
+    const setP1 = await repo.importQuestions(physics1Rows, "physics1.csv", "Vật lí Bộ 1");
+    const setP2 = await repo.importQuestions(physics2Rows, "physics2.csv", "Vật lí Bộ 2");
+
+    // Từ chối trộn khác môn (ví dụ trộn Lý với Hóa)
+    const chemRows = [
+      practice({ subject: "chemistry", id: "c1", prompt: "Nguyên tử?", options: ["Hạt", "Sóng"], answer: ["Hạt"] }),
+    ];
+    const setChem = await repo.importQuestions(chemRows, "chem.csv", "Hóa học Bộ 1");
+    await assert.rejects(
+      repo.startSession({ setIds: [setP1.id, setChem.id], mode: "practice" }),
+      /cùng môn/
+    );
+
+    // 2. Bắt đầu lượt trộn 2 bộ Vật lí (tổng 2 + 3 = 5 câu)
+    const session = await repo.startSession({ setIds: [setP1.id, setP2.id], mode: "practice", limit: 10 });
+    assert.equal(session.target, 6);
+    assert.deepEqual(session.setIds.sort(), [setP1.id, setP2.id].sort());
+    assert.equal(new Set(session.queue).size, 6);
+
+    // Không tự đổi selectedSetId khi trộn
+    const snapDuring = await repo.snapshot();
+    assert.notEqual(snapDuring.selectedSetId, null);
+
+    // 3. Chấm câu đầu tiên (thuộc Bộ 1 hoặc Bộ 2)
+    const firstQId = session.queue[0];
+    const firstQ = snapDuring.questions.find((q) => q.id === firstQId);
+    const subResult = await repo.submit(session.id, 0, firstQ.type === "multiple_select" ? firstQ.answer : firstQ.answer[0], { text: firstQ.answer[0] });
+    assert.equal(subResult.correct, true);
+
+    // Reload giữ session và draft
+    const reloadedRepo = await open();
+    await reloadedRepo.repairSession();
+    const reloadedSnap = await reloadedRepo.snapshot();
+    assert.ok(reloadedSnap.session);
+    assert.equal(reloadedSnap.session.result.correct, true);
+
+    // Advance
+    await reloadedRepo.advance(session.id, 0);
+
+    // 4. Lọc type trong lượt trộn: chỉ lấy multiple_select (chỉ có 1 câu ở Bộ 2)
+    await reloadedRepo.endSession(session.id);
+    const filterSession = await reloadedRepo.startSession({
+      setIds: [setP1.id, setP2.id],
+      mode: "practice",
+      type: "multiple_select",
+      limit: 10,
+    });
+    assert.ok(filterSession.target >= 1 && filterSession.target <= 2);
+    assert.ok(filterSession.queue[0].startsWith(setP2.id));
+    await reloadedRepo.endSession(filterSession.id);
+
+    // 5. Vocabulary với trùng learning_key giữa 2 bộ
+    const vocab1 = [
+      vocabulary({ id: "v1", prompt: "Bộ V1 - apple", learningKey: "vocab:apple:noun:táo" }),
+      vocabulary({ id: "v2", prompt: "Bộ V1 - banana", learningKey: "vocab:banana:noun:chuối" }),
+    ];
+    const vocab2 = [
+      vocabulary({ id: "v1", prompt: "Bộ V2 - apple", learningKey: "vocab:apple:noun:táo" }),
+      vocabulary({ id: "v3", prompt: "Bộ V2 - cherry", learningKey: "vocab:cherry:noun:anh đào" }),
+    ];
+
+    const setV1 = await reloadedRepo.importQuestions(vocab1, "vocab1.csv", "Từ vựng Bộ 1");
+    const setV2 = await reloadedRepo.importQuestions(vocab2, "vocab2.csv", "Từ vựng Bộ 2");
+
+    // Lượt trộn vocabulary: khử trùng learning_key trong queue! (apple chỉ xuất hiện 1 lần)
+    const vSession = await reloadedRepo.startSession({ setIds: [setV1.id, setV2.id], mode: "vocabulary", limit: 30 });
+    // Tổng số từ khác nhau: apple, banana, cherry => 3 từ
+    assert.equal(vSession.target, 3);
+    const vQuestions = (await reloadedRepo.snapshot()).questions.filter((q) => vSession.queue.includes(q.id));
+    const learningKeysInQueue = vQuestions.map((q) => q.learningKey);
+    assert.equal(new Set(learningKeysInQueue).size, 3, "Queue trộn vocabulary không được trùng learning_key");
+
+    // 6. Xóa một bộ trong lượt trộn: xóa setV1 -> session phải được dọn an toàn
+    await reloadedRepo.deleteSet(setV1.id);
+    const snapAfterDelete = await reloadedRepo.snapshot();
+    assert.equal(snapAfterDelete.session, null, "Session trộn phải được dọn an toàn khi một bộ thành phần bị xóa");
+  });
 }
 
 test("lỗi mở IndexedDB giữ kho hiện có; chỉ lỗi không hỗ trợ mới chuyển localStorage", async (t) => {

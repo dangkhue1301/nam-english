@@ -487,6 +487,7 @@ export function selectQuestions(
     level = "all",
     topic = "all",
     grade = "all",
+    type = "all",
     limit = SESSION_QUESTION_LIMIT,
     now = Date.now(),
     completedQuestionIds = [],
@@ -501,6 +502,7 @@ export function selectQuestions(
       (!setId || question.setId === setId) &&
       question.domain === domain &&
       (grade === "all" || question.grade === grade) &&
+      (type === "all" || question.type === type) &&
       (level === "all" ||
         question.level.toLocaleLowerCase("en") ===
           level.toLocaleLowerCase("en")) &&
@@ -667,4 +669,35 @@ export function formatDate(timestamp) {
     month: "2-digit",
     year: "numeric",
   }).format(new Date(timestamp));
+}
+
+export const MAX_SHARE_BYTES = 50 * 1024;
+
+export function encodeSharePayload(csvText) {
+  if (typeof csvText !== "string") throw new Error("Dữ liệu chia sẻ phải là chuỗi CSV.");
+  const bytes = new TextEncoder().encode(csvText);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+export function decodeSharePayload(base64Str) {
+  if (typeof base64Str !== "string") throw new Error("Dữ liệu mã hóa không hợp lệ.");
+  if (base64Str.length > MAX_SHARE_BYTES) {
+    throw new Error("Dữ liệu chia sẻ vượt quá giới hạn 50 KB.");
+  }
+  let binary;
+  try {
+    binary = atob(base64Str);
+  } catch {
+    throw new Error("Dữ liệu Base64 bị hỏng hoặc không đúng định dạng.");
+  }
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  try {
+    const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+    return decoder.decode(bytes);
+  } catch {
+    throw new Error("Dữ liệu UTF-8 không hợp lệ.");
+  }
 }

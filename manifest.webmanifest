@@ -6,14 +6,40 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f6f7f3",
-  "theme_color": "#315d48",
+  "background_color": "#f4f3ee",
+  "theme_color": "#a54a2b",
   "icons": [
     {
       "src": "./favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Luyện tập",
+      "short_name": "Học",
+      "description": "Mở trang luyện tập",
+      "url": "./?view=home"
+    },
+    {
+      "name": "Bộ bài",
+      "short_name": "Bộ bài",
+      "description": "Mở thư viện bộ bài",
+      "url": "./?view=library"
+    },
+    {
+      "name": "Thống kê",
+      "short_name": "Thống kê",
+      "description": "Mở tiến độ học tập",
+      "url": "./?view=stats"
+    },
+    {
+      "name": "Dữ liệu",
+      "short_name": "Dữ liệu",
+      "description": "Mở sao lưu và quản lý dữ liệu",
+      "url": "./?view=data"
     }
   ]
 }

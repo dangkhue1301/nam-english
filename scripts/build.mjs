@@ -16,6 +16,7 @@ const files = [
   "index.html",
   "styles.css",
   "app.js",
+  "pwa.js",
   "core.js",
   "storage.js",
   "stats.js",
@@ -26,6 +27,9 @@ const files = [
   "QUESTION_CSV_GUIDE.md",
   ".nojekyll",
 ];
+// Tất cả tài nguyên công khai mà giao diện cần khi mất mạng. Worker không tự
+// có trong cache này vì trình duyệt quản lý worker theo URL có phiên bản riêng.
+const precacheFiles = files.filter((file) => file !== "sw.js" && file !== ".nojekyll");
 
 if (path.dirname(outputDirectory) !== projectDirectory) {
   throw new Error("Thư mục build không nằm trong dự án.");
@@ -52,22 +56,43 @@ await Promise.all(
   ),
 );
 
-// Mọi mô-đun dùng chung phiên bản tính từ nội dung để tránh trộn bản cũ và mới.
-const sources = await Promise.all(files.filter((file) => /\.(js|css)$/.test(file)).map((file) => readFile(path.join(projectDirectory, file))));
+// Mọi phần của app shell cùng tham gia tạo phiên bản. Nhờ vậy HTML, manifest,
+// icon và mọi mô-đun luôn đi cùng một cache PWA, không trộn bundle cũ/mới.
+const versionSources = await Promise.all(files.map(async (file) => ({
+  file,
+  source: await readFile(path.join(projectDirectory, file)),
+})));
 const hash = createHash("sha256");
-sources.forEach((source) => hash.update(source));
+versionSources.forEach(({ file, source }) => {
+  hash.update(file); hash.update("\0"); hash.update(source); hash.update("\0");
+});
 const version = hash.digest("hex").slice(0, 12);
-for (const file of files.filter((file) => /\.(js|html)$/.test(file))) {
+const precacheAssets = precacheFiles.map((file) => `./${file}?v=${version}`);
+for (const file of files.filter((file) => /\.(js|html|webmanifest)$/.test(file) && file !== "sw.js")) {
   const location = path.join(outputDirectory, file);
   let content = await readFile(location, "utf8");
+  content = content.replaceAll("__BUILD_VERSION__", version);
   if (file.endsWith(".js") && file !== "sw.js") {
     content = content.replace(/from "\.\/([a-z-]+\.js)"/g, `from "./$1?v=${version}"`);
+    content = content.replace(/\.\/QUESTION_CSV_GUIDE\.md(?:\?[^"']*)?/g, `./QUESTION_CSV_GUIDE.md?v=${version}`);
   }
   if (file === "index.html") {
-    content = content.replace(/\.\/(app\.js|styles\.css)(?:\?[^"']*)?/g, `./$1?v=${version}`);
+    content = content.replace(/\.\/(app\.js|styles\.css|manifest\.webmanifest|favicon\.svg)(?:\?[^"']*)?/g, `./$1?v=${version}`);
     content = content.replace("<head>", `<head>\n    <meta name="build-version" content="${version}">`);
   }
+  if (file === "manifest.webmanifest") content = content.replace(/\.\/favicon\.svg(?:\?[^"']*)?/g, `./favicon.svg?v=${version}`);
   await writeFile(location, content, "utf8");
 }
+
+const precacheDigests = Object.fromEntries(await Promise.all(precacheFiles.map(async (file) => {
+  const source = await readFile(path.join(outputDirectory, file));
+  return [`./${file}?v=${version}`, createHash("sha256").update(source).digest("hex")];
+})));
+const workerLocation = path.join(outputDirectory, "sw.js");
+let worker = await readFile(workerLocation, "utf8");
+worker = worker.replaceAll("__BUILD_VERSION__", version);
+worker = worker.replaceAll("__PRECACHE_ASSETS__", JSON.stringify(precacheAssets));
+worker = worker.replaceAll("__PRECACHE_DIGESTS__", JSON.stringify(precacheDigests));
+await writeFile(workerLocation, worker, "utf8");
 
 console.log(`Đã tạo ${files.length} tệp, phiên bản ${version}.`);
