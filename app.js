@@ -689,7 +689,7 @@ function render() {
     }
   } catch (error) {
     console.error("Lỗi giao diện:", error);
-    root.innerHTML = `${header()}<main id="main" class="main"><div class="validation error" role="alert" style="margin:40px auto;max-width:600px;padding:24px;border-radius:var(--radius);background:var(--red-light);border:1px solid var(--red-border);"><span class="eyebrow">ĐÃ XẢY RA LỖI GIAO DIỆN</span><h2 style="margin:8px 0;color:var(--red);">${html(error.message || "Không thể hiển thị trang này.")}</h2><p>Dữ liệu học tập của bạn vẫn an toàn trên thiết bị. Bạn có thể chuyển sang mục Dữ liệu để tải bản sao lưu hoặc thử tải lại trang.</p><div style="display:flex;gap:12px;margin-top:16px;">${button("Tải lại trang", "reload-page", "button primary")}${button("Về trang Dữ liệu", "data", "button subtle")}</div></div></main><footer class="footer"><span>NẮM HỌC TẬP</span><span>Mỗi ngày một chút, nhớ lâu hơn.</span></footer>`;
+    root.innerHTML = `${header()}<main id="main" class="main"><div class="validation error" role="alert" style="margin:40px auto;max-width:600px;padding:24px;border-radius:var(--radius);background:var(--red-light);border:1px solid var(--red-border);"><span class="eyebrow">ĐÃ XẢY RA LỖI GIAO DIỆN</span><h2 style="margin:8px 0;color:var(--red);">${html(error.message || "Không thể hiển thị trang này.")}</h2><p>Dữ liệu học tập của bạn vẫn an toàn trên thiết bị. Bạn hãy bấm <strong>Tải lại trang</strong> bên dưới (hoặc nhấn <code>Ctrl + Shift + R</code>) để nạp bản cập nhật mới nhất.</p><div style="display:flex;gap:12px;margin-top:16px;">${button("Tải lại trang", "reload-page", "button primary")}${button("Về trang Dữ liệu", "data", "button subtle")}</div></div></main><footer class="footer"><span>NẮM HỌC TẬP</span><span>Mỗi ngày một chút, nhớ lâu hơn.</span></footer>`;
   }
 }
 
@@ -876,7 +876,21 @@ async function invokeAction(target) {
   if (name === "flip") { state.flipped = true; render(); return; }
   if (["grade-forgot", "grade-remember"].includes(name) && state.flipped) { await submit(name === "grade-remember"); return; }
   if (name === "speak") { const q = currentQuestion(); if (q?.subject === "english") speakEnglish(q.context || q.prompt); return; }
-  if (name === "reload-page") { location.reload(); return; }
+  if (name === "reload-page") {
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      void navigator.serviceWorker.getRegistrations().then(async (regs) => {
+        for (const reg of regs) { await reg.unregister(); }
+        if (typeof caches !== "undefined") {
+          const keys = await caches.keys();
+          for (const key of keys) { await caches.delete(key); }
+        }
+        location.reload();
+      }).catch(() => location.reload());
+      return;
+    }
+    location.reload();
+    return;
+  }
   if (name === "search-mode-sets") { state.searchMode = "sets"; state.search = ""; render(); return; }
   if (name === "search-mode-questions") { state.searchMode = "questions"; state.search = ""; render(); return; }
   if (name === "export-report-md") {

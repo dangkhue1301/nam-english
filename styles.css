@@ -224,7 +224,7 @@ nav { display: flex; align-self: stretch; align-items: center; gap: 6px; }
 .text-button:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 4px; }
 
 /* Shared page layout ------------------------------------------------------ */
-.main { min-height: calc(100dvh - 170px); max-width: 1224px; margin: 0 auto; padding: 52px 36px 70px; animation: fade-in 0.22s ease-out; }
+.main { min-height: calc(100dvh - 170px); max-width: 1224px; margin: 0 auto; padding: 52px 36px 70px; }
 .study-main { max-width: 1280px; padding-top: 34px; }
 .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 40px; }
 .page-heading .eyebrow { margin-bottom: 17px; }
