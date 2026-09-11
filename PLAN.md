@@ -70,6 +70,7 @@ Model tiếp nhận đã hoàn tất triển khai toàn bộ các đợt A–G t
   - Phiên bản build tĩnh trên production: `6c586aa5059f`.
   - `sw.js` trên live chứa đầy đủ tính năng self-repair cache: `repairCache`, `ensureCacheIntegrity`.
   - `app.js` trên live chứa đầy đủ các tính năng Phase 7 & 8: `startMistakesSession`, `searchQuestions`, `encodeSharePayload`, Error boundary.
+  - Hoàn thiện tích hợp UI: View Thống kê (`statsMarkup`), Theme toggle (Auto/Light/Dark), Bảng phím tắt (? / Esc / H / L / S / D / Space / mũi tên), Đồng hồ đếm giờ học (`study-timer`), Streak badge và thanh tiến độ XP trên Home.
 
 ### Trạng thái bàn giao ngày 11/09 (Terra Max trước đó)
 

@@ -1,6 +1,22 @@
 import { buildCsvPreview, buildStats, displayAnswer, stableShuffle, TYPE_LABELS, learningKeyFor, normalizeText, SUBJECTS, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "./core.js";
 import { createRepository, readDashboard, exportBackup, validateBackup } from "./storage.js";
-import { questionsToCsv, searchQuestions, generateReportMarkdown, generateReportCsv } from "./stats.js";
+import {
+  questionsToCsv,
+  searchQuestions,
+  generateReportMarkdown,
+  generateReportCsv,
+  computeStreaks,
+  dailyActivity,
+  heatmapWeeks,
+  xpFromAttempts,
+  levelInfo,
+  accuracyByDomain,
+  topicMastery,
+  dueForecast,
+  buildAchievements,
+  mistakeQuestions,
+  collectVocabularyKeys,
+} from "./stats.js";
 import { speakEnglish, speechAvailable, stopSpeaking } from "./speech.js";
 import { initPwa } from "./pwa.js";
 
@@ -10,7 +26,52 @@ const notice = document.querySelector("#notice");
 const pwaStatus = document.querySelector("#pwa-status");
 const pwaStatusText = document.querySelector("#pwa-status-text");
 const pwaInstall = document.querySelector("#pwa-install");
-const state = { view: "home", data: null, busy: false, subject: "all", grade: "all", level: "all", topic: "all", type: "all", limit: 30, search: "", searchMode: "sets", draft: null, draftKey: "", flipped: false };
+const state = { view: "home", data: null, busy: false, subject: "all", grade: "all", level: "all", topic: "all", type: "all", limit: 30, search: "", searchMode: "sets", draft: null, draftKey: "", flipped: false, timerVisible: false, studyStartedAt: null };
+let studyTimerInterval = null;
+
+function currentTheme() {
+  return document.documentElement.dataset.theme || "auto";
+}
+function applyTheme(theme) {
+  if (theme === "light" || theme === "dark") {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem("nam-theme", theme); } catch {}
+  } else {
+    delete document.documentElement.dataset.theme;
+    try { localStorage.removeItem("nam-theme"); } catch {}
+  }
+}
+function cycleTheme() {
+  const current = currentTheme();
+  const next = current === "auto" ? "light" : current === "light" ? "dark" : "auto";
+  applyTheme(next);
+  const labels = { auto: "Giao diện: Tự động (theo thiết bị)", light: "Giao diện: Sáng", dark: "Giao diện: Tối" };
+  toast(labels[next] || "Đã đổi giao diện");
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById("study-timer-text");
+  if (!el || !state.studyStartedAt) return;
+  const elapsed = Math.max(0, Math.floor((Date.now() - state.studyStartedAt) / 1000));
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  el.textContent = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function ensureTimerInterval() {
+  if (state.view === "study" && state.timerVisible && currentSession()) {
+    if (!state.studyStartedAt) state.studyStartedAt = Date.now();
+    if (!studyTimerInterval) {
+      studyTimerInterval = setInterval(updateTimerDisplay, 1000);
+    }
+    updateTimerDisplay();
+  } else {
+    if (studyTimerInterval) {
+      clearInterval(studyTimerInterval);
+      studyTimerInterval = null;
+    }
+  }
+}
 let repository, csvPreview, pendingBackup, modalAction, loadToken = 0, noticeTimer, draftTimer, syncTimer;
 const html = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 const number = (value) => Number(value || 0).toLocaleString("vi-VN");
@@ -29,6 +90,8 @@ const icons = {
   sound: '<path d="m11 5-5 4H3v6h3l5 4zM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>',
   search: '<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/>',
   more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  theme: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.73 12.73 1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>',
 };
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.book}</svg>`;
 const button = (label, action, css = "button", attrs = "") => `<button type="button" class="${css}" data-action="${action}" ${attrs} ${state.busy ? "disabled" : ""}>${label}</button>`;
@@ -164,13 +227,19 @@ function header() {
   const studying = state.view === "study";
   return `<header class="header"><div class="header-inner">
     <a class="brand" href="#" data-action="home" aria-label="NẮM — Trang học"><span class="brand-symbol">${icon("book")}</span><span>NẮM<span class="brand-sub">HỌC TẬP</span></span></a>
-    ${studying ? `<span class="header-note">Tập trung vào một câu mỗi lần.</span>` : `<nav aria-label="Điều hướng chính">${[["home", "Luyện tập"], ["library", "Bộ bài"], ["data", "Dữ liệu"]].map(([view, label]) => button(label, view, `nav-link${state.view === view ? " active" : ""}`, `aria-current="${state.view === view ? "page" : "false"}"`)).join("")}</nav>`}
-    ${studying ? button("Lưu và thoát", "pause", "button subtle") : button(`${icon("plus")}<span>Thêm bộ CSV</span>`, "import", "button primary header-import")}
+    ${studying ? `<span class="header-note">Tập trung vào một câu mỗi lần.</span>` : `<nav aria-label="Điều hướng chính">${[["home", "Luyện tập"], ["library", "Bộ bài"], ["stats", "Thống kê"], ["data", "Dữ liệu"]].map(([view, label]) => button(label, view, `nav-link${state.view === view ? " active" : ""}`, `aria-current="${state.view === view ? "page" : "false"}"`)).join("")}</nav>`}
+    <div class="header-actions">
+      ${button(icon("theme"), "toggle-theme", "icon-button theme-toggle", 'aria-label="Đổi giao diện sáng/tối" title="Đổi giao diện sáng/tối"')}
+      ${button(icon("help"), "help-shortcuts", "icon-button", 'aria-label="Phím tắt" title="Phím tắt (?)"')}
+      ${studying ? button("Lưu và thoát", "pause", "button subtle") : button(`${icon("plus")}<span>Thêm bộ CSV</span>`, "import", "button primary header-import")}
+    </div>
   </div></header>`;
 }
 
 function intro(title, description, tag = "KHÔNG GIAN HỌC TẬP") {
-  return `<div class="page-heading"><div><span class="eyebrow">${tag}</span><h1>${title}</h1><p>${description}</p></div><span class="date-note">${icon("clock")}${day(Date.now())}</span></div>`;
+  const streaks = state.data?.attempts ? computeStreaks(state.data.attempts) : { current: 0 };
+  const streakMarkup = streaks.current > 0 ? `<span class="streak-badge" title="Chuỗi ${streaks.current} ngày học liên tục">🔥 ${streaks.current} ngày</span>` : "";
+  return `<div class="page-heading"><div><span class="eyebrow">${tag}</span><h1>${title}</h1><p>${description}</p></div><div style="display:flex;align-items:center;gap:10px;">${streakMarkup}<span class="date-note">${icon("clock")}${day(Date.now())}</span></div></div>`;
 }
 
 function emptyMarkup() {
@@ -208,6 +277,13 @@ function homeMarkup() {
   const availableSets = state.data.sets.filter((set) => state.subject === "all" || set.subject === state.subject);
   if (!availableSets.length) return resumeBanner() + emptyMarkup();
   const set = selectedSet(), stats = filteredStats(), full = summaryForSet(set.id);
+  const attempts = state.data.attempts || [];
+  const xp = xpFromAttempts(attempts);
+  const level = levelInfo(xp);
+  const xpMarkup = attempts.length ? `<div class="home-xp" style="margin-bottom:20px;">
+    <div><strong>Cấp ${level.level}</strong><span>${number(level.current)} / ${number(level.cost)} XP</span></div>
+    <div class="progress-track" aria-label="Tiến độ lên cấp"><span style="width:${level.progress}%;"></span></div>
+  </div>` : "";
   const english = set.subject === "english";
   const subjects = [...new Set(state.data.sets.map((item) => item.subject))].sort();
   const levels = [...new Set(state.data.questions.map((q) => q.level))].sort();
@@ -217,7 +293,7 @@ function homeMarkup() {
   const modeCard = (mode, title, description, total, label, style, index) => `<article class="mode-card ${style}"><div class="mode-top"><span class="mode-index">${index}</span><span class="pill">${mode === "grammar" ? "Ngữ pháp" : mode === "practice" ? subjectName(set.subject) : "Từ vựng"}</span></div><h2>${title}</h2><p>${description}</p><div class="mode-count"><strong>${number(total)}</strong><span>${label}</span></div>
     ${button(`${total ? `Bắt đầu ${Math.min(state.limit || 30, total)} ${isVocabulary(mode) ? "từ" : "câu"}` : (isVocabulary(mode) ? "Chưa có từ cần học" : "Đã hoàn thành")} ${icon("arrow")}`, "begin", "button mode-start", `data-mode="${mode}" ${!total || currentSession() ? "disabled" : ""}`)}
     ${mode === "vocabulary" ? button("Học bằng thẻ ghi nhớ", "begin", "text-button", `data-mode="flashcards" ${!total || currentSession() ? "disabled" : ""}`) : `<span class="mode-footnote">Câu đã làm sẽ không lặp lại.</span>`}</article>`;
-  return `${intro("Hôm nay, học bộ nào?", "Một lượt ngắn, thêm một bước tiến.")}${resumeBanner()}${mistakeReviewBanner()}
+  return `${intro("Hôm nay, học bộ nào?", "Một lượt ngắn, thêm một bước tiến.")}${resumeBanner()}${mistakeReviewBanner()}${xpMarkup}
     <section class="set-focus"><div class="set-focus-head"><label for="set-picker" class="eyebrow">BỘ ĐANG CHỌN</label><span>${full.done}/${full.total} mục đã học</span>${availableSets.length > 1 ? button(`${icon("book")} Trộn nhiều bộ`, "open-mix-modal", "button subtle mix-button") : ""}</div>
       <select id="set-picker" data-filter="set" aria-label="Chọn bộ bài">${availableSets.map((item) => `<option value="${html(item.id)}" ${item.id === set.id ? "selected" : ""}>${subjectName(item.subject)} · ${html(item.name)}</option>`).join("")}</select>
       <div class="progress-track" role="progressbar" aria-valuenow="${full.progress}" aria-valuemin="0" aria-valuemax="100" aria-label="Tiến độ bộ bài"><span style="width:${full.progress}%"></span></div>
@@ -341,7 +417,7 @@ function sessionMarkup() {
     ? `ÔN CÂU SAI · ${subjectName(q.subject).toLocaleUpperCase("vi")}${q.grade ? ` / LỚP ${q.grade}` : ""}`
     : s.mode === "grammar" ? "GRAMMAR" : isFlash ? "VOCABULARY" : `${subjectName(q.subject).toLocaleUpperCase("vi")}${q.grade ? ` / LỚP ${q.grade}` : ""}`;
   const levelLabel = englishQuestion && q.level ? `<span> / ${html(q.level)}</span>` : "";
-  return `<div class="study-wrap"><div class="study-heading">${button(`${icon("back")} ${isReview ? "Thoát" : "Bộ bài"}`, "pause", "text-button")}<span>${isReview ? "Ôn riêng các câu sai" : html(set?.name)}</span><strong>${s.done}/${s.target} <span>đã xong</span></strong></div><div class="progress-track study-progress" role="progressbar" aria-valuenow="${s.done}" aria-valuemin="0" aria-valuemax="${s.target}" aria-label="Tiến độ lượt học"><span style="width:${percent}%"></span></div>
+  return `<div class="study-wrap"><div class="study-heading">${button(`${icon("back")} ${isReview ? "Thoát" : "Bộ bài"}`, "pause", "text-button")}<span>${isReview ? "Ôn riêng các câu sai" : html(set?.name)}</span><strong>Câu ${s.done + 1}/${s.target}</strong>${state.timerVisible ? `<span class="study-timer" aria-live="off">${icon("clock")}<span id="study-timer-text">00:00</span></span>` : ""}${button(icon("clock"), "toggle-timer", "icon-button", `title="${state.timerVisible ? "Ẩn đồng hồ" : "Hiện đồng hồ"}" aria-label="Bật/tắt đồng hồ"`)}</div><div class="progress-track study-progress" role="progressbar" aria-valuenow="${s.done}" aria-valuemin="0" aria-valuemax="${s.target}" aria-label="Tiến độ lượt học"><span style="width:${percent}%"></span></div>
     <div class="study-grid"><section class="question-card"><div class="question-meta"><span class="eyebrow">${subjectLabel}${levelLabel}</span><span class="pill">${html(caption)}</span></div>
       <div class="question-title"><h1>${html(q.prompt)}</h1>${englishQuestion && speechAvailable() ? button(icon("sound"), "speak", "icon-button", 'aria-label="Đọc câu hỏi tiếng Anh"') : ""}</div>
       ${q.context ? `<p class="question-context">${html(q.context)}</p>` : ""}
@@ -384,13 +460,215 @@ function resultMarkup() {
     ${wrong.length ? `<details class="result-review"><summary>Xem lại ${wrong.length} câu chưa đúng</summary>${wrong.map((item) => { const q = state.data.snapshot.questions.find((q) => q.id === item.questionId); return q ? `<article><h3>${html(q.context || q.prompt)}</h3><p class="muted">Bạn trả lời: ${html(typeof item.answer === "object" ? displayAnswer(item.answer) : item.answer)}</p><p><strong>${html(displayAnswer(q.answer))}</strong></p><p>${html(q.explanation)}</p></article>` : ""; }).join("")}</details>` : ""}</section>`;
 }
 
+
+function statsMarkup() {
+  const attempts = state.data?.attempts || [];
+  if (!attempts.length) {
+    return `${intro("Thống kê học tập", "Theo dõi tiến độ, chuỗi ngày và thành tích của bạn.", "TIẾN TRÌNH")}
+      <section class="empty-card stats-empty glass">
+        <div class="stats-empty-icon">${icon("book")}</div>
+        <h2>Chưa có dữ liệu học tập</h2>
+        <p>Bắt đầu làm bài từ một bộ câu hỏi để theo dõi tiến độ, nhịp độ chuyên cần và mở khóa các huy hiệu thành tích.</p>
+        ${button(`Bắt đầu học ngay ${icon("arrow")}`, "home", "button primary large")}
+      </section>`;
+  }
+
+  const xp = xpFromAttempts(attempts);
+  const level = levelInfo(xp);
+  const streaks = computeStreaks(attempts);
+  const questions = state.data.snapshot.questions;
+  const reviews = state.data.snapshot.reviews;
+  const imports = state.data.snapshot.imports;
+  const correctCount = attempts.filter((a) => a.correct).length;
+  const accuracy = attempts.length ? Math.round((correctCount / attempts.length) * 100) : 0;
+  const vocabularyKeys = collectVocabularyKeys(questions);
+  const due = dueForecast(reviews, vocabularyKeys, 7);
+  const dueToday = due[0] || 0;
+
+  const activities = dailyActivity(attempts, 14);
+  const maxActivity = Math.max(1, ...activities.map((a) => a.count));
+
+  const weeks = heatmapWeeks(attempts, 17);
+  const accByDomain = accuracyByDomain(questions, attempts);
+  const masteryList = topicMastery(questions, attempts);
+  const achievements = buildAchievements({ attempts, imports, reviews, questions });
+  const mistakes = mistakeQuestions(questions, attempts);
+  const maxForecast = Math.max(1, ...due);
+
+  return `${intro("Thống kê học tập", "Theo dõi tiến độ, chuỗi ngày và thành tích của bạn.", "TIẾN TRÌNH")}
+    <div class="stats-overview">
+      <article class="overview-card glass">
+        <span class="overview-label">CẤP ĐỘ HỌC TẬP</span>
+        <strong>Cấp ${level.level}</strong>
+        <small>${number(level.current)} / ${number(level.cost)} XP</small>
+        <div class="progress-track" aria-label="Tiến độ lên cấp"><span style="width:${level.progress}%;"></span></div>
+      </article>
+      <article class="overview-card glass">
+        <span class="overview-label">CHUỖI NGÀY HỌC</span>
+        <strong>${streaks.current} ngày</strong>
+        <small>Kỷ lục: ${streaks.longest} ngày liên tiếp</small>
+      </article>
+      <article class="overview-card glass">
+        <span class="overview-label">TỔNG LẦN LÀM</span>
+        <strong>${number(attempts.length)} câu</strong>
+        <small>${accuracy}% chính xác (${number(correctCount)} đúng)</small>
+      </article>
+      <article class="overview-card glass">
+        <span class="overview-label">TỪ VỰNG ĐANG ÔN</span>
+        <strong>${number(vocabularyKeys.length)} từ</strong>
+        <small>${number(dueToday)} từ đến hạn hôm nay</small>
+      </article>
+    </div>
+
+    <section class="stats-section glass">
+      <div class="section-heading">
+        <div><span class="eyebrow">CHUYÊN CẦN</span><h2>Hoạt động 14 ngày gần nhất</h2></div>
+        <p>Số câu trả lời mỗi ngày kèm tỷ lệ làm đúng.</p>
+      </div>
+      <div class="activity-chart">
+        ${activities.map((a) => {
+          const height = Math.max(6, Math.round((a.count / maxActivity) * 100));
+          const correctHeight = a.count > 0 ? Math.round((a.correct / a.count) * 100) : 0;
+          return `<div class="activity-column" title="${html(a.label)}: ${a.count} câu (${a.correct} đúng)">
+            <span class="activity-bar" style="--bar-height:${height}%;"><i style="--correct-height:${correctHeight}%;"></i></span>
+            <small>${html(a.label)}</small>
+          </div>`;
+        }).join("")}
+      </div>
+      <div class="chart-legend">
+        <i class="legend-correct"></i><span>Đúng</span>
+        <i class="legend-other"></i><span>Chưa đúng</span>
+      </div>
+    </section>
+
+    <section class="stats-section glass">
+      <div class="section-heading">
+        <div><span class="eyebrow">NHỊP ĐỘ</span><h2>Lưới chuyên cần 17 tuần</h2></div>
+        <p>Tần suất học tập theo từng ngày trong tuần.</p>
+      </div>
+      <div class="heatmap-wrap">
+        <div class="heatmap-weekdays"><span></span><span>T2</span><span></span><span>T4</span><span></span><span>T6</span><span></span><span>CN</span></div>
+        <div class="heatmap">
+          ${weeks.map((week, idx) => `<div class="heatmap-week" data-week="${idx}">
+            <span class="heatmap-month">${week.month ? html(week.month) : ""}</span>
+            ${week.days.map((d) => `<span class="heat-cell ${d.future ? "heat-future" : `heat-${d.level}`}" title="${html(d.label)}: ${d.count} câu"></span>`).join("")}
+          </div>`).join("")}
+        </div>
+      </div>
+    </section>
+
+    <section class="stats-section glass">
+      <div class="section-heading">
+        <div><span class="eyebrow">CHẤT LƯỢNG</span><h2>Tỷ lệ chính xác theo phân môn</h2></div>
+        <p>Tỷ lệ trả lời đúng theo từng loại nội dung.</p>
+      </div>
+      <div class="domain-accuracy">
+        <div class="accuracy-card glass">
+          <div class="accuracy-ring" style="--accuracy:${accByDomain.grammar.accuracy ?? 0}%;">
+            <span>${accByDomain.grammar.accuracy != null ? `${accByDomain.grammar.accuracy}%` : "—"}</span>
+          </div>
+          <div><h3>Ngữ pháp</h3><p>${number(accByDomain.grammar.correct)}/${number(accByDomain.grammar.total)} câu</p></div>
+        </div>
+        <div class="accuracy-card glass">
+          <div class="accuracy-ring" style="--accuracy:${accByDomain.vocabulary.accuracy ?? 0}%;">
+            <span>${accByDomain.vocabulary.accuracy != null ? `${accByDomain.vocabulary.accuracy}%` : "—"}</span>
+          </div>
+          <div><h3>Từ vựng (SRS)</h3><p>${number(accByDomain.vocabulary.correct)}/${number(accByDomain.vocabulary.total)} câu</p></div>
+        </div>
+        <div class="accuracy-card glass">
+          <div class="accuracy-ring" style="--accuracy:${accByDomain.practice.accuracy ?? 0}%;">
+            <span>${accByDomain.practice.accuracy != null ? `${accByDomain.practice.accuracy}%` : "—"}</span>
+          </div>
+          <div><h3>Khoa học tự nhiên</h3><p>${number(accByDomain.practice.correct)}/${number(accByDomain.practice.total)} câu</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats-section glass">
+      <div class="section-heading">
+        <div><span class="eyebrow">CHỦ ĐIỂM</span><h2>Độ vững kiến thức theo chủ đề</h2></div>
+        <p>Số câu đã thử sức và tỷ lệ làm đúng trên từng chủ điểm.</p>
+      </div>
+      ${masteryList.length ? `<div class="mastery-list">
+        ${masteryList.slice(0, 10).map((m) => `<div class="mastery-row">
+          <div class="mastery-title">
+            <strong>${html(m.topic)}</strong>
+            <span><span class="pill">${html(subjectName(m.subject))}</span></span>
+          </div>
+          <div class="mastery-meter">
+            <div class="progress-track"><span style="width:${Math.round(m.coverage * 100)}%;"></span></div>
+            <small>Đã làm ${m.attempted.size}/${m.total} câu</small>
+          </div>
+          <div class="mastery-accuracy">
+            <strong>${m.accuracy != null ? `${m.accuracy}%` : "—"}</strong>
+            <small>chính xác</small>
+          </div>
+        </div>`).join("")}
+      </div>` : '<p class="stats-inline-empty">Làm bài luyện tập để bắt đầu ghi nhận tiến độ chủ điểm.</p>'}
+    </section>
+
+    ${vocabularyKeys.length ? `<section class="stats-section glass">
+      <div class="section-heading">
+        <div><span class="eyebrow">LỊCH ÔN SRS</span><h2>Dự báo từ vựng đến hạn (7 ngày)</h2></div>
+        <p>Số từ vựng đến hạn ôn tập trong tuần tới theo thuật toán SRS.</p>
+      </div>
+      <div class="forecast-chart">
+        ${due.map((count, idx) => {
+          const height = Math.max(8, Math.round((count / maxForecast) * 100));
+          return `<div class="forecast-column">
+            <strong>${count}</strong>
+            <span class="forecast-bar" style="--forecast-height:${height}%;"></span>
+            <small>${idx === 0 ? "Hôm nay" : `+${idx} ngày`}</small>
+          </div>`;
+        }).join("")}
+      </div>
+    </section>` : ""}
+
+    <section class="stats-section glass">
+      <div class="section-heading">
+        <div><span class="eyebrow">THÀNH TÍCH</span><h2>Huy hiệu học tập</h2></div>
+        <p>${achievements.filter((a) => a.unlocked).length}/${achievements.length} huy hiệu đã mở khóa.</p>
+      </div>
+      <div class="achievements-grid">
+        ${achievements.map((a) => `<article class="achievement-card glass ${a.unlocked ? "unlocked" : "achievement-locked"}">
+          <span class="achievement-icon">${a.icon}</span>
+          <h3>${html(a.name)}</h3>
+          <p>${html(a.description)}</p>
+          ${!a.unlocked
+            ? `<div class="progress-track"><span style="width:${Math.round((a.value * 100) / a.target)}%;"></span></div><small>${a.value}/${a.target}</small>`
+            : '<small style="color:var(--green);font-weight:700;">✓ Đã đạt</small>'}
+        </article>`).join("")}
+      </div>
+    </section>
+
+    ${mistakes.length ? `<section class="stats-section glass">
+      <div class="section-heading">
+        <div><span class="eyebrow">CẦN LƯU Ý</span><h2>Câu sai gần nhất</h2></div>
+        <p>Các câu có lần trả lời gần đây nhất chưa đúng.</p>
+      </div>
+      <div class="mistakes-list">
+        ${mistakes.slice(0, 5).map((q) => `<article>
+          <div>
+            <span class="pill">${subjectName(q.subject)}</span>
+            <span class="pill">${html(q.topic)}</span>
+          </div>
+          <h3>${html(q.prompt)}</h3>
+          <p>Đáp án đúng: <strong>${html(displayAnswer(q.answer))}</strong></p>
+        </article>`).join("")}
+      </div>
+    </section>` : ""}`;
+}
+
 function render() {
   if (!state.data) return;
   try {
     const active = root.contains(document.activeElement) ? document.activeElement : null;
     const focus = active ? { id: active.id, action: active.dataset.action, index: active.dataset.index, filter: active.dataset.filter, mode: active.dataset.mode } : null;
+    ensureTimerInterval();
     const markup = state.view === "study" ? currentSession() ? sessionMarkup() : resultMarkup()
-      : state.view === "library" ? libraryMarkup() : state.view === "data" ? dataMarkup() : homeMarkup();
+      : state.view === "library" ? libraryMarkup()
+      : state.view === "stats" ? statsMarkup()
+      : state.view === "data" ? dataMarkup() : homeMarkup();
     root.innerHTML = `${header()}<main id="main" class="main ${state.view === "study" ? "study-main" : ""}" aria-busy="${state.busy}">${markup}</main><footer class="footer"><span>NẮM HỌC TẬP</span><span>Mỗi ngày một chút, nhớ lâu hơn.</span></footer>`;
     if (focus) {
       const replacement = focus.id ? document.getElementById(focus.id) : [...root.querySelectorAll("button, select, input, textarea")].find((el) =>
@@ -478,10 +756,33 @@ function renderMixModal(subject, mode = null) {
 async function invokeAction(target) {
   const name = target.dataset.action;
   if (state.busy) return;
-  if (["home", "library", "data", "pause"].includes(name)) {
+  if (["home", "library", "stats", "data", "pause"].includes(name)) {
     const s = currentSession();
     if (s && !s.result) { clearTimeout(draftTimer); await repository.saveDraft(s.id, s.step, state.draft); }
+    if (state.view === "study" && currentSession()) state.studyStartedAt = null;
     state.view = name === "pause" ? "home" : name; stopSpeaking(); render(); window.scrollTo(0, 0); return;
+  }
+  if (name === "toggle-theme") { cycleTheme(); return; }
+  if (name === "toggle-timer") {
+    state.timerVisible = !state.timerVisible;
+    if (state.timerVisible && !state.studyStartedAt) state.studyStartedAt = Date.now();
+    render();
+    return;
+  }
+  if (name === "help-shortcuts") {
+    showModal(`<h2>Phím tắt bàn phím</h2>
+      <p class="modal-description">Học tập nhanh hơn và tiện lợi hơn trên máy tính.</p>
+      <dl class="shortcut-list">
+        <dt><kbd>Enter</kbd></dt><dd>Chấm bài hoặc chuyển sang câu tiếp theo</dd>
+        <dt><kbd>1</kbd> – <kbd>9</kbd></dt><dd>Chọn nhanh đáp án trắc nghiệm</dd>
+        <dt><kbd>Esc</kbd></dt><dd>Lưu nháp và tạm dừng lượt học</dd>
+        <dt><kbd>Space</kbd></dt><dd>Lật thẻ ghi nhớ (Flashcards)</dd>
+        <dt><kbd>←</kbd> / <kbd>→</kbd></dt><dd>Đánh giá Chưa nhớ / Đã nhớ trong Thẻ ghi nhớ</dd>
+        <dt><kbd>H</kbd> <kbd>L</kbd> <kbd>S</kbd> <kbd>D</kbd></dt><dd>Chuyển nhanh giữa Luyện tập, Bộ bài, Thống kê, Dữ liệu</dd>
+        <dt><kbd>?</kbd></dt><dd>Mở bảng trợ giúp phím tắt</dd>
+      </dl>
+      <div class="modal-actions">${button("Đã hiểu", "close-modal", "button primary large")}</div>`);
+    return;
   }
   if (name === "import") { csvPreview = null; importMarkup(); return; }
   if (name === "close-modal") { closeModal(); return; }
@@ -712,10 +1013,60 @@ document.addEventListener("change", async (event) => {
 });
 document.addEventListener("submit", (event) => { if (event.target.matches("[data-answer-form]")) { event.preventDefault(); if (answerReady()) void submit(receivedAnswer(currentQuestion())); } });
 document.addEventListener("keydown", (event) => {
-  if (modal.open || state.busy || state.view !== "study" || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
-  const session = currentSession(); if (!session) return;
+  if (state.busy || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
   const target = event.target;
   const interactiveTarget = target?.closest("button, a, summary, input, select, textarea");
+  const isInputField = interactiveTarget && ["INPUT", "SELECT", "TEXTAREA"].includes(interactiveTarget.tagName);
+
+  if (event.key === "Escape") {
+    if (modal.open) {
+      closeModal();
+      return;
+    }
+    if (state.view === "study") {
+      event.preventDefault();
+      invokeAction({ dataset: { action: "pause" } });
+      return;
+    }
+  }
+
+  if (modal.open) return;
+
+  if (event.key === "?" && !isInputField) {
+    event.preventDefault();
+    invokeAction({ dataset: { action: "help-shortcuts" } });
+    return;
+  }
+
+  if (state.view !== "study" && !isInputField) {
+    const k = event.key.toLowerCase();
+    if (k === "h") { state.view = "home"; render(); return; }
+    if (k === "l") { state.view = "library"; render(); return; }
+    if (k === "s") { state.view = "stats"; render(); return; }
+    if (k === "d") { state.view = "data"; render(); return; }
+  }
+
+  if (state.view === "study" && currentSession()?.mode === "flashcards" && !isInputField) {
+    if (event.key === " ") {
+      event.preventDefault();
+      invokeAction({ dataset: { action: "flip" } });
+      return;
+    }
+    if (event.key === "ArrowLeft" && state.flipped) {
+      event.preventDefault();
+      invokeAction({ dataset: { action: "grade-forgot" } });
+      return;
+    }
+    if (event.key === "ArrowRight" && state.flipped) {
+      event.preventDefault();
+      invokeAction({ dataset: { action: "grade-remember" } });
+      return;
+    }
+  }
+
+  if (state.view !== "study") return;
+  const session = currentSession(); if (!session) return;
+
   if (event.key === "Enter" && !event.shiftKey) {
     if (session.result) {
       if (!interactiveTarget || interactiveTarget.tagName === "INPUT") {
@@ -783,9 +1134,18 @@ async function checkShareHash() {
 }
 async function start() {
   try {
+    try {
+      const savedTheme = localStorage.getItem("nam-theme");
+      if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+    } catch {}
     repository = await createRepository();
     state.data = await readDashboard(repository);
-    state.view = state.data.snapshot.session || state.data.snapshot.summary ? "study" : "home";
+    const queryView = new URLSearchParams(location.search).get("view");
+    if (["home", "library", "stats", "data"].includes(queryView)) {
+      state.view = queryView;
+    } else {
+      state.view = state.data.snapshot.session || state.data.snapshot.summary ? "study" : "home";
+    }
     syncDraft(); render();
     void checkShareHash();
     window.addEventListener("hashchange", () => void checkShareHash());

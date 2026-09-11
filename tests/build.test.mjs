@@ -92,3 +92,21 @@ test("nguồn UI chỉ nối PWA tùy chọn và Enter tôn trọng control tư�
   assert.match(index, /id="pwa-status"/);
   assert.match(index, /id="pwa-install"/);
 });
+
+test("nguồn UI tích hợp đầy đủ thống kê, theme toggle, phím tắt và timer", async () => {
+  const root = new URL("../", import.meta.url);
+  const app = await readFile(new URL("app.js", root), "utf8");
+  assert.match(app, /\["stats",\s*"Thống kê"\]/);
+  assert.match(app, /function statsMarkup\(\)/);
+  assert.match(app, /activity-chart/);
+  assert.match(app, /heatmap/);
+  assert.match(app, /domain-accuracy/);
+  assert.match(app, /mastery-list/);
+  assert.match(app, /achievements-grid/);
+  assert.match(app, /toggle-theme/);
+  assert.match(app, /toggle-timer/);
+  assert.match(app, /help-shortcuts/);
+  assert.match(app, /shortcut-list/);
+  assert.match(app, /event\.key === "Escape"/);
+  assert.match(app, /event\.key === "\?"/);
+});
