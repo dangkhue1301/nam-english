@@ -18,6 +18,7 @@ import {
   buildAchievements,
   mistakeQuestions,
   collectVocabularyKeys,
+  parseLearningKey,
 } from "./stats.js";
 import { speakEnglish, speechAvailable, stopSpeaking } from "./speech.js";
 import { initPwa } from "./pwa.js";
