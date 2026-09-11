@@ -845,3 +845,18 @@ kbd { display: inline-flex; min-width: 1.8em; justify-content: center; border: 1
 .feedback.flash-repeat .feedback-title { color: var(--accent); display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
 .feedback-repeat-icon { display: inline-flex; align-items: center; justify-content: center; font-size: 1.15rem; font-weight: 800; line-height: 1; color: var(--accent); }
 .flash-pos { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-left: 5px; }
+
+/* Dedicated Flashcard Layout: Chỉ gồm từ vựng đơn lẻ, ví dụ, phát âm */
+.flash-card-container { display: grid; gap: 16px; padding: 28px; }
+.flashcard-front { display: grid; gap: 14px; margin: 8px 0 16px; }
+.flashcard-word-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.flashcard-word { font-size: 2.1rem; font-weight: 850; color: var(--ink); line-height: 1.15; letter-spacing: -0.02em; margin: 0; }
+.flash-sound-btn { width: 40px; height: 40px; font-size: 1.15rem; color: var(--accent); background: var(--accent-light); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; transition: transform 0.15s, background 0.15s; }
+.flash-sound-btn:hover { transform: scale(1.08); background: var(--accent); color: #fff; }
+.flashcard-ipa { color: var(--muted); font-size: 1rem; font-family: var(--font-mono, monospace); margin: -4px 0 0; }
+.flashcard-example { border-left: 3px solid var(--accent); padding: 12px 18px; background: var(--surface); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.flashcard-example p { font-size: 1.05rem; font-style: italic; color: var(--ink); line-height: 1.5; margin: 4px 0 0; }
+.flashcard-back { display: grid; gap: 8px; text-align: left; }
+.flash-meaning-text { font-size: 1.35rem; color: var(--green); font-weight: 750; line-height: 1.3; }
+.flash-expl-text { color: var(--muted); font-size: 0.88rem; line-height: 1.5; margin: 4px 0 0; }
+.flashcard-flip-prompt { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px 16px; }

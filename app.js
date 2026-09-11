@@ -416,6 +416,89 @@ function answerReady() {
 }
 function updateSubmit() { const submit = root.querySelector("[data-submit]"); if (submit) submit.disabled = state.busy || !answerReady(); }
 
+
+function getFlashcardData(q) {
+  let word = "";
+  let pos = "";
+  let ipa = "";
+  let example = "";
+  let meaning = "";
+  let explanation = "";
+
+  const isInstruction = /^(choose|select|match|arrange|complete|correct|rewrite|replace|put|fill|find|order|use)\b/i.test(q.prompt?.trim() || "");
+
+  // 1. Get word & pos from learning_key
+  const parsed = parseLearningKey(q.learning_key);
+  if (parsed?.word) {
+    word = parsed.word;
+    pos = parsed.pos || "";
+  }
+
+  // 2. If prompt is not an instruction, clean word & extract IPA / pos
+  if (!isInstruction && q.prompt && q.prompt.length < 70) {
+    const ipaMatch = q.prompt.match(/\/[^/]+\//);
+    if (ipaMatch) ipa = ipaMatch[0];
+    const posMatch = q.prompt.match(/\(([^)]+)\)/);
+    if (posMatch && !pos) pos = posMatch[1];
+    const cleanWord = q.prompt.replace(/\/[^/]+\//, "").replace(/\([^)]+\)/, "").trim();
+    if (cleanWord) word = cleanWord;
+  }
+
+  // 3. Fallbacks for word
+  if (!word && q.subtopic && !isInstruction) {
+    word = q.subtopic.trim();
+  }
+  if (!word) {
+    word = q.prompt || "";
+  }
+
+  // 4. Extract IPA from theory or explanation if needed
+  if (!ipa) {
+    const ipaMatch = (q.theory || "").match(/\/[^/]+\//) || (q.explanation || "").match(/\/[^/]+\//);
+    if (ipaMatch) ipa = ipaMatch[0];
+  }
+  if (!pos) {
+    const posMatch = (q.theory || "").match(/\((verb|noun|adjective|adverb|phrasal verb|collocation|preposition)\)/i) ||
+                     (q.explanation || "").match(/\((động từ|danh từ|tính từ|phó từ|cụm động từ|từ ghép)\)/i);
+    if (posMatch) pos = posMatch[1];
+  }
+
+  // 5. Example sentence
+  if (q.type === "ordering" && Array.isArray(q.answer) && q.answer[0]) {
+    example = q.answer[0];
+  } else if (q.context) {
+    if (q.context.includes("___") && q.answer) {
+      const fillWord = Array.isArray(q.answer) ? q.answer[0] : String(q.answer);
+      example = q.context.replace("___", fillWord);
+    } else {
+      example = q.context;
+    }
+  }
+
+  // 6. Meaning (Vietnamese definition for back of card)
+  const rawAnswer = displayAnswer(q.answer);
+  const hasVietnamese = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(rawAnswer);
+  if (hasVietnamese && rawAnswer.trim()) {
+    meaning = rawAnswer;
+  } else {
+    if (q.theory) {
+      meaning = q.theory.replace(/^[^:]+:\s*/, "");
+    }
+    if (!meaning && q.explanation) {
+      meaning = q.explanation;
+    }
+    if (!meaning) {
+      meaning = rawAnswer;
+    }
+  }
+
+  if (q.explanation && q.explanation !== meaning) {
+    explanation = q.explanation;
+  }
+
+  return { word, pos, ipa, example, meaning, explanation };
+}
+
 function sessionMarkup() {
   const s = currentSession(), q = currentQuestion();
   if (!s || !q) return homeMarkup();
@@ -430,10 +513,38 @@ function sessionMarkup() {
     : s.mode === "grammar" ? "GRAMMAR" : isFlash ? "VOCABULARY" : `${subjectName(q.subject).toLocaleUpperCase("vi")}${q.grade ? ` / LỚP ${q.grade}` : ""}`;
   const levelLabel = englishQuestion && q.level ? `<span> / ${html(q.level)}</span>` : "";
   return `<div class="study-wrap"><div class="study-heading">${button(`${icon("back")} ${isReview ? "Thoát" : "Bộ bài"}`, "pause", "text-button")}<span>${isReview ? "Ôn riêng các câu sai" : html(set?.name)}</span><strong>Câu ${s.done + 1}/${s.target}</strong>${state.timerVisible ? `<span class="study-timer" aria-live="off">${icon("clock")}<span id="study-timer-text">00:00</span></span>` : ""}${button(icon("clock"), "toggle-timer", "icon-button", `title="${state.timerVisible ? "Ẩn đồng hồ" : "Hiện đồng hồ"}" aria-label="Bật/tắt đồng hồ"`)}</div><div class="progress-track study-progress" role="progressbar" aria-valuenow="${s.done}" aria-valuemin="0" aria-valuemax="${s.target}" aria-label="Tiến độ lượt học"><span style="width:${percent}%"></span></div>
-    <div class="study-grid"><section class="question-card"><div class="question-meta"><span class="eyebrow">${subjectLabel}${levelLabel}</span><span class="pill">${html(caption)}</span></div>
-      <div class="question-title"><h1>${html(q.prompt)}</h1>${englishQuestion && speechAvailable() ? button(icon("sound"), "speak", "icon-button", 'aria-label="Đọc câu hỏi tiếng Anh"') : ""}</div>
-      ${q.context ? `<p class="question-context">${html(q.context)}</p>` : ""}
-      ${isFlash ? `<div class="flash-answer ${state.flipped || result ? "revealed" : ""}">${state.flipped || result ? `<span class="eyebrow">ĐÁP ÁN & NGHĨA TỪ</span><strong>${html(displayAnswer(q.answer))}</strong>` : `<span>Thử nhớ nghĩa và phát âm trước khi lật thẻ.</span>${button("Lật thẻ xem nghĩa", "flip", "button primary")}`}</div>` : `<form data-answer-form>${answerMarkup(q, result)}</form>`}
+    <div class="study-grid"><section class="question-card ${isFlash ? "flash-card-container" : ""}">
+      <div class="question-meta"><span class="eyebrow">${subjectLabel}${levelLabel}</span><span class="pill">${html(caption)}</span></div>
+      ${isFlash ? (() => {
+        const f = getFlashcardData(q);
+        return `<div class="flashcard-front">
+          <div class="flashcard-word-row">
+            <h1 class="flashcard-word">${html(f.word)}</h1>
+            ${f.pos ? `<span class="flash-pos">(${html(f.pos)})</span>` : ""}
+            ${englishQuestion && speechAvailable() ? button(icon("sound"), "speak", "icon-button flash-sound-btn", `aria-label="Phát âm ${html(f.word)}" title="Nghe phát âm"`) : ""}
+          </div>
+          ${f.ipa ? `<p class="flashcard-ipa">${html(f.ipa)}</p>` : ""}
+          ${f.example ? `<div class="flashcard-example"><span class="eyebrow">VÍ DỤ NGỮ CẢNH</span><p>“${html(f.example)}”</p></div>` : ""}
+        </div>
+        <div class="flash-answer ${state.flipped || result ? "revealed" : ""}">
+          ${state.flipped || result ? `
+            <div class="flashcard-back">
+              <span class="eyebrow">NGHĨA TIẾNG VIỆT</span>
+              <strong class="flash-meaning-text">${html(f.meaning)}</strong>
+              ${f.explanation ? `<p class="flash-expl-text">${html(f.explanation)}</p>` : ""}
+            </div>
+          ` : `
+            <div class="flashcard-flip-prompt">
+              <span>Thử nhớ nghĩa và phát âm của từ trước khi lật thẻ.</span>
+              ${button("Lật thẻ xem nghĩa", "flip", "button primary large")}
+            </div>
+          `}
+        </div>`;
+      })() : `
+        <div class="question-title"><h1>${html(q.prompt)}</h1>${englishQuestion && speechAvailable() ? button(icon("sound"), "speak", "icon-button", 'aria-label="Đọc câu hỏi tiếng Anh"') : ""}</div>
+        ${q.context ? `<p class="question-context">${html(q.context)}</p>` : ""}
+        <form data-answer-form>${answerMarkup(q, result)}</form>
+      `}
       ${result ? (isFlash ? `
         <div class="feedback ${result.correct ? "success" : "flash-repeat"}" role="status">
           <div class="feedback-title">
@@ -956,8 +1067,13 @@ async function invokeAction(target) {
   if (name === "speak") {
     const q = currentQuestion();
     if (q?.subject === "english") {
-      const cleanWord = q.prompt ? q.prompt.replace(/\s*\/[^/]+\/.*$/, "").replace(/\s*\(.*\)$/, "").trim() : "";
-      speakEnglish(cleanWord || q.context || q.prompt);
+      if (currentSession()?.mode === "flashcards") {
+        const f = getFlashcardData(q);
+        speakEnglish(f.word || q.prompt);
+      } else {
+        const cleanWord = q.prompt ? q.prompt.replace(/\s*\/[^/]+\/.*$/, "").replace(/\s*\(.*\)$/, "").trim() : "";
+        speakEnglish(cleanWord || q.context || q.prompt);
+      }
     }
     return;
   }
