@@ -681,7 +681,19 @@ function render() {
       : state.view === "library" ? libraryMarkup()
       : state.view === "stats" ? statsMarkup()
       : state.view === "data" ? dataMarkup() : homeMarkup();
-    root.innerHTML = `${header()}<main id="main" class="main ${state.view === "study" ? "study-main" : ""}" aria-busy="${state.busy}">${markup}</main><footer class="footer"><span>NẮM HỌC TẬP</span><span>Mỗi ngày một chút, nhớ lâu hơn.</span></footer>`;
+    let main = root.querySelector("#main");
+    const headerEl = root.querySelector(".header");
+    const footerEl = root.querySelector(".footer");
+    const headerHtml = header();
+    if (main && headerEl && footerEl) {
+      if (headerEl.outerHTML !== headerHtml) headerEl.outerHTML = headerHtml;
+      const newClass = `main ${state.view === "study" ? "study-main" : ""}`;
+      if (main.className !== newClass) main.className = newClass;
+      main.setAttribute("aria-busy", String(state.busy));
+      main.innerHTML = markup;
+    } else {
+      root.innerHTML = `${headerHtml}<main id="main" class="main ${state.view === "study" ? "study-main" : ""}" aria-busy="${state.busy}">${markup}</main><footer class="footer"><span>NẮM HỌC TẬP</span><span>Mỗi ngày một chút, nhớ lâu hơn.</span></footer>`;
+    }
     if (focus) {
       const replacement = focus.id ? document.getElementById(focus.id) : [...root.querySelectorAll("button, select, input, textarea")].find((el) =>
         (focus.action || focus.filter) && el.dataset.action === focus.action && el.dataset.index === focus.index && el.dataset.filter === focus.filter && el.dataset.mode === focus.mode);
@@ -861,15 +873,46 @@ async function invokeAction(target) {
   if (name === "option") {
     if (currentSession()?.result) return;
     const index = Number(target.dataset.index);
-    state.draft.selected = currentQuestion().type === "mcq" ? [index] : state.draft.selected.includes(index) ? state.draft.selected.filter((i) => i !== index) : [...state.draft.selected, index];
-    saveDraft(); render(); return;
+    const q = currentQuestion();
+    if (!q) return;
+    if (q.type === "mcq") {
+      state.draft.selected = [index];
+      const form = root.querySelector("[data-answer-form]");
+      if (form) {
+        form.querySelectorAll('[data-action="option"]').forEach((btn) => {
+          const isSelected = Number(btn.dataset.index) === index;
+          btn.classList.toggle("selected", isSelected);
+          btn.setAttribute("aria-pressed", String(isSelected));
+        });
+        updateSubmit();
+      } else {
+        render();
+      }
+    } else {
+      state.draft.selected = state.draft.selected.includes(index)
+        ? state.draft.selected.filter((i) => i !== index)
+        : [...state.draft.selected, index];
+      target.classList.toggle("selected", state.draft.selected.includes(index));
+      target.setAttribute("aria-pressed", String(state.draft.selected.includes(index)));
+      updateSubmit();
+    }
+    saveDraft();
+    return;
   }
   if (["add-token", "remove-token"].includes(name)) {
     if (currentSession()?.result) return;
     const index = Number(target.dataset.index);
     if (name === "add-token" && !state.draft.ordered.includes(index)) state.draft.ordered.push(index);
     else if (name === "remove-token") state.draft.ordered = state.draft.ordered.filter((i) => i !== index);
-    saveDraft(); render(); return;
+    saveDraft();
+    const form = root.querySelector("[data-answer-form]");
+    if (form) {
+      form.innerHTML = answerMarkup(currentQuestion(), null);
+      updateSubmit();
+    } else {
+      render();
+    }
+    return;
   }
   if (name === "submit" && answerReady()) { await submit(receivedAnswer(currentQuestion())); return; }
   if (name === "next") { const s = currentSession(); if (s) await run(() => repository.advance(s.id, s.step)); window.scrollTo(0, 0); return; }
