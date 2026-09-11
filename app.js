@@ -537,7 +537,14 @@ function statsMarkup() {
         ${activities.map((a) => {
           const height = Math.max(6, Math.round((a.count / maxActivity) * 100));
           const correctHeight = a.count > 0 ? Math.round((a.correct / a.count) * 100) : 0;
-          return `<div class="activity-column" title="${html(a.label)}: ${a.count} câu (${a.correct} đúng)">
+          const percent = a.count > 0 ? Math.round((a.correct / a.count) * 100) : 0;
+          const detail = a.count > 0 ? `${a.count} câu (${a.correct} đúng · ${percent}% chính xác)` : "Chưa học ngày này";
+          return `<div class="activity-column" tabindex="0" title="${html(a.label)}: ${detail}" aria-label="${html(a.label)}: ${detail}">
+            <div class="column-tooltip">
+              <strong>${html(a.label)}</strong>
+              <span>${a.count} câu (${a.correct} đúng)</span>
+              <strong class="tooltip-percent">${a.count > 0 ? `Tỉ lệ: ${percent}%` : "Chưa học"}</strong>
+            </div>
             <span class="activity-bar" style="--bar-height:${height}%;"><i style="--correct-height:${correctHeight}%;"></i></span>
             <small>${html(a.label)}</small>
           </div>`;
@@ -602,7 +609,7 @@ function statsMarkup() {
         <p>Số câu đã thử sức và tỷ lệ làm đúng trên từng chủ điểm.</p>
       </div>
       ${masteryList.length ? `<div class="mastery-list">
-        ${masteryList.slice(0, 10).map((m) => `<div class="mastery-row">
+        ${masteryList.map((m) => `<div class="mastery-row">
           <div class="mastery-title">
             <strong>${html(m.topic)}</strong>
             <span><span class="pill">${html(subjectName(m.subject || m.domain))}</span></span>
@@ -642,13 +649,16 @@ function statsMarkup() {
         <p>${achievements.filter((a) => a.unlocked).length}/${achievements.length} huy hiệu đã mở khóa.</p>
       </div>
       <div class="achievements-grid">
-        ${achievements.map((a) => `<article class="achievement-card glass ${a.unlocked ? "unlocked" : "achievement-locked"}">
-          <span class="achievement-icon">${a.icon}</span>
+        ${achievements.map((a) => `<article class="achievement-card glass ${a.unlocked ? "unlocked" : "achievement-locked"} ${a.tierClass || ""}">
+          <div class="achievement-top">
+            <span class="achievement-icon">${a.icon}</span>
+            <span class="tier-tag ${a.tierClass || ""}">${a.tierIcon || ""} ${html(a.tier || "")}</span>
+          </div>
           <h3>${html(a.name)}</h3>
           <p>${html(a.description)}</p>
           ${!a.unlocked
-            ? `<div class="progress-track"><span style="width:${Math.round((a.value * 100) / a.target)}%;"></span></div><small>${a.value}/${a.target}</small>`
-            : '<small style="color:var(--green);font-weight:700;">✓ Đã đạt</small>'}
+            ? `<div class="progress-track"><span style="width:${Math.round((a.value * 100) / a.target)}%;"></span></div><small>${number(a.value)}/${number(a.target)}</small>`
+            : '<small class="achievement-done">✓ Đã đạt</small>'}
         </article>`).join("")}
       </div>
     </section>
@@ -659,7 +669,7 @@ function statsMarkup() {
         <p>Các câu có lần trả lời gần đây nhất chưa đúng.</p>
       </div>
       <div class="mistakes-list">
-        ${mistakes.slice(0, 5).map((q) => `<article>
+        ${mistakes.map((q) => `<article>
           <div>
             <span class="pill">${subjectName(q.subject)}</span>
             <span class="pill">${html(q.topic)}</span>
