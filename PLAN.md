@@ -16,7 +16,7 @@ Người dùng đã xác nhận thực hiện `FRONTEND_PLAN.md` và yêu cầu 
 - [x] Phase 7: ôn sai riêng, chia sẻ bộ nhỏ, tìm câu, lượt tùy chọn và báo cáo; giữ lần học mặc định theo từng bộ và không lặp câu đã chấm.
 - [x] Phase 8: hạn chế render thừa, CSS có cấu trúc, lỗi hiển thị thân thiện; chỉ tuyên bố hiệu năng tốt hơn khi đã đo.
 - [x] Rà soát mã, test/build và trình duyệt; đối chiếu từng mục roadmap, ghi rõ mục nào chưa kiểm chứng.
-- [ ] Chỉ commit/push sau rà soát; giữ remote và push không force. Xác minh bản phát hành thực tế trước khi báo đã lên web.
+- [x] Chỉ commit/push sau rà soát; giữ remote và push không force. Xác minh bản phát hành thực tế trước khi báo đã lên web.
 
 ### Giới hạn và kiểm tra bắt buộc
 
@@ -59,6 +59,17 @@ Model tiếp nhận đã hoàn tất triển khai toàn bộ các đợt A–G t
    - Error boundary bao bọc toàn bộ giao diện `render()` với màn hình thông báo lỗi an toàn, vẫn cho phép truy cập mục Dữ liệu để sao lưu và nút tải lại trang.
    - Cập nhật tối ưu DOM cho input/draft, mở rộng fallback CSS không hỗ trợ backdrop-filter.
    - **Kết quả kiểm thử**: 88/88 test đạt (100% pass trên cả Node tests, PWA tests, IndexedDB và localStorage). Build Pages 13 tệp thành công.
+
+### Xác minh phát hành production (11/09/2026)
+
+- Đã tạo commit `22aa7be6529b115e98f201d300e33c9755bd6302` trên nhánh `codex/study-refresh-20260908`.
+- Đã đẩy lên `origin/main` theo fast-forward non-force sử dụng tài khoản chủ repo (`dangkhue1301`).
+- GitHub Actions workflow [Run 34594446708](https://github.com/dangkhue1301/nam-english/actions/runs/34594446708) đã hoàn tất thành công (`conclusion: success`).
+- Xác minh website live tại `https://dangkhue1301.github.io/nam-english/`:
+  - Mã trạng thái HTTP 200 cho `index.html`, `app.js`, `styles.css`, `sw.js`.
+  - Phiên bản build tĩnh trên production: `6c586aa5059f`.
+  - `sw.js` trên live chứa đầy đủ tính năng self-repair cache: `repairCache`, `ensureCacheIntegrity`.
+  - `app.js` trên live chứa đầy đủ các tính năng Phase 7 & 8: `startMistakesSession`, `searchQuestions`, `encodeSharePayload`, Error boundary.
 
 ### Trạng thái bàn giao ngày 11/09 (Terra Max trước đó)
 
