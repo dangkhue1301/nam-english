@@ -109,4 +109,7 @@ test("nguồn UI tích hợp đầy đủ thống kê, theme toggle, phím tắt
   assert.match(app, /shortcut-list/);
   assert.match(app, /event\.key === "Escape"/);
   assert.match(app, /event\.key === "\?"/);
+  assert.match(app, /const SAMPLE_CSV =/);
+  assert.match(app, /name === "load-sample"/);
+  assert.doesNotMatch(app, /week\.days\.map/);
 });

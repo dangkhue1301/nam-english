@@ -1,3 +1,5 @@
+const SAMPLE_CSV = "\"id\",\"domain\",\"type\",\"level\",\"topic\",\"subtopic\",\"prompt\",\"context\",\"options\",\"answer\",\"explanation\",\"theory\",\"hint\",\"tags\",\"difficulty\",\"learning_key\"\r\n\"g-b1-present-001\",\"grammar\",\"mcq\",\"B1\",\"Present simple & continuous\",\"actions now\",\"Choose the correct option.\",\"Please be quiet. Mia ___ an online lesson right now.\",\"takes||is taking||took||has taken\",\"is taking\",\"Right now describes an action in progress, so use the present continuous.\",\"Present continuous: am/is/are + verb-ing for an action happening around now.\",\"Look at right now.\",\"present-continuous||time-marker\",\"1\",\"\"\r\n\"g-b1-perfect-001\",\"grammar\",\"fill_blank\",\"B1\",\"Present perfect\",\"experience\",\"Complete the sentence with the correct verb form.\",\"I ___ never ___ sushi before. (try)\",\"\",\"have never tried\",\"Use have + past participle with I. Never goes between the auxiliary and the participle.\",\"Present perfect: have/has + past participle. Use it for life experience when no finished time is given.\",\"There is no finished past time.\",\"present-perfect||experience\",\"2\",\"\"\r\n\"g-b1-past-001\",\"grammar\",\"error_correction\",\"B1\",\"Past simple & continuous\",\"finished past\",\"Correct the sentence.\",\"We have visited the museum last Saturday.\",\"\",\"We visited the museum last Saturday.\",\"Last Saturday is a finished past time, so the past simple is required.\",\"Use the past simple with a stated, finished past time such as yesterday or last Saturday.\",\"Focus on the time phrase.\",\"past-simple||time-marker\",\"2\",\"\"\r\n\"g-b1-passive-001\",\"grammar\",\"sentence_transformation\",\"B1\",\"Passive voice\",\"present passive\",\"Rewrite in the passive voice.\",\"People speak English in many countries.\",\"\",\"English is spoken in many countries.\",\"The object English becomes the subject; present simple passive is is + past participle.\",\"Passive voice: be in the correct tense + past participle. Include the agent only when it matters.\",\"Start with English.\",\"passive||present-simple\",\"2\",\"\"\r\n\"g-b2-wordform-001\",\"grammar\",\"word_formation\",\"B2\",\"Adjectives & adverbs\",\"adverb formation\",\"Complete with the correct form of SUCCESSFUL.\",\"The team completed the project ___.\",\"\",\"successfully\",\"Completed is a verb, so it is modified by the adverb successfully.\",\"Adverbs commonly modify verbs. Many are formed with adjective + -ly.\",\"Ask what kind of word modifies completed.\",\"word-formation||adverbs\",\"2\",\"\"\r\n\"g-b2-cond-001\",\"grammar\",\"ordering\",\"B2\",\"Conditionals\",\"third conditional\",\"Put the words in the correct order.\",\"\",\"would||the||If||we||caught||had||train||left||have||earlier,||we\",\"If we had left earlier, we would have caught the train\",\"The third conditional describes an unreal past situation and its imagined result.\",\"Third conditional: if + past perfect, would have + past participle.\",\"Build the if-clause first.\",\"third-conditional||ordering\",\"3\",\"\"\r\n\"g-b2-modal-001\",\"grammar\",\"multiple_select\",\"B2\",\"Modal verbs\",\"deduction\",\"Select every sentence that can express a strong present deduction.\",\"\",\"She must be at work.||She can't be at work.||She might be at work.||She should be at work.\",\"She must be at work.||She can't be at work.\",\"Must expresses strong positive deduction; can't expresses strong negative deduction. Might is only a possibility.\",\"For present deduction: must + base verb for strong certainty; can't + base verb for strong impossibility.\",\"Choose both positive and negative strong deductions.\",\"modals||deduction\",\"3\",\"\"\r\n\"g-b2-relative-001\",\"grammar\",\"matching\",\"B2\",\"Relative clauses\",\"relative words\",\"Match each relative word with its usual reference.\",\"\",\"who=>people||which=>things||where=>places||whose=>possession\",\"\",\"Who refers to people, which to things, where to places, and whose shows possession.\",\"Relative clauses add information about a noun. The relative word is chosen by meaning and grammatical role.\",\"One item shows ownership.\",\"relative-clauses||matching\",\"2\",\"\"\r\n\"g-b1-article-001\",\"grammar\",\"mcq\",\"B1\",\"Articles\",\"first mention\",\"Choose the correct article.\",\"I saw ___ unusual bird near the lake.\",\"a||an||the||no article\",\"an\",\"The noun is singular and first mentioned; unusual begins with a vowel sound.\",\"Use a/an for one non-specific singular countable noun. Choose an before a vowel sound.\",\"Listen to the first sound of unusual.\",\"articles||indefinite-article\",\"1\",\"\"\r\n\"g-b2-report-001\",\"grammar\",\"sentence_transformation\",\"B2\",\"Reported speech\",\"backshift\",\"Report the sentence.\",\"Lena said, “I am feeling tired.”\",\"\",\"Lena said that she was feeling tired.||Lena said she was feeling tired.\",\"In past reporting, am feeling normally backshifts to was feeling and I changes to she.\",\"Reported speech often backshifts the tense when the reporting verb is in the past.\",\"Change both the pronoun and the tense.\",\"reported-speech||backshift\",\"3\",\"\"\r\n\"g-b1-compare-001\",\"grammar\",\"fill_blank\",\"B1\",\"Comparatives\",\"comparative adjectives\",\"Complete with the comparative form of RELIABLE.\",\"This train service is ___ than the old one.\",\"\",\"more reliable\",\"Reliable is a longer adjective, so form the comparative with more.\",\"Use -er with many short adjectives; use more with most longer adjectives.\",\"Do not add -er to reliable.\",\"comparatives||adjectives\",\"1\",\"\"\r\n\"g-b2-future-001\",\"grammar\",\"mcq\",\"B2\",\"Future forms\",\"future perfect\",\"Choose the best form.\",\"By next June, I ___ this course.\",\"will finish||will have finished||am finishing||have finished\",\"will have finished\",\"By next June sets a future deadline before which the action will be complete.\",\"Future perfect: will have + past participle for an action completed before a future point.\",\"Look at by + future time.\",\"future-perfect||deadline\",\"3\",\"\"\r\n\"v-b1-allocate-001\",\"vocabulary\",\"mcq\",\"B1\",\"Work & study\",\"allocate\",\"Choose the closest meaning of allocate.\",\"The manager allocated extra time to the new project.\",\"ignore||set aside for a purpose||measure carefully||use immediately\",\"set aside for a purpose\",\"To allocate something is to officially set it aside for a particular purpose.\",\"allocate /ˈæləkeɪt/ (verb): to give time, money, or resources for a particular purpose.\",\"Think about distributing a limited resource.\",\"work||resources||verb\",\"2\",\"vocab:allocate:verb:set-aside\"\r\n\"v-b1-allocate-002\",\"vocabulary\",\"fill_blank\",\"B1\",\"Work & study\",\"allocate\",\"Complete with the target word.\",\"The school will ___ more money to language classes next year.\",\"\",\"allocate\",\"Allocate fits because money is being assigned to a specific purpose.\",\"allocate (verb): assign a resource to a person or purpose.\",\"It begins with allo-.\",\"work||money||verb\",\"2\",\"vocab:allocate:verb:set-aside\"\r\n\"v-a2-reliable-001\",\"vocabulary\",\"mcq\",\"A2\",\"People & things\",\"reliable\",\"Choose the best definition of reliable.\",\"A reliable colleague always keeps promises.\",\"expensive||easy to replace||able to be trusted||usually late\",\"able to be trusted\",\"Reliable describes a person or thing you can trust to work or behave well.\",\"reliable (adjective): consistently good and able to be trusted.\",\"Think about someone who keeps promises.\",\"character||adjective\",\"1\",\"vocab:reliable:adjective:trusted\"\r\n\"v-b2-mitigate-001\",\"vocabulary\",\"fill_blank\",\"B2\",\"Society & environment\",\"mitigate\",\"Complete with the target word.\",\"Planting trees can help ___ the effects of urban heat.\",\"\",\"mitigate\",\"Mitigate means make something harmful less severe.\",\"mitigate (verb): to reduce the seriousness or harmful effect of something.\",\"The meaning is close to lessen.\",\"environment||academic||verb\",\"3\",\"vocab:mitigate:verb:reduce-severity\"\r\n\"v-b1-carryout-001\",\"vocabulary\",\"mcq\",\"B1\",\"Phrasal verbs\",\"carry out\",\"Choose the closest meaning of carry out.\",\"Scientists carried out several tests.\",\"cancelled||performed||described||delayed\",\"performed\",\"Carry out means perform or complete a task, plan, or experiment.\",\"carry out (phrasal verb): perform or complete something planned.\",\"Scientists do this to experiments.\",\"phrasal-verb||research\",\"2\",\"vocab:carry-out:phrasal-verb:perform\"\r\n\"v-b2-compelling-001\",\"vocabulary\",\"word_formation\",\"B2\",\"Communication\",\"compelling\",\"Complete with the correct form of COMPEL.\",\"She gave a ___ argument for changing the policy.\",\"\",\"compelling\",\"Compelling is the adjective meaning very convincing or holding attention.\",\"compelling (adjective): convincing, powerful, or difficult to ignore.\",\"The blank describes argument.\",\"communication||adjective\",\"3\",\"vocab:compelling:adjective:convincing\"\r\n\"v-a2-journeytrip-001\",\"vocabulary\",\"matching\",\"A2\",\"Travel & transport\",\"travel words\",\"Match the word with its meaning.\",\"\",\"journey=>the act of travelling from one place to another||trip=>a visit that includes going somewhere and returning||destination=>the place someone is going to||route=>the way used to get from one place to another\",\"\",\"These words describe different parts or types of travel.\",\"Journey focuses on movement; trip on the whole visit; destination on the end point; route on the path.\",\"Separate the path from the end point.\",\"travel||nouns\",\"1\",\"vocab:travel-set:nouns:core-meanings\"\r\n\"v-b1-deadline-001\",\"vocabulary\",\"ordering\",\"B1\",\"Work & study\",\"meet a deadline\",\"Arrange the words to make a natural sentence.\",\"\",\"deadline||managed||on||We||meet||time.||to||the\",\"We managed to meet the deadline on time\",\"Meet a deadline is the natural collocation meaning finish by the required time.\",\"meet a deadline: finish work no later than the required date or time.\",\"The sentence starts with We.\",\"collocation||work\",\"2\",\"vocab:meet-a-deadline:collocation:finish-on-time\"\r\n\"v-b2-scarce-001\",\"vocabulary\",\"multiple_select\",\"B2\",\"Society & environment\",\"scarce\",\"Select all words closest in meaning to scarce.\",\"\",\"limited||plentiful||insufficient||abundant\",\"limited||insufficient\",\"Scarce means not available in sufficient quantity. Plentiful and abundant are opposites.\",\"scarce (adjective): insufficient for demand; hard to find or obtain.\",\"Choose two words meaning not enough.\",\"synonyms||adjective\",\"2\",\"vocab:scarce:adjective:insufficient\"\r\n\"v-b1-putoff-001\",\"vocabulary\",\"error_correction\",\"B1\",\"Phrasal verbs\",\"put off\",\"Replace the underlined idea with a natural phrasal verb.\",\"They postponed the meeting until Friday.\",\"\",\"They put off the meeting until Friday.\",\"Put off means postpone. In the past simple, put does not change form.\",\"put off (phrasal verb): delay doing something or move it to a later time.\",\"The past form is the same as the base form.\",\"phrasal-verb||scheduling\",\"2\",\"vocab:put-off:phrasal-verb:postpone\"\r\n\"v-c1-ubiquitous-001\",\"vocabulary\",\"mcq\",\"C1\",\"Academic vocabulary\",\"ubiquitous\",\"Choose the closest meaning of ubiquitous.\",\"Smartphones are now ubiquitous in large cities.\",\"very expensive||found everywhere||difficult to operate||recently invented\",\"found everywhere\",\"Ubiquitous means present, appearing, or found everywhere.\",\"ubiquitous (adjective): seeming to be everywhere.\",\"Think of something you see in almost every place.\",\"academic||adjective\",\"4\",\"vocab:ubiquitous:adjective:everywhere\"\r\n\"v-b2-substantial-001\",\"vocabulary\",\"fill_blank\",\"B2\",\"Academic vocabulary\",\"substantial\",\"Complete with the target word.\",\"The proposal received ___ support from local businesses.\",\"\",\"substantial\",\"Substantial support means a large or important amount of support.\",\"substantial (adjective): large in amount, value, or importance.\",\"It begins with sub-.\",\"academic||adjective\",\"3\",\"vocab:substantial:adjective:large-amount\"\r\n";
+
 import { buildCsvPreview, buildStats, displayAnswer, stableShuffle, TYPE_LABELS, learningKeyFor, normalizeText, SUBJECTS, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "./core.js";
 import { createRepository, readDashboard, exportBackup, validateBackup } from "./storage.js";
 import {
@@ -248,8 +250,11 @@ function emptyMarkup() {
       <div class="file-illustration" aria-hidden="true"><div class="paper-line"></div>${icon("file")}<span>CSV</span></div>
       <span class="eyebrow">BẮT ĐẦU TỪ ĐÂY</span><h2>Bộ bài đầu tiên của bạn.</h2>
       <p>Kéo file CSV vào đây hoặc chọn file từ máy.</p>
-      ${button(`${icon("plus")} Thêm bộ bài`, "import", "button primary large")}
-      <small>CSV UTF-8 · Tối đa 2.000 câu / file</small>
+      <div class="empty-actions" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:16px 0 8px;">
+        ${button(`${icon("plus")} Thêm bộ bài`, "import", "button primary large")}
+        ${button(`${icon("book")} Thử bộ câu hỏi mẫu`, "load-sample", "button subtle large")}
+      </div>
+      <small>CSV UTF-8 · Tối đa 2.000 câu / file · Hoặc bắt đầu ngay với bộ mẫu 24 câu</small>
     </section><aside class="quick-start"><span class="eyebrow">BA BƯỚC NHỎ</span><h2>Từ file đến<br>buổi học.</h2>
       <ol class="steps"><li><span>01</span><div><strong>Tạo bộ câu hỏi</strong><p>Gửi hướng dẫn bên dưới cho AI bạn dùng.</p></div></li><li><span>02</span><div><strong>Thêm file CSV</strong><p>Website kiểm tra và tách thành một bộ riêng.</p></div></li><li><span>03</span><div><strong>Học theo nhịp của bạn</strong><p>Mỗi lượt tối đa 30 câu, tiến độ tự lưu.</p></div></li></ol>
       <a class="guide-link" href="./QUESTION_CSV_GUIDE.md" download>${icon("download")} Hướng dẫn tạo CSV cho AI</a>
@@ -344,7 +349,7 @@ function libraryMarkup() {
     </div>
     ${isQuestionSearch
       ? `<div id="question-search-results">${questionSearchResultsMarkup()}</div>`
-      : `<div class="library-grid" id="set-list">${sets.map(setCard).join("")}${!sets.length && state.search ? `<p class="search-empty">Chưa tìm thấy bộ nào khớp tên này.</p>` : ""}<button class="add-card" data-action="import">${icon("plus")}<strong>Thêm bộ mới</strong><span>Từ file CSV của bạn</span></button></div>`}`;
+      : `<div class="library-grid" id="set-list">${sets.map(setCard).join("")}${!sets.length && state.search ? `<p class="search-empty">Chưa tìm thấy bộ nào khớp tên này.</p>` : ""}${!state.data.sets.length ? `<button class="add-card" data-action="load-sample">${icon("book")}<strong>Nạp bộ câu hỏi mẫu</strong><span>24 câu Tiếng Anh B1–B2</span></button>` : ""}<button class="add-card" data-action="import">${icon("plus")}<strong>Thêm bộ mới</strong><span>Từ file CSV của bạn</span></button></div>`}`;
 }
 
 function dataMarkup() {
@@ -462,23 +467,26 @@ function resultMarkup() {
 
 
 function statsMarkup() {
-  const attempts = state.data?.attempts || [];
+  const attempts = state.data?.snapshot?.attempts || state.data?.attempts || [];
   if (!attempts.length) {
     return `${intro("Thống kê học tập", "Theo dõi tiến độ, chuỗi ngày và thành tích của bạn.", "TIẾN TRÌNH")}
       <section class="empty-card stats-empty glass">
         <div class="stats-empty-icon">${icon("book")}</div>
         <h2>Chưa có dữ liệu học tập</h2>
         <p>Bắt đầu làm bài từ một bộ câu hỏi để theo dõi tiến độ, nhịp độ chuyên cần và mở khóa các huy hiệu thành tích.</p>
-        ${button(`Bắt đầu học ngay ${icon("arrow")}`, "home", "button primary large")}
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:16px;">
+          ${button(`Bắt đầu học ngay ${icon("arrow")}`, "home", "button primary large")}
+          ${!state.data?.sets?.length ? button(`${icon("book")} Thử bộ câu hỏi mẫu`, "load-sample", "button subtle large") : ""}
+        </div>
       </section>`;
   }
 
   const xp = xpFromAttempts(attempts);
   const level = levelInfo(xp);
   const streaks = computeStreaks(attempts);
-  const questions = state.data.snapshot.questions;
-  const reviews = state.data.snapshot.reviews;
-  const imports = state.data.snapshot.imports;
+  const questions = state.data?.snapshot?.questions || [];
+  const reviews = state.data?.snapshot?.reviews || [];
+  const imports = state.data?.snapshot?.imports || [];
   const correctCount = attempts.filter((a) => a.correct).length;
   const accuracy = attempts.length ? Math.round((correctCount / attempts.length) * 100) : 0;
   const vocabularyKeys = collectVocabularyKeys(questions);
@@ -500,8 +508,8 @@ function statsMarkup() {
       <article class="overview-card glass">
         <span class="overview-label">CẤP ĐỘ HỌC TẬP</span>
         <strong>Cấp ${level.level}</strong>
-        <small>${number(level.current)} / ${number(level.cost)} XP</small>
-        <div class="progress-track" aria-label="Tiến độ lên cấp"><span style="width:${level.progress}%;"></span></div>
+        <small>${number(level.intoLevel)} / ${number(level.needed)} XP</small>
+        <div class="progress-track" aria-label="Tiến độ lên cấp"><span style="width:${Math.round(level.progress * 100)}%;"></span></div>
       </article>
       <article class="overview-card glass">
         <span class="overview-label">CHUỖI NGÀY HỌC</span>
@@ -549,10 +557,14 @@ function statsMarkup() {
       <div class="heatmap-wrap">
         <div class="heatmap-weekdays"><span></span><span>T2</span><span></span><span>T4</span><span></span><span>T6</span><span></span><span>CN</span></div>
         <div class="heatmap">
-          ${weeks.map((week, idx) => `<div class="heatmap-week" data-week="${idx}">
-            <span class="heatmap-month">${week.month ? html(week.month) : ""}</span>
-            ${week.days.map((d) => `<span class="heat-cell ${d.future ? "heat-future" : `heat-${d.level}`}" title="${html(d.label)}: ${d.count} câu"></span>`).join("")}
-          </div>`).join("")}
+          ${weeks.map((week, idx) => {
+            const monthDay = week.find((d) => d.monthStart);
+            const monthLabel = monthDay ? `T${new Date(monthDay.ts).getMonth() + 1}` : "";
+            return `<div class="heatmap-week" data-week="${idx}">
+              <span class="heatmap-month">${monthLabel}</span>
+              ${week.map((d) => `<span class="heat-cell ${d.future ? "heat-future" : `heat-${d.level}`}" title="${html(d.label)}: ${d.count} câu"></span>`).join("")}
+            </div>`;
+          }).join("")}
         </div>
       </div>
     </section>
@@ -593,11 +605,11 @@ function statsMarkup() {
         ${masteryList.slice(0, 10).map((m) => `<div class="mastery-row">
           <div class="mastery-title">
             <strong>${html(m.topic)}</strong>
-            <span><span class="pill">${html(subjectName(m.subject))}</span></span>
+            <span><span class="pill">${html(subjectName(m.subject || m.domain))}</span></span>
           </div>
           <div class="mastery-meter">
             <div class="progress-track"><span style="width:${Math.round(m.coverage * 100)}%;"></span></div>
-            <small>Đã làm ${m.attempted.size}/${m.total} câu</small>
+            <small>Đã làm ${m.attempted}/${m.total} câu</small>
           </div>
           <div class="mastery-accuracy">
             <strong>${m.accuracy != null ? `${m.accuracy}%` : "—"}</strong>
@@ -652,7 +664,7 @@ function statsMarkup() {
             <span class="pill">${subjectName(q.subject)}</span>
             <span class="pill">${html(q.topic)}</span>
           </div>
-          <h3>${html(q.prompt)}</h3>
+          <h3>${html(q.context || q.prompt)}</h3>
           <p>Đáp án đúng: <strong>${html(displayAnswer(q.answer))}</strong></p>
         </article>`).join("")}
       </div>
@@ -782,6 +794,17 @@ async function invokeAction(target) {
         <dt><kbd>?</kbd></dt><dd>Mở bảng trợ giúp phím tắt</dd>
       </dl>
       <div class="modal-actions">${button("Đã hiểu", "close-modal", "button primary large")}</div>`);
+    return;
+  }
+  if (name === "load-sample") {
+    await run(async () => {
+      const preview = buildCsvPreview(SAMPLE_CSV, "tieng_anh_b1_b2_mau.csv");
+      await repository.importQuestions(preview.rows, "tieng_anh_b1_b2_mau.csv", "Tiếng Anh B1–B2 (Bộ mẫu)");
+      state.view = "home";
+      state.level = state.topic = state.grade = state.type = "all";
+      state.limit = 30;
+      toast("Đã thêm bộ bài mẫu gồm 24 câu hỏi!");
+    });
     return;
   }
   if (name === "import") { csvPreview = null; importMarkup(); return; }
