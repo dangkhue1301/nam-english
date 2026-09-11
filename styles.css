@@ -846,17 +846,320 @@ kbd { display: inline-flex; min-width: 1.8em; justify-content: center; border: 1
 .feedback-repeat-icon { display: inline-flex; align-items: center; justify-content: center; font-size: 1.15rem; font-weight: 800; line-height: 1; color: var(--accent); }
 .flash-pos { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-left: 5px; }
 
-/* Dedicated Flashcard Layout: Chỉ gồm từ vựng đơn lẻ, ví dụ, phát âm */
-.flash-card-container { display: grid; gap: 16px; padding: 28px; }
-.flashcard-front { display: grid; gap: 14px; margin: 8px 0 16px; }
-.flashcard-word-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.flashcard-word { font-size: 2.1rem; font-weight: 850; color: var(--ink); line-height: 1.15; letter-spacing: -0.02em; margin: 0; }
-.flash-sound-btn { width: 40px; height: 40px; font-size: 1.15rem; color: var(--accent); background: var(--accent-light); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; transition: transform 0.15s, background 0.15s; }
-.flash-sound-btn:hover { transform: scale(1.08); background: var(--accent); color: #fff; }
-.flashcard-ipa { color: var(--muted); font-size: 1rem; font-family: var(--font-mono, monospace); margin: -4px 0 0; }
-.flashcard-example { border-left: 3px solid var(--accent); padding: 12px 18px; background: var(--surface); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.flashcard-example p { font-size: 1.05rem; font-style: italic; color: var(--ink); line-height: 1.5; margin: 4px 0 0; }
-.flashcard-back { display: grid; gap: 8px; text-align: left; }
-.flash-meaning-text { font-size: 1.35rem; color: var(--green); font-weight: 750; line-height: 1.3; }
-.flash-expl-text { color: var(--muted); font-size: 0.88rem; line-height: 1.5; margin: 4px 0 0; }
-.flashcard-flip-prompt { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px 16px; }
+/* Dedicated Flashcard Layout: Trải nghiệm thẻ ghi nhớ 2 mặt chuẩn mực */
+.flash-card-container { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+
+.flashcard-scene {
+  width: 100%;
+  margin: 6px 0 12px;
+}
+
+.flashcard-card {
+  position: relative;
+  width: 100%;
+  min-height: 360px;
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .flashcard-card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.flashcard-face {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 28px 30px;
+  flex: 1;
+}
+
+.flashcard-face-front {
+  background: linear-gradient(180deg, var(--surface) 0%, rgba(245, 245, 244, 0.45) 100%);
+}
+
+[data-theme="dark"] .flashcard-face-front {
+  background: linear-gradient(180deg, var(--surface) 0%, rgba(30, 41, 59, 0.3) 100%);
+}
+
+.flashcard-face-back {
+  background: linear-gradient(180deg, var(--surface) 0%, rgba(240, 253, 244, 0.35) 100%);
+  border-top: 3px solid var(--green);
+}
+
+[data-theme="dark"] .flashcard-face-back {
+  background: linear-gradient(180deg, var(--surface) 0%, rgba(20, 83, 45, 0.15) 100%);
+  border-top: 3px solid var(--green);
+}
+
+.flashcard-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.flashcard-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.flashcard-badge.back-badge {
+  color: var(--green);
+  background: var(--green-glass);
+}
+
+.flashcard-side-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.flashcard-center-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.flashcard-word-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.flashcard-word {
+  font-size: 2.35rem;
+  font-weight: 850;
+  color: var(--ink);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.flashcard-pos {
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: var(--muted);
+  background: var(--subtle);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.flashcard-ipa {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.05rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.flash-sound-btn {
+  width: 42px;
+  height: 42px;
+  font-size: 1.2rem;
+  color: var(--accent);
+  background: var(--accent-light);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, background 0.15s, color 0.15s;
+  cursor: pointer;
+  border: none;
+}
+.flash-sound-btn:hover {
+  transform: scale(1.08);
+  background: var(--accent);
+  color: #fff;
+}
+
+.flash-sound-btn-sm {
+  width: 32px;
+  height: 32px;
+  font-size: 0.95rem;
+  color: var(--accent);
+  background: var(--accent-light);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, background 0.15s, color 0.15s;
+  cursor: pointer;
+  border: none;
+}
+.flash-sound-btn-sm:hover {
+  transform: scale(1.08);
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Khung ví dụ ngữ cảnh & Highlight từ vựng */
+.flashcard-example-box {
+  background: var(--card-bg, rgba(255, 255, 255, 0.7));
+  border: 1px solid var(--glass-border);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+[data-theme="dark"] .flashcard-example-box {
+  background: rgba(30, 41, 59, 0.45);
+}
+
+.flashcard-example-box.subtle {
+  border-left-color: var(--green);
+  background: rgba(240, 253, 244, 0.25);
+}
+
+.flashcard-box-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.flashcard-box-label.highlight-label {
+  color: var(--green);
+}
+
+.flashcard-example-text {
+  font-size: 1.08rem;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* Highlight từ vựng chính */
+mark.vocab-highlight {
+  background: rgba(234, 88, 12, 0.16);
+  color: var(--accent);
+  font-weight: 750;
+  font-style: normal;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border-bottom: 2px solid var(--accent);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+[data-theme="dark"] mark.vocab-highlight {
+  background: rgba(251, 146, 60, 0.24);
+  color: #fb923c;
+  border-bottom-color: #fb923c;
+}
+
+/* Mặt sau: Nghĩa từ & Giải thích */
+.flashcard-back-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.flashcard-back-word {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.flashcard-ipa-inline {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.flashcard-meaning-box {
+  background: var(--green-glass);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flashcard-meaning-value {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--green);
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="dark"] .flashcard-meaning-value {
+  color: #4ade80;
+}
+
+.flashcard-expl-box {
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.flashcard-expl-text {
+  font-size: 0.95rem;
+  color: var(--ink);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Nút lật thẻ & lật lại */
+.flashcard-action-bar {
+  margin-top: auto;
+  padding-top: 14px;
+  display: flex;
+  justify-content: center;
+}
+
+.flashcard-flip-main-btn {
+  width: 100%;
+  max-width: 360px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 14px 24px;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.25);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.flashcard-flip-main-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(234, 88, 12, 0.35);
+}
+
+.flashcard-unflip-btn {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.flashcard-unflip-btn:hover {
+  color: var(--ink);
+}
+
