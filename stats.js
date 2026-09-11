@@ -249,6 +249,8 @@ export function mistakeQuestions(questions, attempts) {
   return questions
     .filter((question) => {
       if (question.active === false) return false;
+      // Thẻ từ vựng học theo chu trình SRS riêng; "Chưa nhớ" là để học lại chứ không phải bài tập sai
+      if (question.domain === "vocabulary") return false;
       const attempt = latest.get(question.id);
       return attempt && !attempt.correct;
     })

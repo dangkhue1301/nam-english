@@ -839,3 +839,9 @@ kbd { display: inline-flex; min-width: 1.8em; justify-content: center; border: 1
 .question-search-grid::-webkit-scrollbar-thumb:hover,
 .mix-set-list::-webkit-scrollbar-thumb:hover,
 .result-review::-webkit-scrollbar-thumb:hover { background: var(--subtle); }
+
+/* Flashcard feedback: Chưa nhớ ôn lại dịu mắt, không dùng màu đỏ lỗi sai */
+.feedback.flash-repeat { border-color: rgba(14, 165, 233, 0.45); background: rgba(14, 165, 233, 0.08); color: var(--ink); }
+.feedback.flash-repeat .feedback-title { color: var(--accent); display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+.feedback-repeat-icon { display: inline-flex; align-items: center; justify-content: center; font-size: 1.15rem; font-weight: 800; line-height: 1; color: var(--accent); }
+.flash-pos { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-left: 5px; }

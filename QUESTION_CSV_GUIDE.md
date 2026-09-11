@@ -2,38 +2,63 @@
 
 NẮM là website tự luyện trên trình duyệt cho Tiếng Anh, Hóa học, Vật lí và Sinh học lớp 6–9. Mỗi file CSV tạo thành **một bộ riêng**; một file chỉ được chứa **một môn**. Website chấm bằng đáp án đã có trong CSV, không gửi câu hỏi lên AI hay máy chủ.
 
-## Prompt dùng ngay
+## Triết lý học tập của NẮM
+
+1. **Bước 1 — Nạp từ vựng bằng Thẻ ghi nhớ (Flashcards)**:
+   - Học sinh học thuộc từ vựng trước (từ/cụm từ, từ loại, phát âm, câu ví dụ ngữ cảnh minh họa và nghĩa tiếng Việt) theo chu trình lặp lại ngắt quãng (SRS).
+   - Chưa nhớ thì thẻ sẽ quay lại ở cuối buổi học để ôn lại cho thuộc, **không tính là làm bài tập sai**.
+2. **Bước 2 — Áp dụng bằng Bài tập nhiều dạng (Grammar & Practice)**:
+   - Sau khi đã nắm từ vựng, học sinh làm **bài tập áp dụng nhiều dạng** (trắc nghiệm, điền từ, sắp xếp câu, viết lại câu, tìm lỗi sai, ghép nối, word formation, chọn nhiều đáp án) để áp dụng cấu trúc ngữ pháp và từ vựng vào ngữ cảnh câu hoàn chỉnh.
+
+---
+
+## Prompt dùng ngay cho AI
 
 Gửi cả file hướng dẫn này cho AI tạo câu hỏi, rồi dùng một trong các prompt dưới đây. Thay phần trong ngoặc vuông.
 
-### Tiếng Anh — grammar
+### Tiếng Anh — vocabulary (Thẻ ghi nhớ / Flashcards)
 
 ```text
 Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo hướng dẫn tôi đính kèm.
 
 - Môn: english
-- Phần học: grammar
+- Phần học: vocabulary (thẻ ghi nhớ - flashcards)
+- Trình độ: [A1/A2/B1/B2/mixed]
+- Chủ đề hoặc danh sách từ: [ví dụ: Work & Employment]
+- Số mục từ: [50]
+- Tên file: [english-work-vocabulary.csv]
+
+Mục tiêu là HỌC TỪ VỰNG BẰNG THẺ GHI NHỚ (FLASHCARDS):
+- Mỗi dòng là MỘT MỤC TỪ VỰNG cần học thuộc trước khi áp dụng vào bài tập.
+- Cột prompt: Ghi từ hoặc cụm từ tiếng Anh, kèm phiên âm IPA và từ loại trong ngoặc đơn, ví dụ: "allocate /ˈæləkeɪt/ (v)" hoặc "reliable /rɪˈlaɪəbl/ (adj)".
+- Cột context: Bắt buộc viết MỘT CÂU VÍ DỤ tiếng Anh tự nhiên minh họa cách dùng từ đó trong ngữ cảnh.
+- Cột type: Đặt là "fill_blank".
+- Cột options: Để trống ("").
+- Cột answer: Ghi nghĩa tiếng Việt ngắn gọn, súc tích (đây là mặt sau thẻ ghi nhớ).
+- Cột explanation: Giải thích chi tiết, họ từ, cách dùng trong câu bằng tiếng Việt có dấu.
+- Cột theory: Có thể để trống ("").
+- Cột learning_key: Bắt buộc chuẩn "vocab:word:pos:sense" theo từ/cụm từ + từ loại + nghĩa, ví dụ "vocab:allocate:verb:set-aside".
+
+Trả đúng một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
+```
+
+### Tiếng Anh — grammar (Bài tập áp dụng nhiều dạng)
+
+```text
+Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo hướng dẫn tôi đính kèm.
+
+- Môn: english
+- Phần học: grammar (bài tập áp dụng)
 - Trình độ: [A1/A2/B1/B2/mixed]
 - Chủ điểm được giao: [ví dụ: Present perfect]
 - Số câu: [50]
 - Tên file: [english-present-perfect.csv]
 
-Tự soạn câu mới chỉ theo chủ điểm được giao; không cần nguồn, tên sách hay số trang. Dùng đa dạng dạng bài phù hợp, mỗi câu có theory và explanation bằng tiếng Việt có dấu. Trả một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
-```
+Mục tiêu là BÀI TẬP ÁP DỤNG NGỮ PHÁP:
+- Tự soạn câu bài tập theo chủ điểm; dùng đa dạng các dạng bài phù hợp (mcq, fill_blank, error_correction, sentence_transformation, word_formation, ordering, matching, multiple_select).
+- Mỗi câu phải có theory (nhắc lý thuyết ngắn gọn) và explanation (giải thích chi tiết vì sao đúng/sai) bằng tiếng Việt có dấu.
 
-### Tiếng Anh — vocabulary
-
-```text
-Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo hướng dẫn tôi đính kèm.
-
-- Môn: english
-- Phần học: vocabulary
-- Trình độ: [A1/A2/B1/B2/mixed]
-- Chủ đề hoặc danh sách từ: [điền ở đây]
-- Số mục từ: [50]
-- Tên file: [english-work-vocabulary.csv]
-
-Mỗi mục phải có learning_key ổn định theo từ/cụm từ + từ loại + nghĩa. Cùng nghĩa dùng cùng key, nghĩa khác dùng key khác. Explanation và hint viết bằng tiếng Việt có dấu; theory có thể để trống. Trả một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
+Trả đúng một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
 ```
 
 ### Hóa học
@@ -47,7 +72,7 @@ Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo 
 - Số câu: [30]
 - Tên file: [chemistry-grade-8-formulas.csv]
 
-Đặt subject=chemistry, grade đúng lớp đã giao và domain=practice cho mọi dòng. Viết prompt, context, explanation, theory, hint bằng tiếng Việt có dấu; dùng kiến thức cơ bản, đáp án xác định được bằng máy. Khi cần phân biệt CO với Co hoặc ký hiệu/đơn vị hoa-thường, thêm tags=case-sensitive. Trả một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
+Đặt subject=chemistry, grade đúng lớp đã giao và domain=practice cho mọi dòng. Dùng đa dạng các dạng bài phù hợp; viết prompt, context, explanation, theory, hint bằng tiếng Việt có dấu; dùng kiến thức cơ bản, đáp án xác định được bằng máy. Khi cần phân biệt CO với Co hoặc ký hiệu/đơn vị hoa-thường, thêm tags=case-sensitive. Trả một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
 ```
 
 ### Vật lí hoặc Sinh học
@@ -61,8 +86,10 @@ Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo 
 - Số câu: [30]
 - Tên file: [physics-or-biology-grade-x-topic.csv]
 
-Đặt subject đúng môn, grade đúng lớp đã giao và domain=practice cho mọi dòng. Viết prompt, context, explanation, theory, hint bằng tiếng Việt có dấu; dùng kiến thức cơ bản và đáp án xác định được bằng máy. Với đáp án số, nêu đơn vị ngay trong đề rồi chỉ yêu cầu học sinh nhập số. Trả một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
+Đặt subject đúng môn, grade đúng lớp đã giao và domain=practice cho mọi dòng. Dùng đa dạng các dạng bài phù hợp; viết prompt, context, explanation, theory, hint bằng tiếng Việt có dấu; dùng kiến thức cơ bản và đáp án xác định được bằng máy. Với đáp án số, nêu đơn vị ngay trong đề rồi chỉ yêu cầu học sinh nhập số. Trả một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
 ```
+
+---
 
 ## Hợp đồng dữ liệu CSV
 
@@ -83,32 +110,26 @@ subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,
 |---|---|
 | `subject` | Bắt buộc: `english`, `chemistry`, `physics`, hoặc `biology`. Mọi dòng trong một file phải cùng giá trị. |
 | `grade` | Tiếng Anh để trống. Hóa/Lí/Sinh bắt buộc là đúng một trong `6`, `7`, `8`, `9`. |
-| `id` | Bắt buộc, duy nhất trong file; ví dụ `c-formula-001`. |
-| `domain` | Tiếng Anh: `grammar` hoặc `vocabulary`. Hóa/Lí/Sinh: luôn là `practice`. |
-| `type` | Một trong 8 dạng ở bảng bên dưới. |
+| `id` | Bắt buộc, duy nhất trong file; ví dụ `c-formula-001` hoặc `v-work-001`. |
+| `domain` | Tiếng Anh: `vocabulary` (thẻ từ vựng) hoặc `grammar` (bài tập ngữ pháp). Hóa/Lí/Sinh: luôn là `practice`. |
+| `type` | Một trong 8 dạng ở bảng bên dưới. Với `vocabulary`, đặt `fill_blank`. |
 | `level` | Hữu ích cho Tiếng Anh (`A1`…`C2`, `mixed`); có thể để `mixed` cho khoa học. |
 | `topic` | Bắt buộc; tên chủ điểm nhất quán để lọc. |
 | `subtopic` | Trọng tâm nhỏ; có thể trống. |
-| `prompt` | Bắt buộc; yêu cầu rõ ràng. Khoa học dùng tiếng Việt có dấu. |
-| `context` | Câu, số liệu hoặc đoạn cần xử lý; có thể trống nếu prompt đã đủ ngữ cảnh. |
-| `options` | Lựa chọn/từ/cặp ghép, ngăn bằng `||`; cách dùng theo `type`. |
-| `answer` | Đáp án; các cách viết tương đương được chấp nhận ngăn bằng `||`. Riêng `matching` để trống. |
-| `explanation` | Bắt buộc; giải thích đáp án bằng tiếng Việt có dấu. |
+| `prompt` | Bắt buộc. Với `vocabulary`: từ/cụm từ tiếng Anh kèm phát âm/từ loại. Với `grammar`/`practice`: yêu cầu câu hỏi. |
+| `context` | Với `vocabulary`: câu ví dụ minh họa ngữ cảnh. Với các môn khác: đoạn văn/số liệu câu hỏi. |
+| `options` | Lựa chọn/từ/cặp ghép, ngăn bằng `||`; với `vocabulary` để trống `""`. |
+| `answer` | Đáp án; với `vocabulary` là nghĩa tiếng Việt (mặt sau thẻ flashcard). |
+| `explanation` | Bắt buộc; giải thích nghĩa/cách dùng từ vựng hoặc lý do đáp án đúng bằng tiếng Việt có dấu. |
 | `theory` | Bắt buộc với `grammar` và `practice`; nhắc lý thuyết ngắn bằng tiếng Việt có dấu. `vocabulary` có thể trống. |
 | `hint` | Gợi ý ngắn không lộ đáp án; có thể trống. |
 | `tags` | Nhãn ngăn bằng `||`; dùng chính xác `case-sensitive` khi cần phân biệt hoa/thường. |
 | `difficulty` | Số nguyên `1`–`5`; để trống thì mặc định `2`. |
-| `learning_key` | Bắt buộc với `vocabulary`; các domain khác để trống. |
+| `learning_key` | Bắt buộc với `vocabulary` theo cú pháp `vocab:word:pos:sense`; các domain khác để trống. |
 
-### Tương thích file Tiếng Anh cũ
+---
 
-File Tiếng Anh 16 cột cũ vẫn nhập được nếu header đúng thứ tự dưới đây. Website tự hiểu `subject=english` và `grade` trống. File mới nên luôn dùng 18 cột.
-
-```text
-id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
-```
-
-## Tám dạng bài và cách chấm
+## Tám dạng bài áp dụng (Grammar & Practice)
 
 | `type` | `options` | `answer` |
 |---|---|---|
@@ -121,20 +142,16 @@ id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,th
 | `ordering` | 2–30 từ/cụm ngăn bằng `||` | Câu hoàn chỉnh phải dùng đúng toàn bộ token, đúng số lần, không thêm bớt. |
 | `matching` | 2–30 cặp `left=>right`, ngăn bằng `||` | Để trống; đáp án lấy từ chính các cặp, không trùng vế trái/vế phải. |
 
-Máy chấm chuẩn hóa Unicode, khoảng trắng thừa, nháy cong/thẳng và dấu `.`, `!`, `?` cuối câu. Mặc định không phân biệt hoa/thường. Khi `tags` có `case-sensitive`, máy giữ nguyên hoa/thường ở cả options, đáp án, ordering và chấm nhập chữ. Ví dụ `CO` (carbon monoxide) và `Co` (cobalt) phải có tag này.
-
-Máy **không** tự hiểu từ đồng nghĩa, lỗi chính tả, đáp án gần đúng hay bài tự luận. Với nhập chữ, `answer="is not||isn't"` nghĩa là chấp nhận một trong hai cách viết. Với bài số, nêu đơn vị trong prompt/context, ví dụ “đơn vị g/cm³ đã cho sẵn”, và để `answer` chỉ là số như `2`; không dùng dung sai hoặc chấm bằng AI.
+---
 
 ## Ví dụ từng môn
-
-Các khối dưới đây là file riêng, hợp lệ để kiểm tra định dạng; chúng không phải kho bài mặc định.
 
 ### Tiếng Anh
 
 ```csv
 subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
+"english","","v-work-001","vocabulary","fill_blank","B1","Work","","reliable /rɪˈlaɪəbl/ (adj)","A reliable colleague always keeps promises and finishes tasks on time.","","đáng tin cậy","reliable (tính từ): có thể tin tưởng được để hoàn thành công việc tốt. Trái nghĩa: unreliable. Danh từ: reliability.","","","","1","vocab:reliable:adjective:trusted"
 "english","","g-ptc-001","grammar","mcq","B1","Present continuous","","Choose the correct option.","Mia ___ a lesson right now.","takes||is taking||took||has taken","is taking","Cụm right now cho biết hành động đang diễn ra, nên dùng is taking.","Hiện tại tiếp diễn: S + am/is/are + V-ing.","Chú ý cụm chỉ thời gian.","present-continuous","1",""
-"english","","v-work-001","vocabulary","word_formation","B1","Work","","Use the correct form of RELY.","We need a ___ assistant.","","reliable","Trước assistant cần tính từ reliable, nghĩa là đáng tin cậy.","","Cần một tính từ.","adjectives","2","vocab:reliable:adjective:dependable"
 ```
 
 ### Hóa học lớp 8
@@ -161,20 +178,12 @@ subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,
 "biology","7","b-cell-002","practice","fill_blank","mixed","Tế bào","Đơn vị cơ bản","Điền cụm từ thích hợp.","Tế bào là đơn vị cấu tạo và chức năng cơ bản của ___ .","","cơ thể sống","Tế bào tạo nên cơ thể sống và thực hiện các chức năng sống cơ bản.","Tế bào là đơn vị cấu tạo và chức năng của cơ thể sống.","Đây là khái niệm nền tảng của sinh học.","","1",""
 ```
 
-## Vocabulary và lịch ôn
+---
 
-Mỗi `learning_key` đại diện cho một từ/cụm từ + từ loại + nghĩa cụ thể, ví dụ `vocab:record:noun:stored-information`. Cùng key có thể có nhiều câu biến thể, nhưng website chỉ chọn một biến thể trong một lượt.
+## Cơ chế lặp lại ngắt quãng (SRS) cho Từ vựng
 
-- Lần học đầu được tính riêng theo từng bộ.
-- Lịch ôn theo `learning_key` dùng chung giữa các bộ.
-- Trả lời sai vocabulary/thẻ ghi nhớ sẽ quay lại cuối lượt đến khi đúng.
-- Đúng lần đầu hẹn ôn sau 1 ngày, lần hai sau 6 ngày, rồi giãn dần; sai hẹn lại sau 10 phút.
-- `grammar` và `practice` không dùng SRS: câu đã chấm, đúng hay sai, sẽ không lặp trong bộ.
-
-## Kiểm tra và nhập file
-
-Trước khi giao CSV, tự kiểm tra header, 18 ô mỗi dòng, UTF-8, ngoặc kép, ID, subject/grade/domain, type, options, đáp án và theory/explanation bắt buộc. Một dòng lỗi khiến website từ chối toàn bộ file, không nhập một phần.
-
-Mở [NẮM Học tập](https://dangkhue1301.github.io/nam-english/) → **Thêm bộ CSV** → chọn file → xem kết quả kiểm tra → đặt tên bộ → **Thêm vào kho**. Chọn môn/bộ/lớp rồi bắt đầu lượt học. Mỗi lượt tối đa 30 câu; bộ grammar hoặc practice 50 câu sẽ chia thành 30 rồi 20, không lặp câu đã chấm.
-
-Dữ liệu nằm trên trình duyệt từng thiết bị. Không có máy chủ, tài khoản học sinh, đồng bộ tự động hay bảng điểm tập trung. Dùng **Dữ liệu → Tải sao lưu** và khôi phục JSON để chuyển cả tiến độ sang máy khác.
+Mỗi `learning_key` đại diện cho một từ/cụm từ + từ loại + nghĩa cụ thể, ví dụ `vocab:record:noun:stored-information`.
+- Học sinh học từ vựng bằng **Thẻ ghi nhớ**: Lật thẻ xem nghĩa rồi chọn **Đã nhớ** hoặc **Chưa nhớ**.
+- **Chưa nhớ thì học lại chứ không phải sai**: Thẻ chưa nhớ sẽ xuất hiện lại ở cuối lượt học để ôn tiếp đến khi thuộc, đồng thời hệ thống hẹn ôn lại sau 10 phút.
+- **Đã nhớ**: Thẻ được giãn dần theo chu kỳ khoa học: lần 1 sau 1 ngày, lần 2 sau 6 ngày, rồi giãn xa hơn.
+- Khi đã nhớ từ vựng, học sinh chuyển sang **Grammar** để làm bài tập áp dụng vào câu thực tế!
