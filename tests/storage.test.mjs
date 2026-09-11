@@ -248,6 +248,60 @@ for (const mode of ["localStorage", "IndexedDB"]) {
     assert.equal((await repo.snapshot()).reviews[0].repetitions, 1);
   });
 
+  test(`${mode}: startSession với dueOnly: true chỉ lấy các thẻ từ vựng đến hạn ôn tập`, async (t) => {
+    const { repo } = await setup(t, mode);
+    const v1 = vocabulary({ id: "v-due-1", learningKey: "vocab:due1:verb:def1" });
+    const v2 = vocabulary({ id: "v-due-2", learningKey: "vocab:due2:verb:def2" });
+    const v3 = vocabulary({ id: "v-new", learningKey: "vocab:new:verb:def3" });
+    const set = await repo.importQuestions([v1, v2, v3], "vocab-due.csv");
+
+    // Học v1 và v2 lần đầu
+    let s = await repo.startSession({ setId: set.id, mode: "flashcards" });
+    // Queue ban đầu có 3 từ
+    assert.equal(s.target, 3);
+    for (let i = 0; i < 2; i++) {
+      await repo.submit(s.id, s.step, true);
+      await repo.advance(s.id, s.step);
+      s = (await repo.snapshot()).session;
+    }
+    // Hoàn thành từ thứ 3 luôn
+    await repo.submit(s.id, s.step, true);
+    await repo.advance(s.id, s.step);
+    await repo.dismissSummary();
+
+    // Hiện tại cả 3 từ đều đã học và hẹn ôn vào tương lai (dueAt > now).
+    // Khi gọi dueOnly: true -> Không có từ nào đến hạn hôm nay
+    await assert.rejects(
+      repo.startSession({ setId: set.id, mode: "flashcards", dueOnly: true }),
+      /Không có từ vựng nào đến hạn/
+    );
+
+    // Chỉnh v1 quá hạn (dueAt = 0)
+    await repo.change((state) => {
+      const r1 = state.reviews.find((r) => r.learningKey === "vocab:due1:verb:def1");
+      if (r1) r1.dueAt = 0;
+    });
+
+    // startSession với dueOnly: true phải thành công và chỉ lấy v1
+    const dueSession = await repo.startSession({ setId: set.id, mode: "flashcards", dueOnly: true });
+    assert.equal(dueSession.target, 1);
+    const snap = await repo.snapshot();
+    const targetQ = snap.questions.find((q) => q.id === dueSession.queue[0]);
+    assert.equal(targetQ?.originalId, "v-due-1");
+    assert.equal(dueSession.filters.dueOnly, true);
+
+    // Trả lời đúng cho v1
+    await repo.submit(dueSession.id, 0, true);
+    await repo.advance(dueSession.id, 0);
+
+    // Sau khi v1 đã ôn xong, không còn từ nào đến hạn
+    await repo.dismissSummary();
+    await assert.rejects(
+      repo.startSession({ setId: set.id, mode: "flashcards", dueOnly: true }),
+      /Không có từ vựng nào đến hạn/
+    );
+  });
+
   test(`${mode}: xóa bộ không xóa nhầm lịch ôn của từ còn nằm trong bộ khác`, async (t) => {
     const { repo } = await setup(t, mode);
     const a = await repo.importQuestions([vocabulary()], "A.csv"), b = await repo.importQuestions([vocabulary()], "B.csv");

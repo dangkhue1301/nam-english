@@ -241,3 +241,45 @@ test("chia sẻ qua link: encode/decode round-trip tiếng Việt, công thức 
   const invalidUtf8Base64 = btoa(String.fromCharCode(0xff, 0xff, 0xff));
   assert.throws(() => decodeSharePayload(invalidUtf8Base64), /UTF-8/);
 });
+
+test("selectQuestions với dueOnly: true chỉ chọn đúng các thẻ từ vựng đến hạn ôn SRS", () => {
+  const now = new Date("2026-09-11T12:00:00").getTime();
+  const day = 86_400_000;
+  const questions = [
+    vocabulary({ id: "v1", learningKey: "key1" }),
+    vocabulary({ id: "v2", learningKey: "key2" }),
+    vocabulary({ id: "v3", learningKey: "key3" }),
+    vocabulary({ id: "v4", learningKey: "key4" }),
+  ];
+  const reviews = [
+    { learningKey: "key1", dueAt: now - day },
+    { learningKey: "key2", dueAt: now + 2 * 3600 * 1000 },
+    { learningKey: "key3", dueAt: now + day },
+  ];
+  const completedLearningKeys = ["key1", "key2", "key3"];
+
+  // Khi dueOnly: false và còn từ mới v4 -> chọn từ mới trước
+  const defaultSelected = selectQuestions(questions, reviews, {
+    domain: "vocabulary",
+    now,
+    completedLearningKeys,
+    dueOnly: false,
+  });
+  assert.equal(defaultSelected.length, 1);
+  assert.equal(defaultSelected[0].id, "v4");
+
+  // Khi dueOnly: true -> bỏ qua từ mới v4, chỉ chọn v1 và v2 (đến hạn hôm nay hoặc quá hạn)
+  const dueSelected = selectQuestions(questions, reviews, {
+    domain: "vocabulary",
+    now,
+    completedLearningKeys,
+    dueOnly: true,
+  });
+  assert.equal(dueSelected.length, 2);
+  const selectedKeys = new Set(dueSelected.map((q) => q.learningKey));
+  assert.ok(selectedKeys.has("key1"));
+  assert.ok(selectedKeys.has("key2"));
+  assert.ok(!selectedKeys.has("key3")); // ngày mai
+  assert.ok(!selectedKeys.has("key4")); // từ mới
+});
+

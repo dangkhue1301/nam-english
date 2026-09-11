@@ -8,6 +8,7 @@ import {
   computeStreaks,
   dailyActivity,
   dueForecast,
+  dueCountToday,
   heatmapLevel,
   heatmapWeeks,
   levelInfo,
@@ -160,6 +161,7 @@ test("dueForecast gom lịch ôn về đúng ngày, quá hạn dồn vào hôm n
   ];
   const buckets = dueForecast(reviews, ["k1", "k2", "k3", "k4"], 7, now);
   assert.equal(buckets[0], 2);
+  assert.equal(dueCountToday(reviews, ["k1", "k2", "k3", "k4"], now), 2);
   assert.equal(buckets[1], 1);
   assert.equal(
     buckets.reduce((sum, count) => sum + count, 0),

@@ -158,7 +158,7 @@ class LocalBackend {
 }
 
 const setQuestions = (w, setId) => w.questions.filter((q) => questionSetIdOf(q) === setId);
-function selection(w, { setId, setIds, domain, level = "all", topic = "all", grade = "all", type = "all", limit = 30, now }) {
+function selection(w, { setId, setIds, domain, level = "all", topic = "all", grade = "all", type = "all", limit = 30, now, dueOnly = false }) {
   const targetSets = Array.isArray(setIds) && setIds.length > 0 ? new Set(setIds) : (setId ? new Set([setId]) : null);
   const questions = targetSets ? w.questions.filter((q) => targetSets.has(questionSetIdOf(q))) : w.questions;
   const byId = new Map(questions.map((q) => [q.id, q]));
@@ -181,33 +181,55 @@ function selection(w, { setId, setIds, domain, level = "all", topic = "all", gra
   let candidateQuestions = questions;
 
   if (domain === "vocabulary") {
-    const keySets = new Map();
-    for (const q of questions) {
-      if (q.domain === "vocabulary") {
-        const k = learningKeyFor(q);
-        if (!keySets.has(k)) keySets.set(k, new Set());
-        keySets.get(k).add(questionSetIdOf(q));
-      }
-    }
-    const fullyCompletedKeys = new Set();
-    for (const [k, sIds] of keySets) {
-      const allDone = [...sIds].every((sId) => completedKeysBySet.get(sId)?.has(k));
-      if (allDone) fullyCompletedKeys.add(k);
-    }
-    vocabularyKeysCompleted = [...fullyCompletedKeys];
+    if (dueOnly) {
+      const currentTime = now || Date.now();
+      const todayDate = new Date(currentTime);
+      todayDate.setHours(0, 0, 0, 0);
+      const todayMs = todayDate.getTime();
 
-    candidateQuestions = questions.filter((q) => {
-      if (q.domain !== "vocabulary") return true;
-      const k = learningKeyFor(q);
-      if (fullyCompletedKeys.has(k)) return true;
-      const sId = questionSetIdOf(q);
-      return !completedKeysBySet.get(sId)?.has(k);
-    });
+      const dueReviewKeys = new Set(
+        w.reviews
+          .filter((r) => r && (r.dueAt <= currentTime || new Date(r.dueAt).setHours(0, 0, 0, 0) <= todayMs))
+          .map((r) => r.learningKey)
+      );
+
+      candidateQuestions = questions.filter((q) => {
+        if (q.domain !== "vocabulary") return false;
+        const k = learningKeyFor(q);
+        const sId = questionSetIdOf(q);
+        return dueReviewKeys.has(k) && (completedKeysBySet.get(sId)?.has(k) || w.reviews.some((r) => r.learningKey === k));
+      });
+      vocabularyKeysCompleted = [...new Set(candidateQuestions.map(learningKeyFor))];
+    } else {
+      const keySets = new Map();
+      for (const q of questions) {
+        if (q.domain === "vocabulary") {
+          const k = learningKeyFor(q);
+          if (!keySets.has(k)) keySets.set(k, new Set());
+          keySets.get(k).add(questionSetIdOf(q));
+        }
+      }
+      const fullyCompletedKeys = new Set();
+      for (const [k, sIds] of keySets) {
+        const allDone = [...sIds].every((sId) => completedKeysBySet.get(sId)?.has(k));
+        if (allDone) fullyCompletedKeys.add(k);
+      }
+      vocabularyKeysCompleted = [...fullyCompletedKeys];
+
+      candidateQuestions = questions.filter((q) => {
+        if (q.domain !== "vocabulary") return true;
+        const k = learningKeyFor(q);
+        if (fullyCompletedKeys.has(k)) return true;
+        const sId = questionSetIdOf(q);
+        return !completedKeysBySet.get(sId)?.has(k);
+      });
+    }
   }
 
   return selectQuestions(candidateQuestions, w.reviews, {
     setId: null, domain, level, topic, grade, type, now, limit: Math.max(1, Math.min(30, Number(limit) || 30)),
     completedQuestionIds: [...done], completedLearningKeys: vocabularyKeysCompleted,
+    dueOnly: Boolean(dueOnly),
   });
 }
 
@@ -269,6 +291,7 @@ function validSession(s, w) {
       (s.filters.level != null && typeof s.filters.level !== "string") ||
       (s.filters.topic != null && typeof s.filters.topic !== "string") ||
       (s.filters.grade != null && typeof s.filters.grade !== "string") ||
+      (s.filters.dueOnly != null && typeof s.filters.dueOnly !== "boolean") ||
       (s.filters.type != null && (typeof s.filters.type !== "string" || (!QUESTION_TYPES.includes(s.filters.type) && s.filters.type !== "all"))) ||
       (s.filters.limit != null && (!Number.isInteger(s.filters.limit) || s.filters.limit < 1 || s.filters.limit > 30)))) return false;
   if (s.result == null) return validDraft(s.draft);
@@ -329,6 +352,7 @@ function validSummary(summary, w) {
       (summary.filters.level != null && typeof summary.filters.level !== "string") ||
       (summary.filters.topic != null && typeof summary.filters.topic !== "string") ||
       (summary.filters.grade != null && typeof summary.filters.grade !== "string") ||
+      (summary.filters.dueOnly != null && typeof summary.filters.dueOnly !== "boolean") ||
       (summary.filters.type != null && (typeof summary.filters.type !== "string" || (!QUESTION_TYPES.includes(summary.filters.type) && summary.filters.type !== "all"))) ||
       (summary.filters.limit != null && (!Number.isInteger(summary.filters.limit) || summary.filters.limit < 1 || summary.filters.limit > 30)))) return false;
 
@@ -622,6 +646,9 @@ class Repository {
     if (Number.isInteger(filters?.limit) && [10, 20, 30].includes(filters.limit)) {
       sessionFilters.limit = filters.limit;
     }
+    if (filters?.dueOnly) {
+      sessionFilters.dueOnly = true;
+    }
     const requestedLimit = Number.isInteger(filters?.limit) && filters.limit >= 1 ? Math.min(30, filters.limit) : 30;
     const questions = selection(w, {
       setId: isMixed && targetSetIds.length > 1 ? null : primarySetId,
@@ -629,8 +656,12 @@ class Repository {
       ...sessionFilters,
       domain,
       limit: requestedLimit,
+      dueOnly: Boolean(filters?.dueOnly),
     });
-    if (!questions.length) fail("Đã hết câu phù hợp. Đổi bộ lọc hoặc quay lại khi có từ đến hạn.");
+    if (!questions.length) {
+      if (filters?.dueOnly) fail("Không có từ vựng nào đến hạn ôn hôm nay.");
+      fail("Đã hết câu phù hợp. Đổi bộ lọc hoặc quay lại khi có từ đến hạn.");
+    }
     w.session = {
       id: newId(),
       setId: primarySetId,

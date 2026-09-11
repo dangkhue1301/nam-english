@@ -233,6 +233,10 @@ export function dueForecast(reviews, vocabularyKeys, days = 7, now = Date.now())
   return buckets;
 }
 
+export function dueCountToday(reviews, vocabularyKeys, now = Date.now()) {
+  return dueForecast(reviews, vocabularyKeys, 1, now)[0] || 0;
+}
+
 export function lastAttemptByQuestion(attempts) {
   const latest = new Map();
   attempts.forEach((attempt) => {

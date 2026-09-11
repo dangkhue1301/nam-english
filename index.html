@@ -24,6 +24,11 @@
           if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
           const dark = theme === "dark" || (theme !== "light" && window.matchMedia?.("(prefers-color-scheme: dark)").matches);
           document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#131a16" : "#f4f3ee");
+          const fontSize = localStorage.getItem("nam-font-size");
+          if (fontSize && !isNaN(Number(fontSize))) {
+            const s = Math.max(14, Math.min(26, Number(fontSize)));
+            document.documentElement.style.fontSize = s + "px";
+          }
         } catch {
           // Theme preference is optional; the application must still start.
         }

@@ -15,6 +15,8 @@ import {
   accuracyByDomain,
   topicMastery,
   dueForecast,
+  dueCountToday,
+  dayKey,
   buildAchievements,
   mistakeQuestions,
   collectVocabularyKeys,
@@ -50,6 +52,125 @@ function cycleTheme() {
   applyTheme(next);
   const labels = { auto: "Giao diện: Tự động (theo thiết bị)", light: "Giao diện: Sáng", dark: "Giao diện: Tối" };
   toast(labels[next] || "Đã đổi giao diện");
+}
+
+function currentFontSize() {
+  try {
+    const saved = localStorage.getItem("nam-font-size");
+    if (saved && !isNaN(Number(saved))) {
+      return Math.max(14, Math.min(26, Number(saved)));
+    }
+  } catch {}
+  return 16;
+}
+
+function applyFontSize(size) {
+  const clamped = Math.max(14, Math.min(26, Number(size) || 16));
+  document.documentElement.style.fontSize = clamped + "px";
+  try { localStorage.setItem("nam-font-size", String(clamped)); } catch {}
+  if (modal.open && modalAction === "font-size") {
+    renderFontSizeModal();
+  }
+}
+
+function renderFontSizeModal() {
+  modalAction = "font-size";
+  const size = currentFontSize();
+  const presets = [
+    { label: "Nhỏ (14px)", val: 14 },
+    { label: "Chuẩn (16px)", val: 16 },
+    { label: "Vừa (18px)", val: 18 },
+    { label: "Lớn (20px)", val: 20 },
+    { label: "Rất lớn (22px)", val: 22 },
+  ];
+  showModal(`<h2>Cỡ chữ hiển thị</h2>
+    <p class="modal-description">Tùy chỉnh cỡ chữ toàn bộ giao diện cho phù hợp với mắt bạn.</p>
+    <div class="font-size-control-wrap">
+      <div class="font-size-stepper">
+        ${button("- Giảm", "font-size-dec", "button subtle", size <= 14 ? "disabled" : "")}
+        <div class="font-size-current-display">
+          <strong>${size}</strong><span>px</span>
+        </div>
+        ${button("+ Tăng", "font-size-inc", "button subtle", size >= 26 ? "disabled" : "")}
+      </div>
+      <div class="font-size-presets">
+        ${presets.map((p) => button(p.label, "font-size-set", `button ${p.val === size ? "primary" : "subtle"}`, `data-size="${p.val}"`)).join("")}
+      </div>
+      <div class="font-size-preview-box">
+        <p class="font-size-preview-sample">The quick brown fox jumps over the lazy dog.</p>
+        <p class="font-size-preview-sample-vi">Học một chút, nhớ thêm một ít. NẮM vững kiến thức mỗi ngày.</p>
+      </div>
+    </div>
+    <div class="modal-actions">
+      ${button("Mặc định (16px)", "font-size-reset", "button subtle")}
+      ${button("Xong", "close-modal", "button primary large")}
+    </div>`);
+}
+
+function canUseNotification() {
+  return typeof window !== "undefined" && "Notification" in window;
+}
+
+async function requestDueNotificationPermission() {
+  if (!canUseNotification()) {
+    toast("Trình duyệt không hỗ trợ tính năng thông báo.", true);
+    return;
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm === "granted") {
+      toast("Đã bật nhắc nhở ôn từ vựng trên trình duyệt!");
+      checkAndSendDueNotification(true);
+    } else if (perm === "denied") {
+      toast("Quyền thông báo đã bị chặn trong cài đặt trình duyệt.", true);
+    }
+  } catch (err) {
+    toast("Không thể kích hoạt thông báo: " + err.message, true);
+  }
+}
+
+function checkAndSendDueNotification(force = false) {
+  if (!canUseNotification() || Notification.permission !== "granted") return;
+  if (!state.data?.snapshot) return;
+
+  const allDue = dueCountForSets();
+  if (allDue <= 0) return;
+
+  const todayStr = dayKey(Date.now());
+  const lastNotified = localStorage.getItem("nam-due-notified-date");
+  if (!force && lastNotified === todayStr) {
+    return;
+  }
+
+  try {
+    const notif = new Notification("NẮM Học tập — Từ vựng đến hạn", {
+      body: `Hôm nay bạn có ${allDue} từ vựng cần ôn lại theo chu trình SRS. Hãy bấm để ôn ngay!`,
+      icon: "./favicon.svg",
+      tag: "nam-due-vocab-" + todayStr,
+    });
+    notif.onclick = () => {
+      window.focus();
+      void invokeAction({ dataset: { action: "start-due-vocab" } });
+    };
+    localStorage.setItem("nam-due-notified-date", todayStr);
+  } catch {}
+}
+
+function dueCountForSet(setId, now = Date.now()) {
+  const w = state.data?.snapshot;
+  if (!w) return 0;
+  const questions = w.questions.filter((q) => q.setId === setId && q.active !== false && q.domain === "vocabulary");
+  const keys = collectVocabularyKeys(questions);
+  return dueCountToday(w.reviews, keys, now);
+}
+
+function dueCountForSets(setIds = null, now = Date.now()) {
+  const w = state.data?.snapshot;
+  if (!w) return 0;
+  const targetIds = setIds ? new Set(setIds) : null;
+  const questions = w.questions.filter((q) => (!targetIds || targetIds.has(q.setId)) && q.active !== false && q.domain === "vocabulary");
+  const keys = collectVocabularyKeys(questions);
+  return dueCountToday(w.reviews, keys, now);
 }
 
 function updateTimerDisplay() {
@@ -95,6 +216,8 @@ const icons = {
   more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   theme: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.73 12.73 1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>',
+  fontSize: '<path d="M4 19h2.4l1.2-3.5h4.8l1.2 3.5H16L11 5H9L4 19zm4.2-5.7L10 8.3l1.8 5H8.2zM18 9v6m-3-3h6"/>',
+  bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
 };
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.book}</svg>`;
 const button = (label, action, css = "button", attrs = "") => `<button type="button" class="${css}" data-action="${action}" ${attrs} ${state.busy ? "disabled" : ""}>${label}</button>`;
@@ -174,6 +297,7 @@ async function refresh() {
   }
   syncDraft();
   render();
+  checkAndSendDueNotification(false);
 }
 
 async function run(work) {
@@ -214,10 +338,12 @@ function summaryForSet(setId, filters = null) {
     (!filters || !filters.topic || filters.topic === "all" || q.topic === filters.topic));
   const ids = new Set(questions.map((q) => q.id));
   const stats = buildStats(questions, w.reviews, w.attempts.filter((a) => ids.has(a.questionId)), []);
-  const words = new Set(questions.filter((q) => q.domain === "vocabulary").map(learningKeyFor)).size;
+  const vocabQuestions = questions.filter((q) => q.domain === "vocabulary");
+  const words = new Set(vocabQuestions.map(learningKeyFor)).size;
+  const dueToday = dueCountToday(w.reviews, collectVocabularyKeys(vocabQuestions));
   const total = stats.grammar + stats.practice + words;
   const done = total - stats.grammarRemaining - stats.practiceRemaining - stats.vocabularyRemaining;
-  return { ...stats, total, done, words, progress: total ? Math.round(done * 100 / total) : 0 };
+  return { ...stats, total, done, words, dueToday, progress: total ? Math.round(done * 100 / total) : 0 };
 }
 
 function filteredStats() {
@@ -232,6 +358,7 @@ function header() {
     <a class="brand" href="#" data-action="home" aria-label="NẮM — Trang học"><span class="brand-symbol">${icon("book")}</span><span>NẮM<span class="brand-sub">HỌC TẬP</span></span></a>
     ${studying ? `<span class="header-note">Tập trung vào một câu mỗi lần.</span>` : `<nav aria-label="Điều hướng chính">${[["home", "Luyện tập"], ["library", "Bộ bài"], ["stats", "Thống kê"], ["data", "Dữ liệu"]].map(([view, label]) => button(label, view, `nav-link${state.view === view ? " active" : ""}`, `aria-current="${state.view === view ? "page" : "false"}"`)).join("")}</nav>`}
     <div class="header-actions">
+      ${button(icon("fontSize"), "open-font-size", "icon-button font-size-toggle", 'aria-label="Điều chỉnh cỡ chữ" title="Cỡ chữ (A)"')}
       ${button(icon("theme"), "toggle-theme", "icon-button theme-toggle", 'aria-label="Đổi giao diện sáng/tối" title="Đổi giao diện sáng/tối"')}
       ${button(icon("help"), "help-shortcuts", "icon-button", 'aria-label="Phím tắt" title="Phím tắt (?)"')}
       ${studying ? button("Lưu và thoát", "pause", "button subtle") : button(`${icon("plus")}<span>Thêm bộ CSV</span>`, "import", "button primary header-import")}
@@ -279,6 +406,53 @@ function mistakeReviewBanner() {
   return `<div class="mistake-review-banner"><span class="mistake-icon">${icon("clock")}</span><div><strong>Bạn có ${mistakes.length} câu cần ôn lại</strong><p>Tập hợp các câu có lần trả lời gần nhất chưa đúng.</p></div>${button(`Ôn ${count} câu sai ${icon("arrow")}`, "review-mistakes", "button primary")}` + `</div>`;
 }
 
+function dueReminderBanner() {
+  if (currentSession()) return "";
+  const set = selectedSet();
+  const currentSetDue = set ? (summaryForSet(set.id).dueToday || 0) : 0;
+  const allDue = dueCountForSets();
+
+  const notifPermission = canUseNotification() ? Notification.permission : "unsupported";
+  const notifButton = notifPermission === "default"
+    ? `${button("🔔 Bật thông báo", "enable-due-notifications", "button subtle small due-notif-btn", 'title="Nhận thông báo trên trình duyệt khi có từ đến hạn ôn"')}`
+    : "";
+
+  if (currentSetDue > 0) {
+    const count = Math.min(state.limit || 30, currentSetDue);
+    return `<section class="due-reminder">
+      <div>
+        <strong>🔔 Hôm nay có ${currentSetDue} từ vựng đến hạn ôn trong bộ “${html(set.name)}”!</strong>
+        <p>Ôn lại đúng thời điểm giúp củng cố trí nhớ dài hạn theo phương pháp lặp lại ngắt quãng (SRS).</p>
+      </div>
+      <div class="due-reminder-actions">
+        ${notifButton}
+        ${button(`Ôn ngay ${count} từ đến hạn ${icon("arrow")}`, "start-due-vocab", "button primary", `data-set-id="${html(set.id)}"`)}
+      </div>
+    </section>`;
+  }
+
+  if (allDue > 0) {
+    const setsWithDue = state.data.sets.filter((s) => s.subject === "english" && (summaryForSet(s.id).dueToday || 0) > 0);
+    if (setsWithDue.length > 0) {
+      const targetSet = setsWithDue[0];
+      const targetDue = summaryForSet(targetSet.id).dueToday || 0;
+      const count = Math.min(state.limit || 30, targetDue);
+      return `<section class="due-reminder">
+        <div>
+          <strong>🔔 Hôm nay có ${allDue} từ vựng đến hạn ôn trong ${setsWithDue.length} bộ bài!</strong>
+          <p>Bộ “${html(targetSet.name)}” có ${targetDue} từ cần ôn lại hôm nay.</p>
+        </div>
+        <div class="due-reminder-actions">
+          ${notifButton}
+          ${button(`Ôn ngay ${count} từ bộ ${html(targetSet.name)} ${icon("arrow")}`, "start-due-vocab", "button primary", `data-set-id="${html(targetSet.id)}"`)}
+        </div>
+      </section>`;
+    }
+  }
+
+  return "";
+}
+
 function homeMarkup() {
   const availableSets = state.data.sets.filter((set) => state.subject === "all" || set.subject === state.subject);
   if (!availableSets.length) return resumeBanner() + emptyMarkup();
@@ -306,12 +480,52 @@ function homeMarkup() {
       ${button(buttonText, "begin", "button mode-start", `data-mode="${startMode}" ${!total || currentSession() ? "disabled" : ""}`)}
       <span class="mode-footnote">${isVocab ? "Học theo thẻ ghi nhớ lặp lại ngắt quãng (SRS); chưa nhớ sẽ ôn lại đến khi thuộc." : "Làm bài tập nhiều dạng; câu đã làm sẽ không lặp lại."}</span></article>`;
   };
-  return `${intro("Hôm nay, học bộ nào?", "Một lượt ngắn, thêm một bước tiến.")}${resumeBanner()}${mistakeReviewBanner()}${xpMarkup}
-    <section class="set-focus"><div class="set-focus-head"><label for="set-picker" class="eyebrow">BỘ ĐANG CHỌN</label><span>${full.done}/${full.total} mục đã học</span>${availableSets.length > 1 ? button(`${icon("book")} Trộn nhiều bộ`, "open-mix-modal", "button subtle mix-button") : ""}</div>
+
+  const vocabModeCard = () => {
+    const dueToday = full.dueToday || 0;
+    const newRemaining = stats.vocabularyRemaining || 0;
+    const hasDue = dueToday > 0;
+    const hasNew = newRemaining > 0;
+
+    let countMarkup;
+    let buttonMarkup;
+
+    if (hasDue && hasNew) {
+      countMarkup = `<div class="mode-count-vocab">
+        <div class="mode-count-item">
+          <strong class="accent-text">${number(dueToday)}</strong>
+          <span>từ đến hạn ôn</span>
+        </div>
+        <div class="mode-count-divider"></div>
+        <div class="mode-count-item">
+          <strong>${number(newRemaining)}</strong>
+          <span>từ mới</span>
+        </div>
+      </div>`;
+      buttonMarkup = `${button(`Ôn ngay ${Math.min(state.limit || 30, dueToday)} từ đến hạn ${icon("arrow")}`, "start-due-vocab", "button primary mode-start", currentSession() ? "disabled" : "")}
+        ${button(`Học ${Math.min(state.limit || 30, newRemaining)} từ mới`, "begin", "button subtle mode-start-secondary", `data-mode="flashcards" ${currentSession() ? "disabled" : ""}`)}`;
+    } else if (hasDue) {
+      countMarkup = `<div class="mode-count"><strong class="accent-text">${number(dueToday)}</strong><span>từ đến hạn ôn hôm nay</span></div>`;
+      buttonMarkup = button(`Ôn ngay ${Math.min(state.limit || 30, dueToday)} từ đến hạn ${icon("arrow")}`, "start-due-vocab", "button primary mode-start", currentSession() ? "disabled" : "");
+    } else if (hasNew) {
+      countMarkup = `<div class="mode-count"><strong>${number(newRemaining)}</strong><span>thẻ từ mới cần học</span></div>`;
+      buttonMarkup = button(`Học ${Math.min(state.limit || 30, newRemaining)} thẻ ghi nhớ ${icon("arrow")}`, "begin", "button mode-start", `data-mode="flashcards" ${currentSession() ? "disabled" : ""}`);
+    } else {
+      countMarkup = `<div class="mode-count"><strong>0</strong><span>Đã ôn hết thẻ đến hạn</span></div>`;
+      buttonMarkup = button("Đã ôn hết thẻ đến hạn", "begin", "button mode-start", 'data-mode="flashcards" disabled');
+    }
+
+    return `<article class="mode-card vocabulary"><div class="mode-top"><span class="mode-index">01</span><span class="pill">Từ vựng · Thẻ ghi nhớ</span></div><h2>Vocabulary</h2><p>Nạp từ mới và ôn thẻ ghi nhớ theo nhịp nhớ lâu (SRS).</p>${countMarkup}
+      ${buttonMarkup}
+      <span class="mode-footnote">Học theo thẻ ghi nhớ lặp lại ngắt quãng (SRS); chưa nhớ sẽ ôn lại đến khi thuộc.</span></article>`;
+  };
+
+  return `${intro("Hôm nay, học bộ nào?", "Một lượt ngắn, thêm một bước tiến.")}${resumeBanner()}${dueReminderBanner()}${mistakeReviewBanner()}${xpMarkup}
+    <section class="set-focus"><div class="set-focus-head"><label for="set-picker" class="eyebrow">BỘ ĐANG CHỌN</label><span>${full.done}/${full.total} mục đã học</span>${full.dueToday ? `<span class="pill due-pill" title="Hôm nay có ${full.dueToday} từ đến hạn ôn tập">🔔 ${full.dueToday} từ cần ôn</span>` : ""}${availableSets.length > 1 ? button(`${icon("book")} Trộn nhiều bộ`, "open-mix-modal", "button subtle mix-button") : ""}</div>
       <select id="set-picker" data-filter="set" aria-label="Chọn bộ bài">${availableSets.map((item) => `<option value="${html(item.id)}" ${item.id === set.id ? "selected" : ""}>${subjectName(item.subject)} · ${html(item.name)}</option>`).join("")}</select>
       <div class="progress-track" role="progressbar" aria-valuenow="${full.progress}" aria-valuemin="0" aria-valuemax="100" aria-label="Tiến độ bộ bài"><span style="width:${full.progress}%"></span></div>
       <div class="filter-row">${subjects.length > 1 ? `<label>Môn<select data-filter="subject">${option("all", "Tất cả môn", state.subject)}${subjects.map((subject) => option(subject, subjectName(subject), state.subject)).join("")}</select></label>` : ""}${english ? `<label>Trình độ<select data-filter="level">${option("all", "Tất cả trình độ", state.level)}${levels.map((level) => option(level, level, state.level)).join("")}</select></label>` : ""}${grades.length ? `<label>Lớp<select data-filter="grade">${option("all", "Tất cả lớp", state.grade)}${grades.map((grade) => option(grade, `Lớp ${grade}`, state.grade)).join("")}</select></label>` : ""}<label>Chủ điểm<select data-filter="topic">${option("all", "Tất cả chủ điểm", state.topic)}${topics.map((topic) => option(topic, topic, state.topic)).join("")}</select></label>${types.length > 1 ? `<label>Dạng câu<select data-filter="type">${option("all", "Tất cả dạng", state.type)}${types.map((type) => option(type, TYPE_LABELS[type] || type, state.type)).join("")}</select></label>` : ""}<label>Số câu<select data-filter="limit">${option("10", "10 câu", String(state.limit))}${option("20", "20 câu", String(state.limit))}${option("30", "30 câu", String(state.limit))}</select></label><span class="filter-note">Tối đa ${state.limit || 30} câu mỗi lượt</span></div>
-    </section><div class="mode-grid">${english ? modeCard("vocabulary", "Vocabulary", "Nạp từ mới và ôn thẻ ghi nhớ theo nhịp nhớ lâu (SRS).", stats.due, stats.vocabularyRemaining ? "thẻ từ mới cần học" : "thẻ đến hạn ôn", "vocabulary", "01") + modeCard("grammar", "Grammar & Áp dụng", "Làm bài tập nhiều dạng để áp dụng từ vựng và cấu trúc câu.", stats.grammarRemaining, "câu bài tập chưa làm", "grammar", "02") : modeCard("practice", subjectName(set.subject), "Làm bài tập nhiều dạng, có lý thuyết và giải thích sau mỗi câu.", stats.practiceRemaining, "câu chưa làm", "practice", "01")}</div>
+    </section><div class="mode-grid">${english ? vocabModeCard() + modeCard("grammar", "Grammar & Áp dụng", "Làm bài tập nhiều dạng để áp dụng từ vựng và cấu trúc câu.", stats.grammarRemaining, "câu bài tập chưa làm", "grammar", "02") : modeCard("practice", subjectName(set.subject), "Làm bài tập nhiều dạng, có lý thuyết và giải thích sau mỗi câu.", stats.practiceRemaining, "câu chưa làm", "practice", "01")}</div>
     <div class="home-foot"><span>${icon("check")} Tiến độ được lưu tự động trên máy này.</span><a href="./QUESTION_CSV_GUIDE.md" download>Hướng dẫn tạo bộ bài ${icon("arrow")}</a></div>`;
 }
 function option(value, label, selected) { return `<option value="${html(value)}" ${value === selected ? "selected" : ""}>${html(label)}</option>`; }
@@ -319,7 +533,7 @@ function option(value, label, selected) { return `<option value="${html(value)}"
 function setCard(set) {
   const summary = summaryForSet(set.id);
   return `<article class="set-card"><div class="set-card-top"><span class="set-icon">${icon("book")}</span><details class="set-menu"><summary aria-label="Quản lý bộ ${html(set.name)}">${icon("more")}</summary><div>${button("Đổi tên", "rename", "menu-button", `data-id="${html(set.id)}"`)}${button("Chia sẻ bộ", "share-set", "menu-button", `data-id="${html(set.id)}"`)}${button("Tải CSV", "export-set", "menu-button", `data-id="${html(set.id)}"`)}${button("Xóa bộ này", "delete-set", "menu-button danger-text", `data-id="${html(set.id)}"`)}</div></details></div>
-    <h2>${html(set.name)}</h2><p class="set-meta">${number(set.count)} câu · ${day(set.importedAt)}</p><div class="set-labels">${summary.practice ? `<span class="pill">${subjectName(set.subject)} · ${summary.practice}</span>` : ""}${summary.grammar ? `<span class="pill">Grammar · ${summary.grammar}</span>` : ""}${summary.words ? `<span class="pill rust">Vocab · ${summary.words} từ</span>` : ""}</div>
+    <h2>${html(set.name)}</h2><p class="set-meta">${number(set.count)} câu · ${day(set.importedAt)}</p><div class="set-labels">${summary.practice ? `<span class="pill">${subjectName(set.subject)} · ${summary.practice}</span>` : ""}${summary.grammar ? `<span class="pill">Grammar · ${summary.grammar}</span>` : ""}${summary.words ? `<span class="pill rust">Vocab · ${summary.words} từ</span>` : ""}${summary.dueToday ? `<span class="pill due-pill" title="${summary.dueToday} từ đến hạn ôn hôm nay">🔔 ${summary.dueToday} từ cần ôn</span>` : ""}</div>
     <div class="set-progress"><span>${summary.done}/${summary.total} mục đã học</span><strong>${summary.progress}%</strong></div><div class="progress-track"><span style="width:${summary.progress}%"></span></div>
     ${button(`Chọn bộ này ${icon("arrow")}`, "choose", "button subtle card-link", `data-id="${html(set.id)}"`)}</article>`;
 }
@@ -368,6 +582,7 @@ function dataMarkup() {
       <div class="data-row"><div><h3>Sao lưu toàn bộ</h3><p>Gồm câu hỏi, kết quả và lịch ôn từ vựng.</p></div>${button(`${icon("download")} Tải sao lưu`, "backup", "button subtle")}</div>
       <div class="data-row"><div><h3>Khôi phục trên máy này</h3><p>Nhập file JSON đã sao lưu để thay kho hiện tại.</p></div>${button("Chọn bản sao lưu", "restore", "button subtle")}</div>
       ${snapshot.recovery ? `<div class="data-row"><div><h3>Bản trước khi dọn kho</h3><p>Lưu ngày ${day(snapshot.recovery.savedAt)}. Tải về nếu cần lấy lại nội dung cũ.</p></div>${button("Tải bản cũ", "recovery", "button subtle")}</div>` : ""}
+      <div class="data-row"><div><h3>Thông báo nhắc ôn từ vựng</h3><p>${canUseNotification() ? (Notification.permission === "granted" ? "Đã bật nhắc nhở trình duyệt khi có từ đến hạn ôn hôm nay." : Notification.permission === "denied" ? "Quyền thông báo đã bị chặn trong cài đặt trình duyệt." : "Bật thông báo để được nhắc nhở ôn thẻ ghi nhớ đúng ngày.") : "Trình duyệt không hỗ trợ Web Notification API."}</p></div>${canUseNotification() ? button(Notification.permission === "granted" ? "Kiểm tra thông báo" : "Bật thông báo", "enable-due-notifications", "button subtle") : ""}</div>
       <div class="data-row"><div><h3>Làm trống kho bài</h3><p>Xóa các bộ bài và tiến độ hiện tại trên máy này.</p></div>${button("Xóa nội dung", "clear", "button danger-outline", !snapshot.questions.length ? "disabled" : "")}</div>
     </section><aside class="data-help"><h2>Dùng cùng học sinh</h2><p>Gửi <a href="https://dangkhue1301.github.io/nam-english/">đường dẫn website</a> và file CSV cho học sinh. Mỗi bạn nhập file trên máy của mình, rồi chọn bộ để học. Tiến độ và bộ bài không tự đồng bộ giữa các máy.</p><a class="guide-link" href="./QUESTION_CSV_GUIDE.md" download>${icon("download")} Hướng dẫn tạo CSV cho AI</a></aside>`;
 }
@@ -1083,6 +1298,7 @@ async function invokeAction(target) {
         <dt><kbd>Space</kbd></dt><dd>Lật thẻ ghi nhớ (Flashcards)</dd>
         <dt><kbd>←</kbd> / <kbd>→</kbd></dt><dd>Đánh giá Chưa nhớ / Đã nhớ trong Thẻ ghi nhớ</dd>
         <dt><kbd>H</kbd> <kbd>L</kbd> <kbd>S</kbd> <kbd>D</kbd></dt><dd>Chuyển nhanh giữa Luyện tập, Bộ bài, Thống kê, Dữ liệu</dd>
+        <dt><kbd>A</kbd></dt><dd>Điều chỉnh cỡ chữ hiển thị</dd>
         <dt><kbd>?</kbd></dt><dd>Mở bảng trợ giúp phím tắt</dd>
       </dl>
       <div class="modal-actions">${button("Đã hiểu", "close-modal", "button primary large")}</div>`);
@@ -1148,6 +1364,44 @@ async function invokeAction(target) {
     confirmation("Kết thúc lượt đang học?", "Các câu đã chấm được giữ lại. Câu chưa làm sẽ nằm trong lượt tiếp theo.", () => repository.endSession(sessionId), "Kết thúc lượt");
     return;
   }
+  if (name === "start-due-vocab") {
+    state.flipped = false;
+    const setId = target.dataset.setId || state.data.selectedSetId;
+    let targetSetId = setId;
+    const currentDue = summaryForSet(targetSetId).dueToday || 0;
+    if (currentDue === 0) {
+      const otherSet = state.data.sets.find((s) => s.subject === "english" && (summaryForSet(s.id).dueToday || 0) > 0);
+      if (otherSet) targetSetId = otherSet.id;
+    }
+    const count = summaryForSet(targetSetId).dueToday || 0;
+    if (count === 0) {
+      toast("Không có từ vựng nào đến hạn ôn hôm nay.");
+      return;
+    }
+    const limit = Math.min(Number(state.limit) || 30, count);
+    await run(async () => {
+      await repository.selectSet(targetSetId);
+      await repository.startSession({
+        setId: targetSetId,
+        mode: "flashcards",
+        dueOnly: true,
+        limit,
+      });
+      state.view = "study";
+    });
+    window.scrollTo(0, 0);
+    return;
+  }
+  if (name === "enable-due-notifications") {
+    await requestDueNotificationPermission();
+    render();
+    return;
+  }
+  if (name === "open-font-size") { renderFontSizeModal(); return; }
+  if (name === "font-size-inc") { applyFontSize(currentFontSize() + 1); return; }
+  if (name === "font-size-dec") { applyFontSize(currentFontSize() - 1); return; }
+  if (name === "font-size-set") { applyFontSize(Number(target.dataset.size)); return; }
+  if (name === "font-size-reset") { applyFontSize(16); return; }
   if (name === "begin") {
     state.flipped = false;
     await run(async () => { await repository.startSession({ setId: state.data.selectedSetId, mode: target.dataset.mode, level: state.level, topic: state.topic, grade: state.grade, type: state.type, limit: Number(state.limit) || 30 }); state.view = "study"; });
@@ -1420,6 +1674,15 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (!isInputField) {
+    const k = event.key.toLowerCase();
+    if (k === "a") {
+      event.preventDefault();
+      invokeAction({ dataset: { action: "open-font-size" } });
+      return;
+    }
+  }
+
   if (state.view !== "study" && !isInputField) {
     const k = event.key.toLowerCase();
     if (k === "h") { state.view = "home"; render(); return; }
@@ -1533,6 +1796,10 @@ async function start() {
     try {
       const savedTheme = localStorage.getItem("nam-theme");
       if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+      const savedFontSize = localStorage.getItem("nam-font-size");
+      if (savedFontSize && !isNaN(Number(savedFontSize))) {
+        applyFontSize(Number(savedFontSize));
+      }
     } catch {}
     repository = await createRepository();
     state.data = await readDashboard(repository);
@@ -1543,6 +1810,7 @@ async function start() {
       state.view = state.data.snapshot.session || state.data.snapshot.summary ? "study" : "home";
     }
     syncDraft(); render();
+    checkAndSendDueNotification(false);
     void checkShareHash();
     window.addEventListener("hashchange", () => void checkShareHash());
     repository.subscribe(() => { clearTimeout(syncTimer); syncTimer = setTimeout(() => { if (!state.busy) void refresh().catch((e) => toast(e.message, true)); }, 250); });

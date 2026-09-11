@@ -478,6 +478,12 @@ export function stableShuffle(values, key) {
   return copy;
 }
 
+export function startOfDay(timestamp) {
+  const date = new Date(timestamp);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
 export function selectQuestions(
   questions,
   reviews,
@@ -492,6 +498,7 @@ export function selectQuestions(
     now = Date.now(),
     completedQuestionIds = [],
     completedLearningKeys = [],
+    dueOnly = false,
   },
 ) {
   const completedQuestions = new Set(completedQuestionIds);
@@ -512,6 +519,7 @@ export function selectQuestions(
   );
 
   if (domain !== "vocabulary") {
+    if (dueOnly) return [];
     return shuffle(
       filtered.filter((question) => !completedQuestions.has(question.id)),
     ).slice(0, limit);
@@ -528,6 +536,7 @@ export function selectQuestions(
   );
   const unseen = [];
   const due = [];
+  const todayMs = startOfDay(now);
 
   for (const [key, question] of variants) {
     const review = reviewByKey.get(key);
@@ -535,13 +544,18 @@ export function selectQuestions(
     // chung toàn cục, nhưng không được làm một từ ở bộ A rồi bỏ qua từ đó
     // khi học bộ B lần đầu.
     const firstPassComplete = completedVocabulary.has(key);
+    const isDue = Boolean(review && (review.dueAt <= now || startOfDay(review.dueAt) <= todayMs));
 
-    if (!firstPassComplete) unseen.push(question);
-    else if (review && review.dueAt <= now) due.push(question);
+    if (dueOnly) {
+      if (isDue) due.push(question);
+    } else {
+      if (!firstPassComplete) unseen.push(question);
+      else if (isDue) due.push(question);
+    }
   }
 
-  // Không để câu SRS cũ chen vào trước những từ chưa từng làm đúng.
-  const candidates = unseen.length > 0 ? unseen : due;
+  // Không để câu SRS cũ chen vào trước những từ chưa từng làm đúng (trừ khi do người dùng yêu cầu ôn đúng hạn).
+  const candidates = dueOnly ? due : (unseen.length > 0 ? unseen : due);
   return shuffle(candidates).slice(0, limit);
 }
 
@@ -621,13 +635,14 @@ export function buildStats(
     if (!completedVocabularyKeys.has(key)) unseenKeys.add(key);
   });
 
+  const todayMs = startOfDay(now);
   const dueKeys =
     unseenKeys.size > 0
       ? unseenKeys
       : new Set(
           [...vocabularyKeys].filter((key) => {
             const review = reviewByKey.get(key);
-            return review && review.dueAt <= now;
+            return review && (review.dueAt <= now || startOfDay(review.dueAt) <= todayMs);
           }),
         );
 
