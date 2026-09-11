@@ -418,6 +418,34 @@ function answerReady() {
 function updateSubmit() { const submit = root.querySelector("[data-submit]"); if (submit) submit.disabled = state.busy || !answerReady(); }
 
 
+function isAnswerSpoiler(subtopic, answer) {
+  if (!subtopic || !answer) return false;
+  const normSub = normalizeText(subtopic).trim();
+  if (!normSub) return false;
+  const answers = Array.isArray(answer) ? answer : [String(answer)];
+  for (const ans of answers) {
+    const normAns = normalizeText(ans).trim();
+    if (!normAns) continue;
+    if (normAns === normSub) return true;
+    if (normAns.length >= 3 && normSub.includes(normAns)) return true;
+    if (normSub.length >= 3 && normAns.includes(normSub)) return true;
+    const subWords = normSub.split(/\s+/).filter((w) => w.length > 2);
+    const ansWords = normAns.split(/\s+/).filter((w) => w.length > 2);
+    for (const sw of subWords) {
+      if (ansWords.includes(sw)) return true;
+    }
+  }
+  return false;
+}
+
+function shouldShowSubtopic(q, result) {
+  if (!q.subtopic) return false;
+  if (result) return true;
+  if (q.domain === "vocabulary") return false;
+  if (isAnswerSpoiler(q.subtopic, q.answer)) return false;
+  return true;
+}
+
 function highlightWordInSentence(sentence, word) {
   if (!sentence || !word) return sentence || "";
   const cleanWord = word.trim().replace(/-/g, " ");
@@ -647,7 +675,29 @@ function sessionMarkup() {
         <span>${result ? "Đã lưu kết quả" : isFlash ? (!state.flipped ? "Thử nhớ nghĩa và phát âm trước khi lật (Space để lật thẻ)" : "Tự đánh giá trí nhớ sau khi lật thẻ (← Chưa nhớ / → Đã nhớ)") : q.type === "multiple_select" ? "Chọn tất cả đáp án đúng" : "Enter để chấm"}</span>
         ${result ? button(`Tiếp theo ${icon("arrow")}`, "next", "button primary large") : isFlash ? (!state.flipped ? button(`Lật thẻ xem nghĩa ${icon("arrow")}`, "flip", "button primary large") : `<div class="flash-grades">${button("↺ Chưa nhớ (học lại)", "grade-forgot", "button subtle")}${button("✓ Đã nhớ", "grade-remember", "button primary")}</div>`) : button(`Chấm câu này ${icon("check")}`, "submit", "button primary large", `data-submit ${!answerReady() ? "disabled" : ""}`)}
       </div>
-    </section><aside class="study-aside"><span class="eyebrow">CHỦ ĐIỂM</span><h2>${html(q.topic)}</h2>${q.subtopic ? `<p>${html(q.subtopic)}</p>` : ""}${q.theory ? `<details class="theory"><summary>${icon("book")} Nhắc lý thuyết</summary><p>${html(q.theory)}</p></details>` : ""}${q.hint ? `<details class="theory"><summary>Gợi ý nhỏ</summary><p>${html(q.hint)}</p></details>` : ""}<p class="study-tip">${isReview ? "Ôn lại để khắc sâu kiến thức.<br>Làm đúng sẽ loại khỏi danh sách sai." : "Cứ làm theo nhịp của bạn.<br>Tiến độ luôn được lưu lại."}</p></aside></div></div>`;
+    </section><aside class="study-aside">
+      <span class="eyebrow">CHỦ ĐIỂM</span>
+      <h2>${html(q.topic)}</h2>
+      ${isFlash ? `
+        <div class="flashcard-aside-info">
+          <span class="aside-badge">${icon("book")} Thẻ ghi nhớ</span>
+          <p class="aside-tip-text">Tập trung nhớ từ vựng và ví dụ ngữ cảnh trước khi lật thẻ.</p>
+          <div class="flash-shortcuts-box">
+            <strong>Phím tắt nhanh:</strong>
+            <ul>
+              <li><kbd>Space</kbd> / <kbd>Enter</kbd> <span>Lật thẻ</span></li>
+              <li><kbd>←</kbd> <span>Chưa nhớ (học lại)</span></li>
+              <li><kbd>→</kbd> <span>Đã nhớ (SRS)</span></li>
+            </ul>
+          </div>
+        </div>
+      ` : `
+        ${shouldShowSubtopic(q, result) ? `<p class="study-subtopic">${html(q.subtopic)}</p>` : ""}
+        ${q.theory ? `<details class="theory"><summary>${icon("book")} Nhắc lý thuyết</summary><p>${html(q.theory)}</p></details>` : ""}
+        ${q.hint ? `<details class="theory"><summary>Gợi ý nhỏ</summary><p>${html(q.hint)}</p></details>` : ""}
+      `}
+      <p class="study-tip">${isReview ? "Ôn lại để khắc sâu kiến thức.<br>Làm đúng sẽ loại khỏi danh sách sai." : "Cứ làm theo nhịp của bạn.<br>Tiến độ luôn được lưu lại."}</p>
+    </aside></div></div>`;
 }
 
 function resultMarkup() {

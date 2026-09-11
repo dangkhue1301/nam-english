@@ -1163,3 +1163,81 @@ mark.vocab-highlight {
   color: var(--ink);
 }
 
+/* Sidebar cho Thẻ ghi nhớ: Không lộ subtopic hay đáp án, kèm phím tắt */
+.flashcard-aside-info {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.aside-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  font-size: 0.75rem;
+  font-weight: 750;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.aside-tip-text {
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.flash-shortcuts-box {
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.flash-shortcuts-box strong {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+}
+
+.flash-shortcuts-box ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flash-shortcuts-box li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.84rem;
+  color: var(--ink);
+}
+
+.flash-shortcuts-box kbd {
+  display: inline-block;
+  min-width: 22px;
+  text-align: center;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  background: var(--bg);
+  border: 1px solid var(--subtle);
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+
