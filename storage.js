@@ -1,4 +1,4 @@
-import { buildCsvPreview, buildLibrary, buildStats, displayAnswer, evaluateAnswer, learningKeyFor, nextReview, QUESTION_TYPES, selectQuestions } from "./core.js";
+import { buildCsvPreview, buildLibrary, buildStats, displayAnswer, evaluateAnswer, isReviewDue, learningKeyFor, nextReview, QUESTION_TYPES, selectQuestions } from "./core.js";
 import { questionsToCsv, mistakeQuestions } from "./stats.js";
 
 const DB_NAME = "nam-english-local";
@@ -183,13 +183,9 @@ function selection(w, { setId, setIds, domain, level = "all", topic = "all", gra
   if (domain === "vocabulary") {
     if (dueOnly) {
       const currentTime = now || Date.now();
-      const todayDate = new Date(currentTime);
-      todayDate.setHours(0, 0, 0, 0);
-      const todayMs = todayDate.getTime();
-
       const dueReviewKeys = new Set(
         w.reviews
-          .filter((r) => r && (r.dueAt <= currentTime || new Date(r.dueAt).setHours(0, 0, 0, 0) <= todayMs))
+          .filter((r) => isReviewDue(r, currentTime))
           .map((r) => r.learningKey)
       );
 

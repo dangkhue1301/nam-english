@@ -1,7 +1,7 @@
 // Các hàm thống kê, gamification và xuất dữ liệu. Tất cả đều thuần
 // (không đụng DOM hay storage) để test được bằng Node.
 
-import { CSV_HEADERS, learningKeyFor, displayAnswer, SUBJECTS } from "./core.js";
+import { CSV_HEADERS, learningKeyFor, displayAnswer, SUBJECTS, isReviewDue } from "./core.js";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
@@ -226,6 +226,10 @@ export function dueForecast(reviews, vocabularyKeys, days = 7, now = Date.now())
   const buckets = Array.from({ length: days }, () => 0);
   reviews.forEach((review) => {
     if (!keySet.has(review.learningKey)) return;
+    if (review.intervalDays === 0) {
+      if (review.dueAt <= now) buckets[0] += 1;
+      return;
+    }
     const offset = Math.floor((startOfDay(review.dueAt) - today) / DAY_MS);
     if (offset < 0) buckets[0] += 1;
     else if (offset < days) buckets[offset] += 1;

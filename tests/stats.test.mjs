@@ -169,6 +169,26 @@ test("dueForecast gom lịch ôn về đúng ngày, quá hạn dồn vào hôm n
   );
 });
 
+test("dueCountToday và dueForecast không tính thẻ vừa bấm Chưa nhớ (lapse 10 phút) là đến hạn ngay", () => {
+  const now = new Date("2026-07-27T08:00:00").getTime();
+  const reviews = [
+    { learningKey: "k-future-lapse", dueAt: now + 10 * 60 * 1_000, intervalDays: 0 }, // vừa bấm Chưa nhớ
+    { learningKey: "k-expired-lapse", dueAt: now - 60 * 1_000, intervalDays: 0 }, // đã quá 10 phút chờ
+    { learningKey: "k-normal-today", dueAt: now + 2 * 60 * 60 * 1_000, intervalDays: 1 }, // đến hạn hôm nay
+  ];
+  const keys = ["k-future-lapse", "k-expired-lapse", "k-normal-today"];
+
+  // k-future-lapse chưa hết 10 phút nên không tính. Chỉ có k-expired-lapse và k-normal-today đến hạn hôm nay.
+  assert.equal(dueCountToday(reviews, keys, now), 2);
+  const buckets = dueForecast(reviews, keys, 7, now);
+  assert.equal(buckets[0], 2);
+
+  // Sau khi hết 10 phút chờ (now + 10 phút), cả 3 thẻ đều đến hạn hôm nay
+  assert.equal(dueCountToday(reviews, keys, now + 10 * 60 * 1_000), 3);
+  const laterBuckets = dueForecast(reviews, keys, 7, now + 10 * 60 * 1_000);
+  assert.equal(laterBuckets[0], 3);
+});
+
 test("parseLearningKey tách từ, từ loại và nghĩa", () => {
   assert.deepEqual(parseLearningKey("vocab:set-aside:verb:keep-for-later"), {
     word: "set aside",

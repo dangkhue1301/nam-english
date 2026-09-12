@@ -300,6 +300,37 @@ for (const mode of ["localStorage", "IndexedDB"]) {
       repo.startSession({ setId: set.id, mode: "flashcards", dueOnly: true }),
       /Không có từ vựng nào đến hạn/
     );
+
+    // Bấm "Chưa nhớ" tạo lapse 10 phút (intervalDays = 0, dueAt = now + 10 phút)
+    await repo.change((state) => {
+      const r1 = state.reviews.find((r) => r.learningKey === "vocab:due1:verb:def1");
+      if (r1) r1.dueAt = 0;
+    });
+    const lapseSession = await repo.startSession({ setId: set.id, mode: "flashcards", dueOnly: true });
+    await repo.submit(lapseSession.id, 0, false); // Chưa nhớ
+    await repo.endSession(lapseSession.id);
+    await repo.dismissSummary();
+
+    const snapAfterLapse = await repo.snapshot();
+    const rLapse = snapAfterLapse.reviews.find((r) => r.learningKey === "vocab:due1:verb:def1");
+    assert.equal(rLapse.intervalDays, 0);
+    assert.ok(rLapse.dueAt > Date.now());
+
+    // Thẻ lapse chưa hết 10 phút không được tính là đến hạn ngay
+    await assert.rejects(
+      repo.startSession({ setId: set.id, mode: "flashcards", dueOnly: true }),
+      /Không có từ vựng nào đến hạn/
+    );
+
+    // Khi đã hết 10 phút (dueAt <= now), thẻ lapse được chọn vào lượt ôn
+    await repo.change((state) => {
+      const r = state.reviews.find((item) => item.learningKey === "vocab:due1:verb:def1");
+      if (r) r.dueAt = Date.now() - 1000;
+    });
+    const dueAgainSession = await repo.startSession({ setId: set.id, mode: "flashcards", dueOnly: true });
+    assert.equal(dueAgainSession.target, 1);
+    await repo.endSession(dueAgainSession.id);
+    await repo.dismissSummary();
   });
 
   test(`${mode}: xóa bộ không xóa nhầm lịch ôn của từ còn nằm trong bộ khác`, async (t) => {

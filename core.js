@@ -484,6 +484,31 @@ export function startOfDay(timestamp) {
   return date.getTime();
 }
 
+export function isReviewDue(review, now = Date.now()) {
+  if (!review || !Number.isFinite(review.dueAt)) return false;
+  if (review.intervalDays === 0) {
+    return review.dueAt <= now;
+  }
+  return review.dueAt <= now || startOfDay(review.dueAt) <= startOfDay(now);
+}
+
+export function resolveEscapeAction({
+  modalOpen = false,
+  view = "home",
+  sessionMode = null,
+  sessionResult = null,
+  flipped = false,
+} = {}) {
+  if (modalOpen) return "close-modal";
+  if (view === "study") {
+    if (sessionMode === "flashcards" && !sessionResult && flipped) {
+      return "unflip";
+    }
+    return "pause";
+  }
+  return null;
+}
+
 export function selectQuestions(
   questions,
   reviews,
@@ -536,7 +561,6 @@ export function selectQuestions(
   );
   const unseen = [];
   const due = [];
-  const todayMs = startOfDay(now);
 
   for (const [key, question] of variants) {
     const review = reviewByKey.get(key);
@@ -544,7 +568,7 @@ export function selectQuestions(
     // chung toàn cục, nhưng không được làm một từ ở bộ A rồi bỏ qua từ đó
     // khi học bộ B lần đầu.
     const firstPassComplete = completedVocabulary.has(key);
-    const isDue = Boolean(review && (review.dueAt <= now || startOfDay(review.dueAt) <= todayMs));
+    const isDue = isReviewDue(review, now);
 
     if (dueOnly) {
       if (isDue) due.push(question);
@@ -635,14 +659,13 @@ export function buildStats(
     if (!completedVocabularyKeys.has(key)) unseenKeys.add(key);
   });
 
-  const todayMs = startOfDay(now);
   const dueKeys =
     unseenKeys.size > 0
       ? unseenKeys
       : new Set(
           [...vocabularyKeys].filter((key) => {
             const review = reviewByKey.get(key);
-            return review && (review.dueAt <= now || startOfDay(review.dueAt) <= todayMs);
+            return isReviewDue(review, now);
           }),
         );
 

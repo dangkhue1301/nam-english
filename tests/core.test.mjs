@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { buildCsvPreview, buildStats, CSV_HEADERS, evaluateAnswer, nextReview, normalizeText, parseCsv, QUESTION_TYPES, selectQuestions, stableShuffle, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "../core.js";
+import { buildCsvPreview, buildStats, CSV_HEADERS, evaluateAnswer, isReviewDue, nextReview, normalizeText, parseCsv, QUESTION_TYPES, resolveEscapeAction, selectQuestions, stableShuffle, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "../core.js";
 import { questionsToCsv } from "../stats.js";
 import { question, vocabulary } from "./helpers.mjs";
 
@@ -281,5 +281,95 @@ test("selectQuestions với dueOnly: true chỉ chọn đúng các thẻ từ v�
   assert.ok(selectedKeys.has("key2"));
   assert.ok(!selectedKeys.has("key3")); // ngày mai
   assert.ok(!selectedKeys.has("key4")); // từ mới
+});
+
+test("isReviewDue: phân biệt đúng thẻ lapse 10 phút (intervalDays = 0) và chu kỳ ngày dài (intervalDays >= 1)", () => {
+  const now = new Date("2026-09-12T10:00:00").getTime();
+  const minute = 60_000;
+  const day = 86_400_000;
+
+  // Thẻ vừa bấm "Chưa nhớ" (lapse 10 phút):
+  const lapsedFuture = { dueAt: now + 10 * minute, intervalDays: 0 };
+  assert.equal(isReviewDue(lapsedFuture, now), false, "Lapse 10 phút chưa hết giờ không được coi là đến hạn");
+
+  const lapsedAlmost = { dueAt: now + 1, intervalDays: 0 };
+  assert.equal(isReviewDue(lapsedAlmost, now), false, "Lapse còn 1ms cũng chưa đến hạn");
+
+  const lapsedExact = { dueAt: now, intervalDays: 0 };
+  assert.equal(isReviewDue(lapsedExact, now), true, "Lapse đúng thời điểm now là đến hạn");
+
+  const lapsedExpired = { dueAt: now - 5 * minute, intervalDays: 0 };
+  assert.equal(isReviewDue(lapsedExpired, now), true, "Lapse đã qua 10 phút là đến hạn");
+
+  // Thẻ có chu kỳ ngày dài (intervalDays >= 1):
+  const dayLaterToday = { dueAt: now + 4 * 3600 * 1000, intervalDays: 1 };
+  assert.equal(isReviewDue(dayLaterToday, now), true, "Chu kỳ ngày đến hạn trong ngày hôm nay phải coi là đến hạn");
+
+  const dayOverdue = { dueAt: now - day, intervalDays: 3 };
+  assert.equal(isReviewDue(dayOverdue, now), true, "Chu kỳ ngày quá hạn phải coi là đến hạn");
+
+  const dayTomorrow = { dueAt: now + day, intervalDays: 1 };
+  assert.equal(isReviewDue(dayTomorrow, now), false, "Chu kỳ ngày mai chưa đến hạn");
+
+  // Invalid / null
+  assert.equal(isReviewDue(null, now), false);
+  assert.equal(isReviewDue({}, now), false);
+  assert.equal(isReviewDue({ dueAt: NaN }, now), false);
+});
+
+test("selectQuestions với dueOnly: true không chọn thẻ lapse 10 phút chưa hết thời gian chờ", () => {
+  const now = new Date("2026-09-12T10:00:00").getTime();
+  const questions = [
+    vocabulary({ id: "v1", learningKey: "key1" }),
+    vocabulary({ id: "v2", learningKey: "key2" }),
+  ];
+  // key1: thẻ lapse vừa trả lời Chưa nhớ (10 phút sau)
+  // key2: thẻ lapse đã quá 10 phút
+  const reviews = [
+    { learningKey: "key1", dueAt: now + 10 * 60_000, intervalDays: 0 },
+    { learningKey: "key2", dueAt: now - 1000, intervalDays: 0 },
+  ];
+  const completedLearningKeys = ["key1", "key2"];
+
+  const selected = selectQuestions(questions, reviews, {
+    domain: "vocabulary",
+    now,
+    completedLearningKeys,
+    dueOnly: true,
+  });
+
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0].id, "v2");
+
+  // Khi thời gian trôi qua 10 phút, key1 cũng được chọn
+  const laterSelected = selectQuestions(questions, reviews, {
+    domain: "vocabulary",
+    now: now + 10 * 60_000,
+    completedLearningKeys,
+    dueOnly: true,
+  });
+  assert.equal(laterSelected.length, 2);
+});
+
+test("resolveEscapeAction: khi học Flashcards ở mặt sau thì unflip trước, chỉ khi ở mặt trước mới pause", () => {
+  // Modal mở -> đóng modal
+  assert.equal(resolveEscapeAction({ modalOpen: true, view: "study", sessionMode: "flashcards", flipped: true }), "close-modal");
+  assert.equal(resolveEscapeAction({ modalOpen: true, view: "home" }), "close-modal");
+
+  // Flashcards đang học và đang lật mặt sau (!result && flipped) -> unflip
+  assert.equal(resolveEscapeAction({ modalOpen: false, view: "study", sessionMode: "flashcards", sessionResult: null, flipped: true }), "unflip");
+
+  // Flashcards đang ở mặt trước (flipped: false) -> pause
+  assert.equal(resolveEscapeAction({ modalOpen: false, view: "study", sessionMode: "flashcards", sessionResult: null, flipped: false }), "pause");
+
+  // Flashcards đã chấm xong (result truthy) -> pause (không unflip)
+  assert.equal(resolveEscapeAction({ modalOpen: false, view: "study", sessionMode: "flashcards", sessionResult: { correct: true }, flipped: true }), "pause");
+
+  // Chế độ grammar/practice trong study -> pause
+  assert.equal(resolveEscapeAction({ modalOpen: false, view: "study", sessionMode: "grammar", flipped: false }), "pause");
+
+  // Ngoài màn hình study -> null (không làm gì)
+  assert.equal(resolveEscapeAction({ modalOpen: false, view: "home" }), null);
+  assert.equal(resolveEscapeAction({ modalOpen: false, view: "library" }), null);
 });
 
