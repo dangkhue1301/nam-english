@@ -278,12 +278,16 @@ nav { display: flex; align-self: stretch; align-items: center; gap: 6px; }
 .set-focus-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .set-focus-head > span { color: var(--muted); font-size: 0.76rem; }
 .set-focus > select { width: 100%; margin: 4px 0 12px; border: 0; padding: 9px 27px 9px 0; background-color: transparent; color: var(--ink); font-size: 1.35rem; font-weight: 700; }
-.filter-row { display: flex; align-items: flex-end; gap: 18px; margin-top: 22px; }
+.filter-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px; margin-top: 22px; }
 .filter-row label { display: grid; min-width: 0; gap: 6px; color: var(--muted); font-size: 0.72rem; }
 select, textarea, .field-label input { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); }
 select { min-height: 44px; max-width: 100%; padding: 10px 28px 10px 13px; font-size: 0.88rem; }
 .filter-row select { min-width: 190px; max-width: 380px; }
 .filter-note { margin-left: auto; padding-bottom: 12px; color: var(--muted); font-size: 0.75rem; }
+.ja-filter-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 14px; }
+.ja-filter-row label { flex: 1 1 130px; min-width: 110px; }
+.ja-filter-row select { min-width: 0; width: 100%; }
+.ja-filter-row .filter-note { flex: 1 1 100%; margin-left: 0; text-align: right; padding-bottom: 0; padding-top: 2px; }
 .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .mode-card { position: relative; border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 27px 31px 18px; background: var(--green-glass); box-shadow: var(--glass-shadow); transition: transform 0.15s, box-shadow 0.15s, background 0.15s; }
 .mode-card.vocabulary { background: var(--peach-glass); }
@@ -1397,4 +1401,355 @@ mark.vocab-highlight {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+/* Japanese typography and components ------------------------------------- */
+:root {
+  --ja-font: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Noto Sans", 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Meiryo', 'TakaoExGothic', system-ui, sans-serif;
+}
+
+[lang="ja"],
+.ja-choice-text,
+.ja-token,
+.ja-token-bank,
+.ja-context,
+.ja-target-badge,
+.ja-completed-text {
+  font-family: var(--ja-font);
+}
+
+.ja-feedback-label,
+.ja-builder-placeholder,
+.ja-order-meaning {
+  font-family: var(--font);
+}
+
+.ja-order-meaning {
+  font-size: clamp(1.1rem, 2vw, 1.28rem);
+  line-height: 1.65;
+  margin: 10px 0 16px;
+  color: var(--ink);
+}
+
+.ja-context {
+  font-size: clamp(1.35rem, 2.5vw, 1.65rem);
+  line-height: 1.85;
+  margin: 12px 0 16px;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+@media (max-width: 760px) {
+  .ja-context {
+    font-size: clamp(1.25rem, 4vw, 1.4rem);
+    line-height: 1.8;
+  }
+}
+
+.ja-choice-text {
+  font-size: clamp(1.15rem, 2vw, 1.25rem);
+  line-height: 1.7;
+}
+
+.choices.choices-single-col {
+  grid-template-columns: 1fr;
+}
+
+.choices.choices-single-col .choice {
+  text-align: left;
+  align-items: flex-start;
+  padding: 14px 18px;
+}
+
+/* Ruby and Furigana */
+ruby {
+  ruby-position: over;
+  ruby-align: center;
+}
+
+rt {
+  display: none !important;
+  font-size: 0.55em;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* G2: Slots and star position */
+.ja-slots-group {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 4px;
+  vertical-align: baseline;
+}
+
+.ja-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 2px 8px;
+  border-bottom: 2.5px solid var(--line);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 1.1rem;
+  transition: border-color 0.15s ease;
+}
+
+.ja-slot-star {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+  font-weight: 800;
+  background: var(--accent-light);
+  border-radius: 4px 4px 0 0;
+}
+
+[data-theme="dark"] .ja-slot-star {
+  background: rgba(241, 161, 135, 0.15);
+}
+
+/* G3: Sentence builder and token bank */
+.ja-sentence-builder {
+  min-height: 68px;
+  padding: 14px 16px;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  transition: border-color 0.15s ease;
+}
+
+.ja-sentence-builder:focus-within {
+  border-color: var(--accent);
+}
+
+.ja-token-bank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.ja-token {
+  font-size: 1.15rem;
+  padding: 8px 16px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.6;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.15s ease;
+}
+
+.ja-token:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent);
+}
+
+.ja-token.selected {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.token-remove-x {
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--muted);
+  margin-left: 2px;
+}
+
+.ja-token.selected:hover .token-remove-x {
+  color: var(--red);
+}
+
+.ja-order-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Target badge, target highlight, and gap */
+.ja-target-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  margin-bottom: 12px;
+  font-size: 1.1rem;
+}
+
+.ja-target-badge-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.ja-target-badge-val {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.ja-target-highlight {
+  border-bottom: 2.5px solid var(--accent);
+  padding-bottom: 1px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ja-gap {
+  display: inline-block;
+  min-width: 64px;
+  border-bottom: 2.5px solid var(--ink);
+  text-align: center;
+  padding: 0 8px;
+  font-weight: 700;
+  margin: 0 4px;
+}
+
+.retry-pill {
+  background: var(--peach-light);
+  color: var(--peach);
+  border-color: rgba(155, 79, 49, 0.3);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 0.8rem;
+}
+
+[data-theme="dark"] .retry-pill {
+  background: var(--peach-light);
+  color: var(--peach);
+}
+
+/* Japanese Tree Scope Card & Metrics */
+.ja-tree-scope-card {
+  margin-top: 16px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.ja-scope-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ja-scope-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ja-scope-metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.ja-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.ja-metric-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.ja-metric-val {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.ja-metric-val small {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ja-metric-val.accent {
+  color: var(--accent);
+}
+
+.ja-metric-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--line);
+}
+
+/* Japanese Post-grading Feedback */
+.ja-feedback-sentence {
+  margin: 10px 0 6px;
+  font-size: 1.15rem;
+  line-height: 1.8;
+  padding: 10px 14px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+}
+
+.ja-feedback-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.ja-completed-text {
+  font-size: 1.25rem;
+  color: var(--ink);
+}
+
+.ja-star-sentence-part {
+  display: inline-block;
+  padding: 0 4px;
+}
+
+.ja-star-sentence-part.star-part-highlight {
+  color: var(--accent);
+  font-weight: 800;
+  background: var(--accent-light);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+[data-theme="dark"] .ja-star-sentence-part.star-part-highlight {
+  background: rgba(241, 161, 135, 0.2);
 }

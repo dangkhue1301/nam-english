@@ -7,11 +7,13 @@ import test from "node:test";
 
 const OUTPUT_FILES = [
   ".nojekyll",
+  "JAPANESE_CSV_GUIDE.md",
   "QUESTION_CSV_GUIDE.md",
   "app.js",
   "core.js",
   "favicon.svg",
   "index.html",
+  "japanese.js",
   "manifest.webmanifest",
   "pwa.js",
   "speech.js",

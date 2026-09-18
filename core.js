@@ -1,3 +1,24 @@
+import {
+  JA_QUESTION_TYPES,
+  JA_TYPE_LABELS,
+  parseJapaneseCsv,
+  evaluateJapaneseAnswer,
+  japaneseQuestionsToCsv,
+  stripRuby,
+  formatJapaneseSentence,
+  JA_CSV_HEADERS,
+} from "./japanese.js";
+
+export {
+  JA_QUESTION_TYPES,
+  JA_TYPE_LABELS,
+  parseJapaneseCsv,
+  evaluateJapaneseAnswer,
+  japaneseQuestionsToCsv,
+  stripRuby,
+  formatJapaneseSentence,
+};
+
 export const QUESTION_TYPES = [
   "mcq",
   "multiple_select",
@@ -16,6 +37,7 @@ export const SUBJECTS = {
   chemistry: { name: "Hóa học", short: "Hóa", description: "Chất, phản ứng và tính toán" },
   physics: { name: "Vật lí", short: "Lí", description: "Hiện tượng, quy luật và bài tập" },
   biology: { name: "Sinh học", short: "Sinh", description: "Sự sống và thế giới tự nhiên" },
+  japanese: { name: "Tiếng Nhật", short: "Nhật", description: "Hán tự, ngữ pháp và từ vựng" },
 };
 
 export const TYPE_LABELS = {
@@ -27,6 +49,7 @@ export const TYPE_LABELS = {
   word_formation: "Dạng từ",
   ordering: "Sắp xếp",
   matching: "Ghép cặp",
+  ...JA_TYPE_LABELS,
 };
 
 export const CSV_HEADERS = [
@@ -135,6 +158,24 @@ export function orderingAnswerUsesOptions(options, answers, settings = {}) {
 
 export function buildCsvPreview(text, filename = "questions.csv") {
   const content = String(text).replace(/^\uFEFF/, "");
+
+  const firstLine = (content.split(/\r?\n/)[0] ?? "").trim();
+  const isJapaneseCsv =
+    firstLine.startsWith("schema,subject") ||
+    firstLine.includes("ja-v1") ||
+    (firstLine.startsWith("schema") && firstLine.includes("japanese")) ||
+    firstLine === JA_CSV_HEADERS.join(",");
+
+  if (isJapaneseCsv) {
+    const parsed = parseJapaneseCsv(content, filename);
+    return {
+      filename,
+      rows: parsed.rows ?? [],
+      questions: parsed.questions ?? [],
+      errors: parsed.errors ?? [],
+    };
+  }
+
   if (new TextEncoder().encode(content).length > 5 * 1024 * 1024) {
     return { filename, rows: [], errors: ["File vượt quá 5 MB."] };
   }
@@ -354,6 +395,19 @@ export function buildCsvPreview(text, filename = "questions.csv") {
 }
 
 export function evaluateAnswer(expected, received, type, settings = {}) {
+  if (JA_QUESTION_TYPES.includes(type)) {
+    return evaluateJapaneseAnswer(
+      {
+        answer: expected,
+        acceptedOrders: settings?.acceptedOrders ?? settings?.accepted_orders,
+        options: settings?.options,
+        type,
+        starPosition: settings?.starPosition ?? settings?.star_position,
+      },
+      received,
+    );
+  }
+
   const normalize = (value) => normalizeText(value, settings);
   if (type === "matching") {
     if (
@@ -392,9 +446,35 @@ export function evaluateAnswer(expected, received, type, settings = {}) {
   return Boolean(submitted) && expected.some((answer) => normalize(answer) === submitted);
 }
 
-export function displayAnswer(expected) {
-  if (Array.isArray(expected)) return expected.join(" / ");
-  return Object.entries(expected ?? {})
+export function displayAnswer(expected, optionsOrQuestion) {
+  let opts = optionsOrQuestion;
+  let target = expected;
+
+  if (expected && typeof expected === "object" && !Array.isArray(expected) && (expected.type || expected.domain || expected.subject)) {
+    opts = expected;
+    target = expected.answer;
+  }
+
+  if (opts) {
+    const questionObj = (opts && typeof opts === "object" && !Array.isArray(opts)) ? opts : null;
+    const optList = Array.isArray(opts) ? opts : questionObj?.options;
+
+    if (questionObj?.type === "ja_grammar_order" || (Array.isArray(questionObj?.acceptedOrders) || Array.isArray(questionObj?.accepted_orders))) {
+      const orders = questionObj?.acceptedOrders ?? questionObj?.accepted_orders ?? [];
+      const firstOrder = orders[0] ?? (Array.isArray(target) ? target : []);
+      if (Array.isArray(optList)) {
+        return formatJapaneseSentence(optList, firstOrder);
+      }
+    }
+
+    if (Array.isArray(optList) && optList.length > 0 && optList[0]?.id != null) {
+      const match = optList.find((o) => o.id === target);
+      if (match) return match.text;
+    }
+  }
+
+  if (Array.isArray(target)) return target.join(" / ");
+  return Object.entries(target ?? {})
     .map(([left, right]) => `${left} → ${right}`)
     .join(" · ");
 }
@@ -519,6 +599,8 @@ export function selectQuestions(
     topic = "all",
     grade = "all",
     type = "all",
+    chapter = "all",
+    lesson = "all",
     limit = SESSION_QUESTION_LIMIT,
     now = Date.now(),
     completedQuestionIds = [],
@@ -535,13 +617,64 @@ export function selectQuestions(
       question.domain === domain &&
       (grade === "all" || question.grade === grade) &&
       (type === "all" || question.type === type) &&
+      (chapter === "all" || String(question.chapter) === String(chapter)) &&
+      (lesson === "all" || String(question.lesson) === String(lesson)) &&
       (level === "all" ||
-        question.level.toLocaleLowerCase("en") ===
+        question.level?.toLocaleLowerCase("en") ===
           level.toLocaleLowerCase("en")) &&
       (topic === "all" ||
-        question.topic.toLocaleLowerCase("en") ===
+        question.topic?.toLocaleLowerCase("en") ===
           topic.toLocaleLowerCase("en")),
   );
+
+  const isJapanese = filtered.some((q) => q.subject === "japanese");
+
+  if (isJapanese) {
+    if (domain !== "vocabulary") {
+      if (dueOnly) return [];
+      return shuffle(
+        filtered.filter((question) => !completedQuestions.has(question.id)),
+      ).slice(0, limit);
+    }
+
+    // Japanese Vocabulary
+    if (dueOnly) {
+      const reviewByKey = new Map(
+        reviews.map((review) => [review.learningKey, review]),
+      );
+      const attemptedByKey = new Map();
+      for (const question of filtered) {
+        if (completedQuestions.has(question.id)) {
+          const key = learningKeyFor(question);
+          if (!attemptedByKey.has(key)) attemptedByKey.set(key, []);
+          attemptedByKey.get(key).push(question);
+        }
+      }
+
+      const dueVariants = [];
+      for (const [key, variants] of attemptedByKey) {
+        const review = reviewByKey.get(key);
+        if (isReviewDue(review, now)) {
+          let picked = variants[0];
+          if (variants.length > 1 && review?.lastQuestionId) {
+            const lastIdx = variants.findIndex((v) => v.id === review.lastQuestionId);
+            if (lastIdx !== -1) {
+              picked = variants[(lastIdx + 1) % variants.length];
+            } else {
+              picked = shuffle(variants)[0];
+            }
+          }
+          dueVariants.push(picked);
+        }
+      }
+
+      return shuffle(dueVariants).slice(0, limit);
+    } else {
+      // Câu mới tiếng Nhật: KHÔNG KHỬ TRÙNG THEO learning_key
+      const unseen = filtered.filter((question) => !completedQuestions.has(question.id));
+      return shuffle(unseen).slice(0, limit);
+    }
+  }
 
   if (domain !== "vocabulary") {
     if (dueOnly) return [];
@@ -588,13 +721,18 @@ export function buildLibrary(questions, imports) {
   questions
     .filter((question) => question.active !== false)
     .forEach((question) => {
-      const key = `${question.subject || "english"}\u0000${question.grade || ""}\u0000${question.domain}\u0000${question.level}\u0000${question.topic}`;
+      const isJapanese = question.subject === "japanese";
+      const key = isJapanese
+        ? `${question.subject}\u0000${question.chapter ?? ""}\u0000${question.lesson ?? ""}\u0000${question.domain}\u0000${question.level}\u0000${question.topic}`
+        : `${question.subject || "english"}\u0000${question.grade || ""}\u0000${question.domain}\u0000${question.level}\u0000${question.topic}`;
       const current = grouped.get(key);
       if (current) current.count += 1;
       else {
         grouped.set(key, {
           subject: question.subject || "english",
           grade: question.grade || "",
+          chapter: question.chapter ?? null,
+          lesson: question.lesson ?? null,
           domain: question.domain,
           level: question.level,
           topic: question.topic,
@@ -607,6 +745,8 @@ export function buildLibrary(questions, imports) {
     topics: [...grouped.values()].sort(
       (a, b) =>
         a.subject.localeCompare(b.subject) ||
+        (a.chapter != null && b.chapter != null ? a.chapter - b.chapter : 0) ||
+        (a.lesson != null && b.lesson != null ? a.lesson - b.lesson : 0) ||
         a.grade.localeCompare(b.grade) ||
         a.domain.localeCompare(b.domain) ||
         a.level.localeCompare(b.level) ||

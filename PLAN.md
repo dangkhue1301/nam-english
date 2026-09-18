@@ -1,8 +1,17 @@
 # PLAN — NẮM: kho bài CSV đa môn
 
-Cập nhật: 11/09/2026.
+Cập nhật: 18/09/2026.
 
-## Đợt đang triển khai — Frontend theo yêu cầu ngày 10/09
+## Đợt hiện tại — Lập kế hoạch Tiếng Nhật, chưa build
+
+Người dùng yêu cầu lên kế hoạch toàn diện trước, chưa triển khai. Đã xác nhận thêm hai dạng Hán tự (chọn cách đọc, chọn chữ Hán đúng), giữ SRS cho bài tập từ vựng Nhật, không có flashcard tiếng Nhật và có nút bật/tắt furigana nhớ lựa chọn. Furigana không được lộ đáp án Hán tự trước chấm. Đề N2 tháng 7/2023 được dùng làm mẫu định dạng, không tự nhập hoặc công bố nguyên đề.
+
+- Kế hoạch chi tiết: [JAPANESE_PLAN.md](JAPANESE_PLAN.md), gồm 8 dạng bài, cây Chương/Bài, tiến độ theo câu, SRS theo từ, lưu trữ/migration, UI tối thiểu và bộ nghiệm thu.
+- Contract CSV riêng cho AI tạo câu: [JAPANESE_CSV_GUIDE.md](JAPANESE_CSV_GUIDE.md), đề xuất `ja-v1` gồm 20 cột. Bản web hiện tại chưa hỗ trợ profile này.
+- Giữ nguyên `QUESTION_CSV_GUIDE.md` và tính năng của các môn cũ. Không xóa kho bài, không sửa mã, không build/push trong đợt lập kế hoạch.
+- Khi người dùng duyệt build: Terra Max triển khai theo các đợt trong plan mới; agent chính rà soát và kiểm chứng. Đọc lại HEAD lúc đó, không reset về commit lịch sử.
+
+## Nhật ký frontend — Theo yêu cầu ngày 10/09
 
 Người dùng đã xác nhận thực hiện `FRONTEND_PLAN.md` và yêu cầu gọi Terra Max triển khai. Agent chính lập kế hoạch, rà soát và kiểm chứng; Terra (`gpt-5.6-terra`, reasoning `max`) sửa mã, viết kiểm thử và build. Giữ toàn bộ kế hoạch frontend gốc để đối chiếu, không tự xóa các mục chưa làm.
 

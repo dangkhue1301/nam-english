@@ -1,5 +1,21 @@
 const SAMPLE_CSV = "\"id\",\"domain\",\"type\",\"level\",\"topic\",\"subtopic\",\"prompt\",\"context\",\"options\",\"answer\",\"explanation\",\"theory\",\"hint\",\"tags\",\"difficulty\",\"learning_key\"\r\n\"g-b1-present-001\",\"grammar\",\"mcq\",\"B1\",\"Present simple & continuous\",\"actions now\",\"Choose the correct option.\",\"Please be quiet. Mia ___ an online lesson right now.\",\"takes||is taking||took||has taken\",\"is taking\",\"Right now describes an action in progress, so use the present continuous.\",\"Present continuous: am/is/are + verb-ing for an action happening around now.\",\"Look at right now.\",\"present-continuous||time-marker\",\"1\",\"\"\r\n\"g-b1-perfect-001\",\"grammar\",\"fill_blank\",\"B1\",\"Present perfect\",\"experience\",\"Complete the sentence with the correct verb form.\",\"I ___ never ___ sushi before. (try)\",\"\",\"have never tried\",\"Use have + past participle with I. Never goes between the auxiliary and the participle.\",\"Present perfect: have/has + past participle. Use it for life experience when no finished time is given.\",\"There is no finished past time.\",\"present-perfect||experience\",\"2\",\"\"\r\n\"g-b1-past-001\",\"grammar\",\"error_correction\",\"B1\",\"Past simple & continuous\",\"finished past\",\"Correct the sentence.\",\"We have visited the museum last Saturday.\",\"\",\"We visited the museum last Saturday.\",\"Last Saturday is a finished past time, so the past simple is required.\",\"Use the past simple with a stated, finished past time such as yesterday or last Saturday.\",\"Focus on the time phrase.\",\"past-simple||time-marker\",\"2\",\"\"\r\n\"g-b1-passive-001\",\"grammar\",\"sentence_transformation\",\"B1\",\"Passive voice\",\"present passive\",\"Rewrite in the passive voice.\",\"People speak English in many countries.\",\"\",\"English is spoken in many countries.\",\"The object English becomes the subject; present simple passive is is + past participle.\",\"Passive voice: be in the correct tense + past participle. Include the agent only when it matters.\",\"Start with English.\",\"passive||present-simple\",\"2\",\"\"\r\n\"g-b2-wordform-001\",\"grammar\",\"word_formation\",\"B2\",\"Adjectives & adverbs\",\"adverb formation\",\"Complete with the correct form of SUCCESSFUL.\",\"The team completed the project ___.\",\"\",\"successfully\",\"Completed is a verb, so it is modified by the adverb successfully.\",\"Adverbs commonly modify verbs. Many are formed with adjective + -ly.\",\"Ask what kind of word modifies completed.\",\"word-formation||adverbs\",\"2\",\"\"\r\n\"g-b2-cond-001\",\"grammar\",\"ordering\",\"B2\",\"Conditionals\",\"third conditional\",\"Put the words in the correct order.\",\"\",\"would||the||If||we||caught||had||train||left||have||earlier,||we\",\"If we had left earlier, we would have caught the train\",\"The third conditional describes an unreal past situation and its imagined result.\",\"Third conditional: if + past perfect, would have + past participle.\",\"Build the if-clause first.\",\"third-conditional||ordering\",\"3\",\"\"\r\n\"g-b2-modal-001\",\"grammar\",\"multiple_select\",\"B2\",\"Modal verbs\",\"deduction\",\"Select every sentence that can express a strong present deduction.\",\"\",\"She must be at work.||She can't be at work.||She might be at work.||She should be at work.\",\"She must be at work.||She can't be at work.\",\"Must expresses strong positive deduction; can't expresses strong negative deduction. Might is only a possibility.\",\"For present deduction: must + base verb for strong certainty; can't + base verb for strong impossibility.\",\"Choose both positive and negative strong deductions.\",\"modals||deduction\",\"3\",\"\"\r\n\"g-b2-relative-001\",\"grammar\",\"matching\",\"B2\",\"Relative clauses\",\"relative words\",\"Match each relative word with its usual reference.\",\"\",\"who=>people||which=>things||where=>places||whose=>possession\",\"\",\"Who refers to people, which to things, where to places, and whose shows possession.\",\"Relative clauses add information about a noun. The relative word is chosen by meaning and grammatical role.\",\"One item shows ownership.\",\"relative-clauses||matching\",\"2\",\"\"\r\n\"g-b1-article-001\",\"grammar\",\"mcq\",\"B1\",\"Articles\",\"first mention\",\"Choose the correct article.\",\"I saw ___ unusual bird near the lake.\",\"a||an||the||no article\",\"an\",\"The noun is singular and first mentioned; unusual begins with a vowel sound.\",\"Use a/an for one non-specific singular countable noun. Choose an before a vowel sound.\",\"Listen to the first sound of unusual.\",\"articles||indefinite-article\",\"1\",\"\"\r\n\"g-b2-report-001\",\"grammar\",\"sentence_transformation\",\"B2\",\"Reported speech\",\"backshift\",\"Report the sentence.\",\"Lena said, “I am feeling tired.”\",\"\",\"Lena said that she was feeling tired.||Lena said she was feeling tired.\",\"In past reporting, am feeling normally backshifts to was feeling and I changes to she.\",\"Reported speech often backshifts the tense when the reporting verb is in the past.\",\"Change both the pronoun and the tense.\",\"reported-speech||backshift\",\"3\",\"\"\r\n\"g-b1-compare-001\",\"grammar\",\"fill_blank\",\"B1\",\"Comparatives\",\"comparative adjectives\",\"Complete with the comparative form of RELIABLE.\",\"This train service is ___ than the old one.\",\"\",\"more reliable\",\"Reliable is a longer adjective, so form the comparative with more.\",\"Use -er with many short adjectives; use more with most longer adjectives.\",\"Do not add -er to reliable.\",\"comparatives||adjectives\",\"1\",\"\"\r\n\"g-b2-future-001\",\"grammar\",\"mcq\",\"B2\",\"Future forms\",\"future perfect\",\"Choose the best form.\",\"By next June, I ___ this course.\",\"will finish||will have finished||am finishing||have finished\",\"will have finished\",\"By next June sets a future deadline before which the action will be complete.\",\"Future perfect: will have + past participle for an action completed before a future point.\",\"Look at by + future time.\",\"future-perfect||deadline\",\"3\",\"\"\r\n\"v-b1-allocate-001\",\"vocabulary\",\"fill_blank\",\"B1\",\"Work & study\",\"allocate\",\"allocate /ˈæləkeɪt/ (verb)\",\"The manager allocated extra time and budget to the new project.\",\"\",\"phân bổ, cấp cho (tiền bạc, thời gian, nguồn lực)\",\"allocate /ˈæləkeɪt/ (động từ): chính thức chỉ định một phần tài nguyên cho mục đích cụ thể. Danh từ: allocation.\",\"\",\"\",\"work||resources||verb\",\"2\",\"vocab:allocate:verb:set-aside\"\r\n\"v-a2-reliable-001\",\"vocabulary\",\"fill_blank\",\"A2\",\"People & things\",\"reliable\",\"reliable /rɪˈlaɪəbl/ (adjective)\",\"A reliable colleague always keeps promises and finishes tasks on time.\",\"\",\"đáng tin cậy, chắc chắn\",\"reliable /rɪˈlaɪəbl/ (tính từ): người hoặc vật có thể tin tưởng được để hành động đúng hẹn. Trái nghĩa: unreliable.\",\"\",\"\",\"character||adjective\",\"1\",\"vocab:reliable:adjective:trusted\"\r\n\"v-b2-mitigate-001\",\"vocabulary\",\"fill_blank\",\"B2\",\"Society & environment\",\"mitigate\",\"mitigate /ˈmɪtɪɡeɪt/ (verb)\",\"Planting trees can help mitigate the harmful effects of urban heat.\",\"\",\"giảm nhẹ, làm dịu bớt (tác hại, rủi ro)\",\"mitigate /ˈmɪtɪɡeɪt/ (động từ): làm cho điều gì bớt nghiêm trọng hoặc bớt gây hại.\",\"\",\"\",\"environment||academic||verb\",\"3\",\"vocab:mitigate:verb:reduce-severity\"\r\n\"v-b1-carryout-001\",\"vocabulary\",\"fill_blank\",\"B1\",\"Phrasal verbs\",\"carry out\",\"carry out /ˌkæri ˈaʊt/ (phrasal verb)\",\"Scientists carried out several tests before releasing the final vaccine.\",\"\",\"tiến hành, thực hiện (kế hoạch, thí nghiệm, nhiệm vụ)\",\"carry out (cụm động từ): thực hiện hoặc hoàn thành một kế hoạch, khảo sát hoặc thí nghiệm.\",\"\",\"\",\"phrasal-verb||research\",\"2\",\"vocab:carry-out:phrasal-verb:perform\"\r\n\"v-b2-compelling-001\",\"vocabulary\",\"fill_blank\",\"B2\",\"Communication\",\"compelling\",\"compelling /kəmˈpelɪŋ/ (adjective)\",\"She gave a compelling argument that convinced everyone in the room.\",\"\",\"thuyết phục, lôi cuốn khó cưỡng\",\"compelling /kəmˈpelɪŋ/ (tính từ): rất có sức thuyết phục hoặc khiến người khác không thể phớt lờ.\",\"\",\"\",\"communication||adjective\",\"3\",\"vocab:compelling:adjective:convincing\"\r\n\"v-a2-journey-001\",\"vocabulary\",\"fill_blank\",\"A2\",\"Travel & transport\",\"journey\",\"journey /ˈdʒɜːni/ (noun)\",\"They set off on a long journey across the mountains by bicycle.\",\"\",\"chuyến đi, hành trình dài (từ nơi này sang nơi khác)\",\"journey /ˈdʒɜːni/ (danh từ): quá trình đi từ điểm này đến điểm khác, thường mất nhiều thời gian.\",\"\",\"\",\"travel||nouns\",\"1\",\"vocab:journey:noun:travel-distance\"\r\n\"v-b1-deadline-001\",\"vocabulary\",\"fill_blank\",\"B1\",\"Work & study\",\"deadline\",\"deadline /ˈdedlaɪn/ (noun)\",\"We worked late into the night to meet the strict project deadline.\",\"\",\"hạn chót, thời hạn hoàn thành\",\"meet a deadline: hoàn thành công việc trước hoặc đúng ngày giờ quy định.\",\"\",\"\",\"collocation||work\",\"2\",\"vocab:meet-a-deadline:collocation:finish-on-time\"\r\n\"v-b2-scarce-001\",\"vocabulary\",\"fill_blank\",\"B2\",\"Society & environment\",\"scarce\",\"scarce /skeəs/ (adjective)\",\"Fresh drinking water became scarce during the prolonged summer drought.\",\"\",\"khan hiếm, ít ỏi, không đủ dùng\",\"scarce /skeəs/ (tính từ): không đủ về số lượng so với nhu cầu. Trái nghĩa: plentiful, abundant.\",\"\",\"\",\"synonyms||adjective\",\"2\",\"vocab:scarce:adjective:insufficient\"\r\n\"v-b1-putoff-001\",\"vocabulary\",\"fill_blank\",\"B1\",\"Phrasal verbs\",\"put off\",\"put off /ˌpʊt ˈɒf/ (phrasal verb)\",\"They decided to put off the outdoor meeting until Friday due to heavy rain.\",\"\",\"hoãn lại, dời lịch sang thời điểm khác\",\"put off (cụm động từ): trì hoãn một sự kiện hoặc hoạt động. Đồng nghĩa: postpone, delay.\",\"\",\"\",\"phrasal-verb||scheduling\",\"2\",\"vocab:put-off:phrasal-verb:postpone\"\r\n\"v-c1-ubiquitous-001\",\"vocabulary\",\"fill_blank\",\"C1\",\"Academic vocabulary\",\"ubiquitous\",\"ubiquitous /juːˈbɪkwɪtəs/ (adjective)\",\"Smartphones are now ubiquitous across almost every modern city.\",\"\",\"có mặt ở khắp nơi, nhan nhản, phổ biến\",\"ubiquitous /juːˈbɪkwɪtəs/ (tính từ học thuật): xuất hiện hoặc được tìm thấy ở khắp mọi nơi.\",\"\",\"\",\"academic||adjective\",\"4\",\"vocab:ubiquitous:adjective:everywhere\"\r\n\"v-b2-substantial-001\",\"vocabulary\",\"fill_blank\",\"B2\",\"Academic vocabulary\",\"substantial\",\"substantial /səbˈstænʃl/ (adjective)\",\"The community project received substantial financial support from local businesses.\",\"\",\"đáng kể, quan trọng, có giá trị lớn\",\"substantial /səbˈstænʃl/ (tính từ): lớn về số lượng, giá trị hoặc tầm quan trọng. Đồng nghĩa: considerable.\",\"\",\"\",\"academic||adjective\",\"3\",\"vocab:substantial:adjective:large-amount\"\r\n\"v-a2-destination-001\",\"vocabulary\",\"fill_blank\",\"A2\",\"Travel & transport\",\"destination\",\"destination /ˌdestɪˈneɪʃn/ (noun)\",\"Da Nang has become a famous holiday destination for tourists worldwide.\",\"\",\"điểm đến, đích đến\",\"destination /ˌdestɪˈneɪʃn/ (danh từ): địa điểm mà một người hoặc phương tiện đang hướng tới.\",\"\",\"\",\"travel||nouns\",\"1\",\"vocab:destination:noun:place-to-go\"\r\n";
 
+const JAPANESE_SAMPLE_CSV = "schema,subject,id,level,chapter,lesson,section,topic,type,prompt,context,target,options,answer,accepted_orders,star_position,explanation,theory,hint,learning_key\r\n" +
+  "ja-v1,japanese,g001,N5,1,1,grammar,Thì quá khứ,ja_grammar_choice,Chọn đáp án đúng điền vào chỗ trống.,きのう、{友達|ともだち}と映画を{{gap}}。,,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"見ます\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"見ました\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"見る\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"見ません\\\"}]\",o2,,,\"きのう nghĩa là hôm qua. Trong câu trần thuật quá khứ, dùng dạng 見ました để diễn tả hành động đã xảy ra.\",Động từ lịch sự ở quá khứ khẳng định dùng dạng -ました.,,\r\n" +
+  "ja-v1,japanese,g002,N4,1,1,grammar,Mệnh đề bổ nghĩa danh từ,ja_grammar_star,Chọn mảnh câu nằm tại vị trí ★.,これは{{slots}}です。,,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"本\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"に\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"友達\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"もらった\\\"}]\",o4,\"[[\\\"o3\\\",\\\"o2\\\",\\\"o4\\\",\\\"o1\\\"]]\",3,Thứ tự đúng: 友達 → に → もらった → 本. Câu hoàn chỉnh: これは友達にもらった本です。Mảnh ở vị trí thứ ba là もらった.,Mệnh đề bổ nghĩa đứng trước danh từ.,,\r\n" +
+  "ja-v1,japanese,g003,N5,1,1,grammar,Sở hữu với の,ja_grammar_order,Sắp xếp các mảnh thành câu hoàn chỉnh.,Đây là quyển sách của tôi.,,\"[{\\\"id\\\":\\\"p1\\\",\\\"text\\\":\\\"本\\\"},{\\\"id\\\":\\\"p2\\\",\\\"text\\\":\\\"です。\\\"},{\\\"id\\\":\\\"p3\\\",\\\"text\\\":\\\"私の\\\"},{\\\"id\\\":\\\"p4\\\",\\\"text\\\":\\\"これは\\\"}]\",,\"[[\\\"p4\\\",\\\"p3\\\",\\\"p1\\\",\\\"p2\\\"]]\",,Câu đúng: これは私の本です。私の đứng trước 本 để diễn tả sở hữu.,A の B: danh từ 1 bổ nghĩa cho danh từ 2 (quan hệ sở hữu).,,\r\n" +
+  "ja-v1,japanese,g004,N3,1,2,grammar,Cấu trúc だけあって,ja_grammar_star,Chọn mảnh câu nằm tại vị trí ★.,\"この{店|みせ}は、{{slots}}とても{美味|おい}しい。\",,\"[{\\\"id\\\":\\\"s1\\\",\\\"text\\\":\\\"人気が\\\"},{\\\"id\\\":\\\"s2\\\",\\\"text\\\":\\\"ある\\\"},{\\\"id\\\":\\\"s3\\\",\\\"text\\\":\\\"料理が\\\"},{\\\"id\\\":\\\"s4\\\",\\\"text\\\":\\\"だけあって、\\\"}]\",s4,\"[[\\\"s1\\\",\\\"s2\\\",\\\"s4\\\",\\\"s3\\\"]]\",3,\"Thứ tự đúng: 人気があるだけあって、料理がとても美味しい。Mảnh ở vị trí thứ ba là だけあって、.\",〜だけあって: quả đúng là... (kết quả tương xứng với danh tiếng hoặc đặc điểm).,,\r\n" +
+  "ja-v1,japanese,g005,N4,1,2,grammar,Cấu trúc てから,ja_grammar_order,Sắp xếp các mảnh thành câu hoàn chỉnh.,Sau khi rửa tay hãy ăn cơm.,,\"[{\\\"id\\\":\\\"q1\\\",\\\"text\\\":\\\"{手|て}を\\\"},{\\\"id\\\":\\\"q2\\\",\\\"text\\\":\\\"洗ってから、\\\"},{\\\"id\\\":\\\"q3\\\",\\\"text\\\":\\\"ご飯を\\\"},{\\\"id\\\":\\\"q4\\\",\\\"text\\\":\\\"食べましょう。\\\"}]\",,\"[[\\\"q1\\\",\\\"q2\\\",\\\"q3\\\",\\\"q4\\\"]]\",,Câu đúng: 手を洗ってから、ご飯を食べましょう。V-てから diễn tả làm xong hành động 1 rồi mới làm hành động 2.,V-てから: sau khi làm V1 thì làm V2.,,\r\n" +
+  "ja-v1,japanese,v001,N4,1,1,vocabulary,Giao tiếp hằng ngày,ja_vocab_context,Chọn từ phù hợp với cả hai ngữ cảnh.,\"友達と{{gap}}をしました。\r\n明日の{{gap}}を忘れないでください。\",約束,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"約束\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"天気\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"図書館\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"机\\\"}]\",o1,,,約束 nghĩa là lời hứa hoặc việc đã hẹn. 約束をする là hứa/hẹn; 明日の約束 là cuộc hẹn ngày mai.,,,ja:vocab:yakusoku:promise\r\n" +
+  "ja-v1,japanese,v002,N4,1,1,vocabulary,Giao tiếp hằng ngày,ja_vocab_paraphrase,Chọn cách diễn đạt gần nghĩa nhất với từ được đánh dấu.,明日の{約束|やくそく}を忘れないでください。,約束,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"前もって決めたこと\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"まだ知らない場所\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"毎日使う道具\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"外の天気\\\"}]\",o1,,,\"Trong câu này, 約束 là việc đã hẹn hoặc thống nhất trước. 前もって決めたこと gần nghĩa nhất.\",,,ja:vocab:yakusoku:promise\r\n" +
+  "ja-v1,japanese,v003,N4,1,1,vocabulary,Giao tiếp hằng ngày,ja_vocab_usage,Chọn câu sử dụng từ đúng.,,約束,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"友達との約束を守りました。\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"電車が何時に出るか、駅員に約束しました。\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"知らない言葉を辞書で約束しました。\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"会議の内容を一枚の紙に約束しました。\\\"}]\",o1,,,約束を守る là giữ lời hứa. Câu 2 cần động từ hỏi; câu 3 cần 調べる; câu 4 cần まとめる.,,,ja:vocab:yakusoku:promise\r\n" +
+  "ja-v1,japanese,v004,N3,2,1,vocabulary,Công việc & Xã hội,ja_vocab_context,Chọn từ phù hợp điền vào chỗ trống.,プロジェクトの{{gap}}に間に合うように残業した。,締め切り,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"締め切り\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"出発\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"都合\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"案内\\\"}]\",o1,,,締め切り nghĩa là hạn chót (deadline). 締め切りに間に合う là kịp hạn chót.,,,ja:vocab:shimekiri:deadline\r\n" +
+  "ja-v1,japanese,v005,N3,2,1,vocabulary,Công việc & Xã hội,ja_vocab_paraphrase,Chọn cách diễn đạt gần nghĩa nhất với từ được đánh dấu.,提出の{締め切り|しめきり}を必ず守ってください。,締め切り,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"終わりの期日\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"最初の計画\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"全体の費用\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"担当者の名前\\\"}]\",o1,,,締め切り là kỳ hạn kết thúc để nộp tài liệu hoặc hoàn thành nhiệm vụ (終わりの期日).,,,ja:vocab:shimekiri:deadline\r\n" +
+  "ja-v1,japanese,k001,N5,1,1,kanji,Đồ vật & Đời sống,ja_kanji_reading,Chọn cách đọc của từ được đánh dấu.,毎朝、新聞を読みます。,新聞,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"しんぶん\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"しんぷん\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"しんもん\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"しぶん\\\"}]\",o1,,,\"新聞 đọc là しんぶん, nghĩa là tờ báo.\",,,\r\n" +
+  "ja-v1,japanese,k002,N5,1,1,kanji,Đồ vật & Đời sống,ja_kanji_writing,Chọn cách viết chữ Hán đúng cho từ được đánh dấu.,あたらしい靴を買いました。,あたらしい,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"新しい\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"親しい\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"近しい\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"楽しい\\\"}]\",o1,,,\"あたらしい được viết là 新しい, nghĩa là mới. 親しい là したしい, 近しい là ちかしい, 楽しい là たのしい.\",,,\r\n" +
+  "ja-v1,japanese,k003,N4,1,2,kanji,Thời gian & Di chuyển,ja_kanji_reading,Chọn cách đọc của từ được đánh dấu.,\"来週、{東京|とうきょう}へ出発します。\",出発,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"しゅっぱつ\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"しゅつはつ\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"しゅうはつ\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"しゅつぱつ\\\"}]\",o1,,,\"出発 gồm 出 và Phát, có âm ngắt đọc là しゅっぱつ, nghĩa là xuất phát / khởi hành.\",,,\r\n" +
+  "ja-v1,japanese,k004,N4,1,2,kanji,Thời gian & Di chuyển,ja_kanji_writing,Chọn cách viết chữ Hán đúng cho từ được đánh dấu.,計画をじゅんびしています。,じゅんび,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"準備\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"準偏\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"基準\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"設備\\\"}]\",o1,,,じゅんび viết bằng chữ Hán là 準備 (Chuẩn bị).,,,\r\n";
+
 import { buildCsvPreview, buildStats, displayAnswer, isReviewDue, resolveEscapeAction, stableShuffle, TYPE_LABELS, learningKeyFor, normalizeText, SUBJECTS, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "./core.js";
 import { createRepository, readDashboard, exportBackup, validateBackup } from "./storage.js";
 import {
@@ -24,6 +40,21 @@ import {
 } from "./stats.js";
 import { speakEnglish, speechAvailable, stopSpeaking } from "./speech.js";
 import { initPwa } from "./pwa.js";
+import {
+  JA_QUESTION_TYPES,
+  JA_TYPE_LABELS,
+  JA_SECTIONS,
+  JA_LEVELS,
+  parseRubyTokens,
+  renderRubyHtml as renderRubyHtmlBase,
+  stripRuby,
+  evaluateJapaneseAnswer,
+  formatJapaneseSentence,
+} from "./japanese.js";
+
+function renderRubyHtml(text, options = {}) {
+  return renderRubyHtmlBase(text, { ...options, showRuby: false });
+}
 
 const root = document.querySelector("#app");
 const modal = document.querySelector("#modal");
@@ -31,7 +62,7 @@ const notice = document.querySelector("#notice");
 const pwaStatus = document.querySelector("#pwa-status");
 const pwaStatusText = document.querySelector("#pwa-status-text");
 const pwaInstall = document.querySelector("#pwa-install");
-const state = { view: "home", data: null, busy: false, subject: "all", grade: "all", level: "all", topic: "all", type: "all", limit: 30, search: "", searchMode: "sets", draft: null, draftKey: "", flipped: false, timerVisible: false, studyStartedAt: null };
+const state = { view: "home", data: null, busy: false, subject: "all", grade: "all", level: "all", topic: "all", type: "all", chapter: "all", lesson: "all", section: "all", limit: 30, search: "", searchMode: "sets", draft: null, draftKey: "", flipped: false, timerVisible: false, studyStartedAt: null };
 let studyTimerInterval = null;
 
 function currentTheme() {
@@ -330,15 +361,146 @@ function download(filename, content, mime = "application/json") {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function highlightJapaneseTarget(htmlStr, target) {
+  if (!htmlStr || !target) return htmlStr || "";
+  const cleanTarget = stripRuby(target).trim();
+  if (!cleanTarget) return htmlStr;
+  const escaped = cleanTarget.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const rubyRegex = new RegExp(`(<ruby>(?:(?!<\\/ruby>).)*?${escaped}(?:(?!<\\/ruby>).)*?<\\/ruby>)`, "g");
+  if (rubyRegex.test(htmlStr)) {
+    return htmlStr.replace(rubyRegex, '<u class="ja-target-highlight">$1</u>');
+  }
+
+  const textRegex = new RegExp(`(?<!<[^>]*)${escaped}(?![^<]*>)`, "g");
+  if (textRegex.test(htmlStr)) {
+    return htmlStr.replace(textRegex, '<u class="ja-target-highlight">$&</u>');
+  }
+
+  return htmlStr.replace(new RegExp(`(${escaped})`, "g"), '<u class="ja-target-highlight">$1</u>');
+}
+
+function renderJapaneseQuestionContent(q, result) {
+  let targetBadgeHtml = "";
+  if (q.type === "ja_vocab_usage" && q.target) {
+    const renderedTarget = renderRubyHtml(q.target);
+    targetBadgeHtml = `<div class="ja-target-badge-wrap"><span class="ja-target-badge" lang="ja">${renderedTarget}</span></div>`;
+  }
+
+  let contextHtml = "";
+  if (q.context) {
+    const ctx = q.context;
+    if (q.type === "ja_grammar_choice" || q.type === "ja_vocab_context") {
+      const rendered = renderRubyHtml(ctx);
+      contextHtml = rendered.replaceAll("{{gap}}", '<span class="ja-gap" aria-label="Chỗ trống">[ &hellip; ]</span>');
+    } else if (q.type === "ja_grammar_star") {
+      const starPos = Number(q.star_position ?? q.starPosition) || 3;
+      const slotsMarkup = `<span class="ja-slots-group" role="group" aria-label="4 vị trí sắp xếp">${[1, 2, 3, 4].map((pos) => {
+        const isStar = pos === starPos;
+        return `<span class="ja-slot ${isStar ? "ja-slot-star" : ""}" aria-label="${isStar ? `Vị trí số ${pos} trong 4 vị trí (vị trí ngôi sao ★)` : `Vị trí số ${pos} trong 4 vị trí`}">${isStar ? "★" : pos}</span>`;
+      }).join("")}</span>`;
+      const rendered = renderRubyHtml(ctx);
+      contextHtml = rendered.replaceAll("{{slots}}", slotsMarkup);
+    } else if (q.type === "ja_kanji_reading") {
+      const rendered = renderRubyHtml(ctx, {
+        hideTarget: result ? null : q.target,
+      });
+      contextHtml = highlightJapaneseTarget(rendered, q.target);
+    } else if (q.type === "ja_kanji_writing" || q.type === "ja_vocab_paraphrase") {
+      const rendered = renderRubyHtml(ctx);
+      contextHtml = highlightJapaneseTarget(rendered, q.target);
+    } else {
+      contextHtml = renderRubyHtml(ctx);
+    }
+  }
+
+  let formattedContext = "";
+  if (contextHtml) {
+    if (q.type === "ja_grammar_order") {
+      formattedContext = `<div class="question-context ja-order-meaning" lang="vi">${contextHtml.replaceAll("\n", "<br>")}</div>`;
+    } else {
+      formattedContext = `<div class="question-context ja-context" lang="ja">${contextHtml.replaceAll("\n", "<br>")}</div>`;
+    }
+  }
+
+  return `
+    <div class="question-title">
+      <h1>${html(q.prompt)}</h1>
+    </div>
+    ${targetBadgeHtml}
+    ${formattedContext}
+    <form data-answer-form>${answerMarkup(q, result)}</form>
+  `;
+}
+
 function summaryForSet(setId, filters = null) {
   const w = state.data.snapshot;
+  const setObj = state.data.sets.find((s) => s.id === setId);
+  const isJapanese = setObj?.subject === "japanese";
+
   const questions = w.questions.filter((q) => q.setId === setId &&
     (!filters || !filters.grade || filters.grade === "all" || q.grade === filters.grade) &&
     (!filters || !filters.level || filters.level === "all" || q.level === filters.level) &&
+    (!filters || !filters.chapter || filters.chapter === "all" || String(q.chapter) === String(filters.chapter)) &&
+    (!filters || !filters.lesson || filters.lesson === "all" || String(q.lesson) === String(filters.lesson)) &&
+    (!filters || !filters.section || filters.section === "all" || q.domain === filters.section || q.section === filters.section) &&
     (!filters || !filters.topic || filters.topic === "all" || q.topic === filters.topic));
+
+  if (isJapanese) {
+    const ids = new Set(questions.map((q) => q.id));
+    const attemptedIds = new Set();
+    const lastAttemptByQ = new Map();
+    w.attempts.forEach((a) => {
+      if (ids.has(a.questionId)) {
+        if (a.purpose !== "review" && !a.isRetry) {
+          attemptedIds.add(a.questionId);
+        }
+        const prev = lastAttemptByQ.get(a.questionId);
+        if (!prev || a.attemptedAt >= prev.attemptedAt) {
+          lastAttemptByQ.set(a.questionId, a);
+        }
+      }
+    });
+
+    const kanjiQs = questions.filter((q) => q.domain === "kanji" || q.section === "kanji");
+    const grammarQs = questions.filter((q) => q.domain === "grammar" || q.section === "grammar");
+    const vocabQs = questions.filter((q) => q.domain === "vocabulary" || q.section === "vocabulary");
+
+    const kanjiRemaining = kanjiQs.filter((q) => !attemptedIds.has(q.id)).length;
+    const grammarRemaining = grammarQs.filter((q) => !attemptedIds.has(q.id)).length;
+    const vocabRemaining = vocabQs.filter((q) => !attemptedIds.has(q.id)).length;
+
+    let needRetry = 0;
+    vocabQs.forEach((q) => {
+      const last = lastAttemptByQ.get(q.id);
+      if (last && !last.correct) needRetry += 1;
+    });
+
+    const vocabKeys = collectVocabularyKeys(vocabQs);
+    const dueToday = dueCountToday(w.reviews, vocabKeys);
+    const total = questions.length;
+    const done = attemptedIds.size;
+    const progress = total ? Math.round((done * 100) / total) : 0;
+
+    return {
+      total,
+      done,
+      needRetry,
+      kanji: kanjiQs.length,
+      kanjiRemaining,
+      grammar: grammarQs.length,
+      grammarRemaining,
+      vocabulary: vocabQs.length,
+      vocabRemaining,
+      words: vocabKeys.length,
+      dueToday,
+      progress,
+    };
+  }
+
   const ids = new Set(questions.map((q) => q.id));
   const stats = buildStats(questions, w.reviews, w.attempts.filter((a) => ids.has(a.questionId)), []);
-  const vocabQuestions = questions.filter((q) => q.domain === "vocabulary");
+  const vocabQuestions = questions.filter((q) => q.domain === "vocabulary" || q.section === "vocabulary");
   const words = new Set(vocabQuestions.map(learningKeyFor)).size;
   const dueToday = dueCountToday(w.reviews, collectVocabularyKeys(vocabQuestions));
   const total = stats.grammar + stats.practice + words;
@@ -464,12 +626,38 @@ function homeMarkup() {
     <div><strong>Cấp ${level.level}</strong><span>${number(level.current)} / ${number(level.cost)} XP</span></div>
     <div class="progress-track" aria-label="Tiến độ lên cấp"><span style="width:${level.progress}%;"></span></div>
   </div>` : "";
+  const isJapanese = set.subject === "japanese";
   const english = set.subject === "english";
   const subjects = [...new Set(state.data.sets.map((item) => item.subject))].sort();
-  const levels = [...new Set(state.data.questions.map((q) => q.level))].sort();
-  const grades = [...new Set(state.data.questions.map((q) => q.grade).filter(Boolean))].sort();
-  const topics = [...new Set(state.data.questions.filter((q) => (state.level === "all" || q.level === state.level) && (state.grade === "all" || q.grade === state.grade) && (state.type === "all" || q.type === state.type)).map((q) => q.topic))].sort();
-  const types = [...new Set(state.data.questions.filter((q) => (state.level === "all" || q.level === state.level) && (state.grade === "all" || q.grade === state.grade) && (state.topic === "all" || q.topic === state.topic)).map((q) => q.type).filter(Boolean))].sort();
+
+  const setQuestions = state.data.snapshot.questions.filter((q) => q.setId === set.id && q.active !== false);
+  const jaLevels = ["N5", "N4", "N3", "N2", "N1"].filter((lvl) => setQuestions.some((q) => q.level === lvl));
+  const chapters = [...new Set(setQuestions.map((q) => q.chapter).filter((c) => c != null && c !== ""))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  const chapterScopedQs = state.chapter === "all" ? setQuestions : setQuestions.filter((q) => String(q.chapter) === String(state.chapter));
+  const lessons = [...new Set(chapterScopedQs.map((q) => q.lesson).filter((l) => l != null && l !== ""))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  const sections = [
+    { val: "kanji", label: "Hán tự" },
+    { val: "grammar", label: "Ngữ pháp" },
+    { val: "vocabulary", label: "Từ vựng" },
+  ].filter((sec) => setQuestions.some((q) => q.domain === sec.val || q.section === sec.val));
+
+  const scopeQuestions = isJapanese
+    ? chapterScopedQs.filter((q) =>
+        (state.lesson === "all" || String(q.lesson) === String(state.lesson)) &&
+        (state.section === "all" || q.domain === state.section || q.section === state.section) &&
+        (state.level === "all" || q.level === state.level)
+      )
+    : state.data.questions.filter((q) => (state.level === "all" || q.level === state.level) && (state.grade === "all" || q.grade === state.grade) && (state.type === "all" || q.type === state.type));
+
+  const levels = isJapanese ? jaLevels : [...new Set(state.data.questions.map((q) => q.level))].sort();
+  const grades = isJapanese ? [] : [...new Set(state.data.questions.map((q) => q.grade).filter(Boolean))].sort();
+  const topics = [...new Set(scopeQuestions.map((q) => q.topic).filter(Boolean))].sort();
+  const types = isJapanese ? [] : [...new Set(scopeQuestions.map((q) => q.type).filter(Boolean))].sort();
+
+  const scopeSummary = isJapanese
+    ? summaryForSet(set.id, { chapter: state.chapter, lesson: state.lesson, section: state.section, level: state.level, topic: state.topic })
+    : full;
+
   const modeCard = (mode, title, description, total, label, style, index) => {
     const isVocab = isVocabulary(mode);
     const startMode = isVocab ? "flashcards" : mode;
@@ -520,21 +708,153 @@ function homeMarkup() {
       <span class="mode-footnote">Học theo thẻ ghi nhớ lặp lại ngắt quãng (SRS); chưa nhớ sẽ ôn lại đến khi thuộc.</span></article>`;
   };
 
+  const jaModeCards = () => {
+    const cards = [];
+    const limit = state.limit || 30;
+
+    if (state.section === "all" || state.section === "kanji") {
+      const count = scopeSummary.kanjiRemaining || 0;
+      cards.push(`
+        <article class="mode-card kanji">
+          <div class="mode-top"><span class="mode-index">01</span><span class="pill">Hán tự · Kanji</span></div>
+          <h2>Hán tự</h2>
+          <p>Luyện cách đọc (K1) và cách viết chữ Hán (K2) chuẩn theo ngữ cảnh.</p>
+          <div class="mode-count"><strong>${number(count)}</strong><span>câu chưa làm</span></div>
+          ${button(count ? `Bắt đầu ${Math.min(limit, count)} câu Hán tự ${icon("arrow")}` : "Đã hoàn thành các câu", "begin", "button mode-start", `data-mode="kanji" ${!count || currentSession() ? "disabled" : ""}`)}
+          <span class="mode-footnote">Làm bài tập chọn đáp án; câu đã làm sẽ không lặp lại.</span>
+        </article>
+      `);
+    }
+
+    if (state.section === "all" || state.section === "grammar") {
+      const count = scopeSummary.grammarRemaining || 0;
+      cards.push(`
+        <article class="mode-card grammar">
+          <div class="mode-top"><span class="mode-index">02</span><span class="pill">Ngữ pháp · Grammar</span></div>
+          <h2>Ngữ pháp</h2>
+          <p>Điền khuyết (G1), tìm mảnh ghép ngôi sao ★ (G2) và sắp xếp câu (G3).</p>
+          <div class="mode-count"><strong>${number(count)}</strong><span>câu chưa làm</span></div>
+          ${button(count ? `Bắt đầu ${Math.min(limit, count)} câu Ngữ pháp ${icon("arrow")}` : "Đã hoàn thành các câu", "begin", "button mode-start", `data-mode="grammar" ${!count || currentSession() ? "disabled" : ""}`)}
+          <span class="mode-footnote">Làm bài tập ngữ pháp; có lời giải và câu hoàn chỉnh sau khi chấm.</span>
+        </article>
+      `);
+    }
+
+    if (state.section === "all" || state.section === "vocabulary") {
+      const dueToday = scopeSummary.dueToday || 0;
+      const count = scopeSummary.vocabRemaining || 0;
+      let countMarkup;
+      let buttonMarkup;
+
+      if (dueToday > 0 && count > 0) {
+        countMarkup = `<div class="mode-count-vocab">
+          <div class="mode-count-item">
+            <strong class="accent-text">${number(dueToday)}</strong>
+            <span>từ đến hạn ôn</span>
+          </div>
+          <div class="mode-count-divider"></div>
+          <div class="mode-count-item">
+            <strong>${number(count)}</strong>
+            <span>câu chưa làm</span>
+          </div>
+        </div>`;
+        buttonMarkup = `${button(`Ôn ngay ${Math.min(limit, dueToday)} từ đến hạn ${icon("arrow")}`, "start-due-vocab", "button primary mode-start", `data-set-id="${html(set.id)}" ${currentSession() ? "disabled" : ""}`)}
+          ${button(`Luyện ${Math.min(limit, count)} câu từ vựng`, "begin", "button subtle mode-start-secondary", `data-mode="vocabulary" ${currentSession() ? "disabled" : ""}`)}`;
+      } else if (dueToday > 0) {
+        countMarkup = `<div class="mode-count"><strong class="accent-text">${number(dueToday)}</strong><span>từ đến hạn ôn hôm nay</span></div>`;
+        buttonMarkup = button(`Ôn ngay ${Math.min(limit, dueToday)} từ đến hạn ${icon("arrow")}`, "start-due-vocab", "button primary mode-start", `data-set-id="${html(set.id)}" ${currentSession() ? "disabled" : ""}`);
+      } else if (count > 0) {
+        countMarkup = `<div class="mode-count"><strong>${number(count)}</strong><span>câu bài tập chưa làm</span></div>`;
+        buttonMarkup = button(`Luyện tập ${Math.min(limit, count)} câu từ vựng ${icon("arrow")}`, "begin", "button mode-start", `data-mode="vocabulary" ${currentSession() ? "disabled" : ""}`);
+      } else {
+        countMarkup = `<div class="mode-count"><strong>0</strong><span>Đã hoàn thành các câu</span></div>`;
+        buttonMarkup = button("Đã hoàn thành các câu", "begin", "button mode-start", 'data-mode="vocabulary" disabled');
+      }
+
+      cards.push(`
+        <article class="mode-card vocabulary">
+          <div class="mode-top"><span class="mode-index">03</span><span class="pill">Từ vựng · Bài tập SRS</span></div>
+          <h2>Từ vựng</h2>
+          <p>Ngữ cảnh (V1), gần nghĩa (V2) và cách dùng (V3). Ôn ngắt quãng theo nhịp nhớ lâu (SRS).</p>
+          ${countMarkup}
+          ${buttonMarkup}
+          <span class="mode-footnote">Học từ vựng hoàn toàn bằng bài tập; chưa nhớ sẽ ôn lại đến khi thuộc.</span>
+        </article>
+      `);
+    }
+
+    return cards.join("");
+  };
+
+  const jaTreeMarkup = isJapanese ? `
+    <div class="ja-tree-scope-card glass">
+      <div class="ja-tree-breadcrumb">
+        <span class="tree-crumb-item">${icon("book")} ${html(set.name)}</span>
+        ${state.chapter !== "all" ? `<span class="tree-crumb-sep">›</span><span class="tree-crumb-item">Chương ${html(state.chapter)}</span>` : ""}
+        ${state.lesson !== "all" ? `<span class="tree-crumb-sep">›</span><span class="tree-crumb-item">Bài ${html(state.lesson)}</span>` : ""}
+        ${state.section !== "all" ? `<span class="tree-crumb-sep">›</span><span class="tree-crumb-item">${state.section === "kanji" ? "Hán tự" : state.section === "grammar" ? "Ngữ pháp" : "Từ vựng"}</span>` : ""}
+        ${state.topic !== "all" ? `<span class="tree-crumb-sep">›</span><span class="tree-crumb-item">${html(state.topic)}</span>` : ""}
+        ${state.level !== "all" ? `<span class="pill">${html(state.level)}</span>` : ""}
+      </div>
+      <div class="ja-scope-metrics">
+        <div class="ja-metric">
+          <span class="ja-metric-label">Đã làm</span>
+          <strong class="ja-metric-val">${scopeSummary.done}/${scopeSummary.total} <small>câu</small></strong>
+        </div>
+        <div class="ja-metric-divider"></div>
+        <div class="ja-metric">
+          <span class="ja-metric-label">Cần luyện lại</span>
+          <strong class="ja-metric-val ${scopeSummary.needRetry > 0 ? "accent" : ""}">${scopeSummary.needRetry} <small>câu</small></strong>
+        </div>
+        <div class="ja-metric-divider"></div>
+        <div class="ja-metric">
+          <span class="ja-metric-label">Đến hạn ôn</span>
+          <strong class="ja-metric-val ${scopeSummary.dueToday > 0 ? "accent" : ""}">${scopeSummary.dueToday} <small>từ</small></strong>
+        </div>
+      </div>
+    </div>
+  ` : "";
+
   return `${intro("Hôm nay, học bộ nào?", "Một lượt ngắn, thêm một bước tiến.")}${resumeBanner()}${dueReminderBanner()}${mistakeReviewBanner()}${xpMarkup}
-    <section class="set-focus"><div class="set-focus-head"><label for="set-picker" class="eyebrow">BỘ ĐANG CHỌN</label><span>${full.done}/${full.total} mục đã học</span>${full.dueToday ? `<span class="pill due-pill" title="Hôm nay có ${full.dueToday} từ đến hạn ôn tập">🔔 ${full.dueToday} từ cần ôn</span>` : ""}${availableSets.length > 1 ? button(`${icon("book")} Trộn nhiều bộ`, "open-mix-modal", "button subtle mix-button") : ""}</div>
+    <section class="set-focus"><div class="set-focus-head"><label for="set-picker" class="eyebrow">BỘ ĐANG CHỌN</label><span>${scopeSummary.done}/${scopeSummary.total} ${isJapanese ? "câu đã làm" : "mục đã học"}</span>${scopeSummary.dueToday ? `<span class="pill due-pill" title="Hôm nay có ${scopeSummary.dueToday} từ đến hạn ôn tập">🔔 ${scopeSummary.dueToday} từ cần ôn</span>` : ""}${availableSets.length > 1 ? button(`${icon("book")} Trộn nhiều bộ`, "open-mix-modal", "button subtle mix-button") : ""}</div>
       <select id="set-picker" data-filter="set" aria-label="Chọn bộ bài">${availableSets.map((item) => `<option value="${html(item.id)}" ${item.id === set.id ? "selected" : ""}>${subjectName(item.subject)} · ${html(item.name)}</option>`).join("")}</select>
-      <div class="progress-track" role="progressbar" aria-valuenow="${full.progress}" aria-valuemin="0" aria-valuemax="100" aria-label="Tiến độ bộ bài"><span style="width:${full.progress}%"></span></div>
-      <div class="filter-row">${subjects.length > 1 ? `<label>Môn<select data-filter="subject">${option("all", "Tất cả môn", state.subject)}${subjects.map((subject) => option(subject, subjectName(subject), state.subject)).join("")}</select></label>` : ""}${english ? `<label>Trình độ<select data-filter="level">${option("all", "Tất cả trình độ", state.level)}${levels.map((level) => option(level, level, state.level)).join("")}</select></label>` : ""}${grades.length ? `<label>Lớp<select data-filter="grade">${option("all", "Tất cả lớp", state.grade)}${grades.map((grade) => option(grade, `Lớp ${grade}`, state.grade)).join("")}</select></label>` : ""}<label>Chủ điểm<select data-filter="topic">${option("all", "Tất cả chủ điểm", state.topic)}${topics.map((topic) => option(topic, topic, state.topic)).join("")}</select></label>${types.length > 1 ? `<label>Dạng câu<select data-filter="type">${option("all", "Tất cả dạng", state.type)}${types.map((type) => option(type, TYPE_LABELS[type] || type, state.type)).join("")}</select></label>` : ""}<label>Số câu<select data-filter="limit">${option("10", "10 câu", String(state.limit))}${option("20", "20 câu", String(state.limit))}${option("30", "30 câu", String(state.limit))}</select></label><span class="filter-note">Tối đa ${state.limit || 30} câu mỗi lượt</span></div>
-    </section><div class="mode-grid">${english ? vocabModeCard() + modeCard("grammar", "Grammar & Áp dụng", "Làm bài tập nhiều dạng để áp dụng từ vựng và cấu trúc câu.", stats.grammarRemaining, "câu bài tập chưa làm", "grammar", "02") : modeCard("practice", subjectName(set.subject), "Làm bài tập nhiều dạng, có lý thuyết và giải thích sau mỗi câu.", stats.practiceRemaining, "câu chưa làm", "practice", "01")}</div>
-    <div class="home-foot"><span>${icon("check")} Tiến độ được lưu tự động trên máy này.</span><a href="./QUESTION_CSV_GUIDE.md" download>Hướng dẫn tạo bộ bài ${icon("arrow")}</a></div>`;
+      <div class="progress-track" role="progressbar" aria-valuenow="${scopeSummary.progress}" aria-valuemin="0" aria-valuemax="100" aria-label="Tiến độ bộ bài"><span style="width:${scopeSummary.progress}%"></span></div>
+      ${isJapanese ? `
+        <div class="filter-row ja-filter-row">
+          ${subjects.length > 1 ? `<label>Môn<select data-filter="subject">${option("all", "Tất cả môn", state.subject)}${subjects.map((subject) => option(subject, subjectName(subject), state.subject)).join("")}</select></label>` : ""}
+          ${jaLevels.length ? `<label>Trình độ JLPT<select data-filter="level">${option("all", "Tất cả trình độ", state.level)}${jaLevels.map((level) => option(level, level, state.level)).join("")}</select></label>` : ""}
+          ${chapters.length ? `<label>Chương<select data-filter="chapter">${option("all", "Tất cả chương", state.chapter)}${chapters.map((c) => option(String(c), `Chương ${c}`, String(state.chapter))).join("")}</select></label>` : ""}
+          ${lessons.length ? `<label>Bài<select data-filter="lesson">${option("all", "Tất cả bài", state.lesson)}${lessons.map((l) => option(String(l), `Bài ${l}`, String(state.lesson))).join("")}</select></label>` : ""}
+          ${sections.length ? `<label>Mục<select data-filter="section">${option("all", "Tất cả mục", state.section)}${sections.map((sec) => option(sec.val, sec.label, state.section)).join("")}</select></label>` : ""}
+          ${topics.length ? `<label>Chủ điểm<select data-filter="topic">${option("all", "Tất cả chủ điểm", state.topic)}${topics.map((topic) => option(topic, topic, state.topic)).join("")}</select></label>` : ""}
+          <label>Số câu<select data-filter="limit">${option("10", "10 câu", String(state.limit))}${option("20", "20 câu", String(state.limit))}${option("30", "30 câu", String(state.limit))}</select></label>
+          <span class="filter-note">Tối đa ${state.limit || 30} câu mỗi lượt</span>
+        </div>
+      ` : `
+        <div class="filter-row">${subjects.length > 1 ? `<label>Môn<select data-filter="subject">${option("all", "Tất cả môn", state.subject)}${subjects.map((subject) => option(subject, subjectName(subject), state.subject)).join("")}</select></label>` : ""}${english ? `<label>Trình độ<select data-filter="level">${option("all", "Tất cả trình độ", state.level)}${levels.map((level) => option(level, level, state.level)).join("")}</select></label>` : ""}${grades.length ? `<label>Lớp<select data-filter="grade">${option("all", "Tất cả lớp", state.grade)}${grades.map((grade) => option(grade, `Lớp ${grade}`, state.grade)).join("")}</select></label>` : ""}<label>Chủ điểm<select data-filter="topic">${option("all", "Tất cả chủ điểm", state.topic)}${topics.map((topic) => option(topic, topic, state.topic)).join("")}</select></label>${types.length > 1 ? `<label>Dạng câu<select data-filter="type">${option("all", "Tất cả dạng", state.type)}${types.map((type) => option(type, TYPE_LABELS[type] || type, state.type)).join("")}</select></label>` : ""}<label>Số câu<select data-filter="limit">${option("10", "10 câu", String(state.limit))}${option("20", "20 câu", String(state.limit))}${option("30", "30 câu", String(state.limit))}</select></label><span class="filter-note">Tối đa ${state.limit || 30} câu mỗi lượt</span></div>
+      `}
+      ${jaTreeMarkup}
+    </section><div class="mode-grid">${isJapanese ? jaModeCards() : english ? vocabModeCard() + modeCard("grammar", "Grammar & Áp dụng", "Làm bài tập nhiều dạng để áp dụng từ vựng và cấu trúc câu.", stats.grammarRemaining, "câu bài tập chưa làm", "grammar", "02") : modeCard("practice", subjectName(set.subject), "Làm bài tập nhiều dạng, có lý thuyết và giải thích sau mỗi câu.", stats.practiceRemaining, "câu chưa làm", "practice", "01")}</div>
+    <div class="home-foot"><span>${icon("check")} Tiến độ được lưu tự động trên máy này.</span>${isJapanese ? `<a href="./JAPANESE_CSV_GUIDE.md" download>Hướng dẫn tạo bộ bài Tiếng Nhật ${icon("arrow")}</a>` : `<a href="./QUESTION_CSV_GUIDE.md" download>Hướng dẫn tạo bộ bài ${icon("arrow")}</a>`}</div>`;
 }
 function option(value, label, selected) { return `<option value="${html(value)}" ${value === selected ? "selected" : ""}>${html(label)}</option>`; }
 
 function setCard(set) {
   const summary = summaryForSet(set.id);
+  const isJapanese = set.subject === "japanese";
   return `<article class="set-card"><div class="set-card-top"><span class="set-icon">${icon("book")}</span><details class="set-menu"><summary aria-label="Quản lý bộ ${html(set.name)}">${icon("more")}</summary><div>${button("Đổi tên", "rename", "menu-button", `data-id="${html(set.id)}"`)}${button("Chia sẻ bộ", "share-set", "menu-button", `data-id="${html(set.id)}"`)}${button("Tải CSV", "export-set", "menu-button", `data-id="${html(set.id)}"`)}${button("Xóa bộ này", "delete-set", "menu-button danger-text", `data-id="${html(set.id)}"`)}</div></details></div>
-    <h2>${html(set.name)}</h2><p class="set-meta">${number(set.count)} câu · ${day(set.importedAt)}</p><div class="set-labels">${summary.practice ? `<span class="pill">${subjectName(set.subject)} · ${summary.practice}</span>` : ""}${summary.grammar ? `<span class="pill">Grammar · ${summary.grammar}</span>` : ""}${summary.words ? `<span class="pill rust">Vocab · ${summary.words} từ</span>` : ""}${summary.dueToday ? `<span class="pill due-pill" title="${summary.dueToday} từ đến hạn ôn hôm nay">🔔 ${summary.dueToday} từ cần ôn</span>` : ""}</div>
-    <div class="set-progress"><span>${summary.done}/${summary.total} mục đã học</span><strong>${summary.progress}%</strong></div><div class="progress-track"><span style="width:${summary.progress}%"></span></div>
+    <h2>${html(set.name)}</h2><p class="set-meta">${number(set.count)} câu · ${day(set.importedAt)}</p><div class="set-labels">${isJapanese ? `
+      ${summary.kanji ? `<span class="pill">Hán tự · ${summary.kanji}</span>` : ""}
+      ${summary.grammar ? `<span class="pill">Ngữ pháp · ${summary.grammar}</span>` : ""}
+      ${summary.words ? `<span class="pill rust">Từ vựng · ${summary.words} từ</span>` : ""}
+      ${summary.dueToday ? `<span class="pill due-pill" title="${summary.dueToday} từ đến hạn ôn hôm nay">🔔 ${summary.dueToday} từ cần ôn</span>` : ""}
+    ` : `
+      ${summary.practice ? `<span class="pill">${subjectName(set.subject)} · ${summary.practice}</span>` : ""}
+      ${summary.grammar ? `<span class="pill">Grammar · ${summary.grammar}</span>` : ""}
+      ${summary.words ? `<span class="pill rust">Vocab · ${summary.words} từ</span>` : ""}
+      ${summary.dueToday ? `<span class="pill due-pill" title="${summary.dueToday} từ đến hạn ôn hôm nay">🔔 ${summary.dueToday} từ cần ôn</span>` : ""}
+    `}</div>
+    <div class="set-progress"><span>${summary.done}/${summary.total} ${isJapanese ? "câu đã làm" : "mục đã học"}</span><strong>${summary.progress}%</strong></div><div class="progress-track"><span style="width:${summary.progress}%"></span></div>
     ${button(`Chọn bộ này ${icon("arrow")}`, "choose", "button subtle card-link", `data-id="${html(set.id)}"`)}</article>`;
 }
 
@@ -584,12 +904,62 @@ function dataMarkup() {
       ${snapshot.recovery ? `<div class="data-row"><div><h3>Bản trước khi dọn kho</h3><p>Lưu ngày ${day(snapshot.recovery.savedAt)}. Tải về nếu cần lấy lại nội dung cũ.</p></div>${button("Tải bản cũ", "recovery", "button subtle")}</div>` : ""}
       <div class="data-row"><div><h3>Thông báo nhắc ôn từ vựng</h3><p>${canUseNotification() ? (Notification.permission === "granted" ? "Đã bật nhắc nhở trình duyệt khi có từ đến hạn ôn hôm nay." : Notification.permission === "denied" ? "Quyền thông báo đã bị chặn trong cài đặt trình duyệt." : "Bật thông báo để được nhắc nhở ôn thẻ ghi nhớ đúng ngày.") : "Trình duyệt không hỗ trợ Web Notification API."}</p></div>${canUseNotification() ? button(Notification.permission === "granted" ? "Kiểm tra thông báo" : "Bật thông báo", "enable-due-notifications", "button subtle") : ""}</div>
       <div class="data-row"><div><h3>Làm trống kho bài</h3><p>Xóa các bộ bài và tiến độ hiện tại trên máy này.</p></div>${button("Xóa nội dung", "clear", "button danger-outline", !snapshot.questions.length ? "disabled" : "")}</div>
-    </section><aside class="data-help"><h2>Dùng cùng học sinh</h2><p>Gửi <a href="https://dangkhue1301.github.io/nam-english/">đường dẫn website</a> và file CSV cho học sinh. Mỗi bạn nhập file trên máy của mình, rồi chọn bộ để học. Tiến độ và bộ bài không tự đồng bộ giữa các máy.</p><a class="guide-link" href="./QUESTION_CSV_GUIDE.md" download>${icon("download")} Hướng dẫn tạo CSV cho AI</a></aside>`;
+    </section><aside class="data-help"><h2>Dùng cùng học sinh</h2><p>Gửi <a href="https://dangkhue1301.github.io/nam-english/">đường dẫn website</a> và file CSV cho học sinh. Mỗi bạn nhập file trên máy của mình, rồi chọn bộ để học. Tiến độ và bộ bài không tự đồng bộ giữa các máy.</p><a class="guide-link" href="./QUESTION_CSV_GUIDE.md" download>${icon("download")} Hướng dẫn tạo CSV cho AI</a><a class="guide-link" href="./JAPANESE_CSV_GUIDE.md" download style="margin-top:8px">${icon("download")} Hướng dẫn tạo bộ bài Tiếng Nhật (ja-v1)</a></aside>`;
 }
 
 function answerMarkup(q, result) {
   const d = state.draft;
   const disabled = result || state.busy ? "disabled" : "";
+
+  if (q.subject === "japanese") {
+    if (q.type === "ja_grammar_order") {
+      const options = q.options || [];
+      const order = stableShuffle(options.map((_, index) => index), q.id);
+      const remainingIndices = order.filter((index) => !d.ordered.includes(index));
+
+      return `<div>
+        <label class="answer-label">Sắp xếp các mảnh thành câu hoàn chỉnh</label>
+        <div class="ja-sentence-builder" aria-label="Câu đang sắp xếp">
+          ${d.ordered.length
+            ? d.ordered.map((index) => {
+                const opt = options[index];
+                const text = renderRubyHtml(opt?.text ?? "");
+                return button(`${text}<span aria-hidden="true" class="token-remove-x">×</span>`, "remove-token", "token ja-token selected", `data-index="${index}" ${disabled} aria-label="Bỏ mảnh ${stripRuby(opt?.text ?? "")}"`);
+              }).join("")
+            : '<span class="muted ja-builder-placeholder" lang="vi">Chạm các mảnh bên dưới để xếp thành câu tiếng Nhật...</span>'}
+        </div>
+        <div class="ja-token-bank" lang="ja">
+          ${remainingIndices.map((index) => {
+            const opt = options[index];
+            const text = renderRubyHtml(opt?.text ?? "");
+            return button(text, "add-token", "token ja-token", `data-index="${index}" ${disabled}`);
+          }).join("")}
+        </div>
+        ${!result ? `
+          <div class="ja-order-actions">
+            ${button("Hoàn tác", "ja-order-undo", "button subtle small", d.ordered.length === 0 ? "disabled" : "")}
+            ${button("Làm lại", "ja-order-reset", "button subtle small", d.ordered.length === 0 ? "disabled" : "")}
+          </div>
+        ` : ""}
+      </div>`;
+    }
+
+    const options = q.options || [];
+    const isStar = q.type === "ja_grammar_star";
+    const starPos = Number(q.star_position ?? q.starPosition) || 3;
+    const isKanjiWriting = q.type === "ja_kanji_writing";
+    const isUsage = q.type === "ja_vocab_usage";
+
+    return `<fieldset class="choices ja-choices ${isUsage ? "choices-single-col" : ""}"><legend class="sr-only">${isStar ? `Chọn phương án điền vào vị trí số ${starPos} (★)` : "Chọn một đáp án đúng"}</legend>${options.map((opt, index) => {
+      const selected = d.selected.includes(index);
+      const right = result && opt.id === q.answer;
+      const showOptRuby = isKanjiWriting && !result ? false : true;
+      const textHtml = renderRubyHtml(opt.text, { showRuby: showOptRuby });
+
+      return `<button type="button" data-action="option" data-index="${index}" class="choice ja-choice${selected ? " selected" : ""}${right ? " correct" : result && selected ? " incorrect" : ""}" aria-pressed="${selected}" ${disabled}><span class="choice-letter">${String.fromCharCode(65 + index)}</span><span lang="ja" class="ja-choice-text">${textHtml}</span>${right ? icon("check") : ""}</button>`;
+    }).join("")}</fieldset>`;
+  }
+
   if (["mcq", "multiple_select"].includes(q.type)) {
     return `<fieldset class="choices"><legend class="sr-only">${q.type === "mcq" ? "Chọn một đáp án" : "Chọn tất cả đáp án đúng"}</legend>${q.options.map((value, index) => {
       const selected = d.selected.includes(index);
@@ -612,6 +982,13 @@ function answerMarkup(q, result) {
 
 function receivedAnswer(q) {
   const d = state.draft;
+  if (q.subject === "japanese") {
+    if (q.type === "ja_grammar_order") {
+      return d.ordered.map((idx) => q.options[idx]?.id || idx);
+    }
+    const selIdx = d.selected[0];
+    return selIdx != null ? (q.options[selIdx]?.id ?? "") : "";
+  }
   if (q.type === "mcq") return q.options[d.selected[0]] || "";
   if (q.type === "multiple_select") return d.selected.map((index) => q.options[index]);
   if (q.type === "ordering") return d.ordered.map((index) => q.options[index]).join(" ");
@@ -624,6 +1001,12 @@ function receivedAnswer(q) {
 function answerReady() {
   const q = currentQuestion(), d = state.draft;
   if (!q || !d) return false;
+  if (q.subject === "japanese") {
+    if (q.type === "ja_grammar_order") {
+      return Array.isArray(q.options) && d.ordered.length === q.options.length;
+    }
+    return d.selected.length === 1;
+  }
   if (q.type === "mcq") return d.selected.length === 1;
   if (q.type === "multiple_select") return d.selected.length > 0;
   if (q.type === "ordering") return d.ordered.length === q.options.length;
@@ -790,13 +1173,88 @@ function sessionMarkup() {
   const set = state.data.sets.find((item) => item.id === (q.setId || s.setId));
   const result = s.result, isFlash = s.mode === "flashcards";
   const englishQuestion = q.subject === "english";
+  const isJapanese = q.subject === "japanese";
   const caption = isReview ? `Ôn câu sai · ${TYPE_LABELS[q.type] || q.type}` : isFlash ? "Thẻ ghi nhớ" : TYPE_LABELS[q.type];
   const percent = Math.round(s.done * 100 / s.target);
   const subjectLabel = isReview
     ? `ÔN CÂU SAI · ${subjectName(q.subject).toLocaleUpperCase("vi")}${q.grade ? ` / LỚP ${q.grade}` : ""}`
+    : isJapanese ? `TIẾNG NHẬT${q.level ? ` / ${html(q.level)}` : ""}${q.chapter ? ` · CHƯƠNG ${html(q.chapter)}` : ""}`
     : s.mode === "grammar" ? "GRAMMAR" : isFlash ? "VOCABULARY" : `${subjectName(q.subject).toLocaleUpperCase("vi")}${q.grade ? ` / LỚP ${q.grade}` : ""}`;
   const levelLabel = englishQuestion && q.level ? `<span> / ${html(q.level)}</span>` : "";
-  return `<div class="study-wrap"><div class="study-heading">${button(`${icon("back")} ${isReview ? "Thoát" : "Bộ bài"}`, "pause", "text-button")}<span>${isReview ? "Ôn riêng các câu sai" : html(set?.name)}</span><strong>Câu ${s.done + 1}/${s.target}</strong>${state.timerVisible ? `<span class="study-timer" aria-live="off">${icon("clock")}<span id="study-timer-text">00:00</span></span>` : ""}${button(icon("clock"), "toggle-timer", "icon-button", `title="${state.timerVisible ? "Ẩn đồng hồ" : "Hiện đồng hồ"}" aria-label="Bật/tắt đồng hồ"`)}</div><div class="progress-track study-progress" role="progressbar" aria-valuenow="${s.done}" aria-valuemin="0" aria-valuemax="${s.target}" aria-label="Tiến độ lượt học"><span style="width:${percent}%"></span></div>
+
+  let feedbackMarkup = "";
+  if (result) {
+    if (isFlash) {
+      feedbackMarkup = `
+        <div class="feedback ${result.correct ? "success" : "flash-repeat"}" role="status">
+          <div class="feedback-title">
+            ${result.correct ? icon("check") : '<span class="feedback-repeat-icon">↺</span>'}
+            <strong>${result.correct ? "Đã ghi nhớ!" : "Chưa nhớ — Sẽ ôn lại"}</strong>
+          </div>
+          <p>${html(q.explanation || (result.correct ? "Bạn đã ghi nhớ tốt từ này." : "Đừng lo, thẻ này sẽ quay lại ở cuối lượt học để bạn ôn lại."))}</p>
+          ${result.correct && result.dueAt ? `<small>Lịch hẹn ôn tiếp: ${day(result.dueAt)}</small>` : !result.correct ? '<small>Thẻ sẽ xuất hiện lại ở cuối lượt học để bạn ôn tập.</small>' : ""}
+        </div>
+      `;
+    } else if (isJapanese) {
+      const isRetry = Boolean(s.firstAnswers && s.firstAnswers[q.id] !== undefined);
+      const retryBadge = isRetry ? `<span class="pill retry-pill">↺ Luyện lại</span>` : "";
+
+      let fullSentenceHtml = "";
+      if (q.type === "ja_grammar_star") {
+        const orders = q.accepted_orders ?? q.acceptedOrders ?? [];
+        const firstOrder = orders[0] || [];
+        const optMap = new Map((q.options || []).map((o) => [o.id, o]));
+        const starPos = Number(q.star_position ?? q.starPosition) || 3;
+        const partsHtml = firstOrder.map((id, idx) => {
+          const opt = optMap.get(id);
+          const isStarSlot = (idx + 1) === starPos;
+          const t = renderRubyHtml(opt?.text ?? "");
+          return `<span class="ja-star-sentence-part ${isStarSlot ? "star-part-highlight" : ""}">${isStarSlot ? "★ " : ""}${t}</span>`;
+        }).join("");
+        fullSentenceHtml = `<div class="ja-feedback-sentence"><span class="ja-feedback-label">Thứ tự đúng:</span> <span lang="ja" class="ja-completed-text">${partsHtml}</span></div>`;
+      } else if (q.type === "ja_grammar_order") {
+        const orders = q.accepted_orders ?? q.acceptedOrders ?? [];
+        const firstOrder = orders[0] || [];
+        const sentenceText = formatJapaneseSentence(q.options, firstOrder);
+        const rendered = renderRubyHtml(sentenceText);
+        fullSentenceHtml = `<div class="ja-feedback-sentence"><span class="ja-feedback-label">Câu hoàn chỉnh:</span> <strong lang="ja" class="ja-completed-text">${rendered}</strong></div>`;
+      }
+
+      const expectedDisplay = displayAnswer(q.answer, q);
+      const expectedHtml = renderRubyHtml(expectedDisplay);
+
+      feedbackMarkup = `
+        <div class="feedback ${result.correct ? "success" : "wrong"}" role="status">
+          <div class="feedback-title">
+            ${icon(result.correct ? "check" : "close")}
+            <strong>${result.correct ? "Chính xác!" : "Chưa đúng, cùng xem lại nhé."}</strong>
+            ${retryBadge}
+          </div>
+          ${!result.correct ? `<p class="expected"><span>Đáp án đúng</span><strong lang="ja">${expectedHtml}</strong></p>` : ""}
+          ${fullSentenceHtml}
+          ${q.explanation ? `<p class="feedback-explanation">${renderRubyHtml(q.explanation)}</p>` : ""}
+          ${isRetry && !result.correct ? '<small>Câu này sẽ tiếp tục quay lại ở cuối lượt để bạn luyện đến khi đúng.</small>' : (!isReview && s.mode === "vocabulary" && !result.correct ? '<small>Từ này sẽ xuất hiện lại ở cuối lượt học để bạn luyện tập.</small>' : (result.dueAt ? `<small>Hẹn ôn lại: ${day(result.dueAt)}</small>` : ""))}
+        </div>
+      `;
+    } else {
+      feedbackMarkup = `
+        <div class="feedback ${result.correct ? "success" : "wrong"}" role="status">
+          <div class="feedback-title">${icon(result.correct ? "check" : "close")}<strong>${result.correct ? "Chính xác!" : "Chưa đúng, cùng xem lại nhé."}</strong></div>
+          ${!result.correct ? `<p class="expected"><span>Đáp án đúng</span><strong>${html(result.expected)}</strong></p>` : ""}
+          <p>${html(q.explanation)}</p>
+          ${!isReview && isVocabulary(s.mode) && !result.correct ? '<small>Từ này sẽ xuất hiện lại ở cuối lượt học.</small>' : result.dueAt ? `<small>Hẹn ôn lại: ${day(result.dueAt)}</small>` : ""}
+        </div>
+      `;
+    }
+  }
+
+  return `<div class="study-wrap"><div class="study-heading">
+    ${button(`${icon("back")} ${isReview ? "Thoát" : "Bộ bài"}`, "pause", "text-button")}
+    <span>${isReview ? "Ôn riêng các câu sai" : html(set?.name)}</span>
+    <strong>Câu ${s.done + 1}/${s.target}</strong>
+    ${state.timerVisible ? `<span class="study-timer" aria-live="off">${icon("clock")}<span id="study-timer-text">00:00</span></span>` : ""}
+    ${button(icon("clock"), "toggle-timer", "icon-button", `title="${state.timerVisible ? "Ẩn đồng hồ" : "Hiện đồng hồ"}" aria-label="Bật/tắt đồng hồ"`)}
+  </div><div class="progress-track study-progress" role="progressbar" aria-valuenow="${s.done}" aria-valuemin="0" aria-valuemax="${s.target}" aria-label="Tiến độ lượt học"><span style="width:${percent}%"></span></div>
     <div class="study-grid"><section class="question-card ${isFlash ? "flash-card-container" : ""}">
       <div class="question-meta"><span class="eyebrow">${subjectLabel}${levelLabel}</span><span class="pill">${html(caption)}</span></div>
       ${isFlash ? (() => {
@@ -864,28 +1322,12 @@ function sessionMarkup() {
             `}
           </div>
         </div>`;
-      })() : `
+      })() : isJapanese ? renderJapaneseQuestionContent(q, result) : `
         <div class="question-title"><h1>${html(q.prompt)}</h1>${englishQuestion && speechAvailable() ? button(icon("sound"), "speak", "icon-button", 'aria-label="Đọc câu hỏi tiếng Anh"') : ""}</div>
         ${q.context ? `<p class="question-context">${html(q.context)}</p>` : ""}
         <form data-answer-form>${answerMarkup(q, result)}</form>
       `}
-      ${result ? (isFlash ? `
-        <div class="feedback ${result.correct ? "success" : "flash-repeat"}" role="status">
-          <div class="feedback-title">
-            ${result.correct ? icon("check") : '<span class="feedback-repeat-icon">↺</span>'}
-            <strong>${result.correct ? "Đã ghi nhớ!" : "Chưa nhớ — Sẽ ôn lại"}</strong>
-          </div>
-          <p>${html(q.explanation || (result.correct ? "Bạn đã ghi nhớ tốt từ này." : "Đừng lo, thẻ này sẽ quay lại ở cuối lượt học để bạn ôn lại."))}</p>
-          ${result.correct && result.dueAt ? `<small>Lịch hẹn ôn tiếp: ${day(result.dueAt)}</small>` : !result.correct ? '<small>Thẻ sẽ xuất hiện lại ở cuối lượt học để bạn ôn tập.</small>' : ""}
-        </div>
-      ` : `
-        <div class="feedback ${result.correct ? "success" : "wrong"}" role="status">
-          <div class="feedback-title">${icon(result.correct ? "check" : "close")}<strong>${result.correct ? "Chính xác!" : "Chưa đúng, cùng xem lại nhé."}</strong></div>
-          ${!result.correct ? `<p class="expected"><span>Đáp án đúng</span><strong>${html(result.expected)}</strong></p>` : ""}
-          <p>${html(q.explanation)}</p>
-          ${!isReview && isVocabulary(s.mode) && !result.correct ? '<small>Từ này sẽ xuất hiện lại ở cuối lượt học.</small>' : result.dueAt ? `<small>Hẹn ôn lại: ${day(result.dueAt)}</small>` : ""}
-        </div>
-      `) : ""}
+      ${feedbackMarkup}
       <div class="answer-footer">
         <span>${result ? "Đã lưu kết quả" : isFlash ? (!state.flipped ? "Thử nhớ nghĩa và phát âm trước khi lật (Space để lật thẻ)" : "Tự đánh giá trí nhớ sau khi lật thẻ (← Chưa nhớ / → Đã nhớ)") : q.type === "multiple_select" ? "Chọn tất cả đáp án đúng" : "Enter để chấm"}</span>
         ${result ? button(`Tiếp theo ${icon("arrow")}`, "next", "button primary large") : isFlash ? (!state.flipped ? button(`Lật thẻ xem nghĩa ${icon("arrow")}`, "flip", "button primary large") : `<div class="flash-grades">${button("↺ Chưa nhớ (học lại)", "grade-forgot", "button subtle")}${button("✓ Đã nhớ", "grade-remember", "button primary")}</div>`) : button(`Chấm câu này ${icon("check")}`, "submit", "button primary large", `data-submit ${!answerReady() ? "disabled" : ""}`)}
@@ -908,8 +1350,8 @@ function sessionMarkup() {
         </div>
       ` : `
         ${shouldShowSubtopic(q, result) ? `<p class="study-subtopic">${html(q.subtopic)}</p>` : ""}
-        ${q.theory ? `<details class="theory"><summary>${icon("book")} Nhắc lý thuyết</summary><p>${html(q.theory)}</p></details>` : ""}
-        ${q.hint ? `<details class="theory"><summary>Gợi ý nhỏ</summary><p>${html(q.hint)}</p></details>` : ""}
+        ${q.theory ? `<details class="theory"><summary>${icon("book")} Nhắc lý thuyết</summary><p lang="vi">${isJapanese ? renderRubyHtml(q.theory) : html(q.theory)}</p></details>` : ""}
+        ${q.hint ? `<details class="theory"><summary>Gợi ý nhỏ</summary><p lang="vi">${isJapanese ? renderRubyHtml(q.hint) : html(q.hint)}</p></details>` : ""}
       `}
       <p class="study-tip">${isReview ? "Ôn lại để khắc sâu kiến thức.<br>Làm đúng sẽ loại khỏi danh sách sai." : "Cứ làm theo nhịp của bạn.<br>Tiến độ luôn được lưu lại."}</p>
     </aside></div></div>`;
@@ -921,15 +1363,42 @@ function resultMarkup() {
   const isReview = result.purpose === "review";
   const set = !isReview ? state.data.sets.find((item) => item.id === result.setId) : null;
   const stats = !isReview ? summaryForSet(result.setId, result.filters) : null;
+  const firstQ = result.results[0] ? state.data.snapshot.questions.find((q) => q.id === result.results[0].questionId) : null;
+  const isJapanese = (set && set.subject === "japanese") || (firstQ && firstQ.subject === "japanese");
   const vocabularyMode = isVocabulary(result.mode);
   const mistakesCount = state.data?.mistakes?.length || 0;
   const remaining = isReview
     ? mistakesCount
-    : result.mode === "grammar" ? stats?.grammarRemaining : result.mode === "practice" ? stats?.practiceRemaining : stats?.due;
-  const unit = isReview ? "câu sai" : vocabularyMode ? "thẻ" : "câu";
+    : result.mode === "grammar"
+      ? stats?.grammarRemaining
+      : result.mode === "kanji"
+        ? stats?.kanjiRemaining
+        : isJapanese && result.mode === "vocabulary"
+          ? stats?.vocabRemaining
+          : result.mode === "practice"
+            ? stats?.practiceRemaining
+            : stats?.due;
+  const unit = isReview ? "câu sai" : isJapanese ? "câu" : vocabularyMode ? "thẻ" : "câu";
   const wrong = result.results.filter((item) => !item.correct);
-  return `<section class="result-page"><div class="result-mark">${icon("check")}</div><span class="eyebrow">${isReview ? "HOÀN THÀNH LƯỢT ÔN SAI" : vocabularyMode ? "HOÀN THÀNH LƯỢT THẺ GHI NHỚ" : "HOÀN THÀNH LƯỢT BÀI TẬP"}</span><h1>${isReview ? "Đã ôn tập xong." : vocabularyMode ? "Đã nạp xong từ vựng." : "Thêm một bước tiến."}</h1><p>${isReview ? "Ôn riêng các câu sai" : html(set?.name)} · ${result.total} ${unit} đã ${isReview ? "làm" : "hoàn thành"}</p>
-    <div class="result-stats"><div><strong>${result.correct}<small>/${result.total}</small></strong><span>${vocabularyMode ? "đã nhớ" : "đúng"}</span></div><div><strong>${Math.round(result.correct * 100 / result.total)}<small>%</small></strong><span>${vocabularyMode ? "tỉ lệ nhớ" : "độ chính xác"}</span></div><div><strong>${Math.max(1, Math.round(result.durationMs / 60000))}</strong><span>phút tập trung</span></div></div>
+
+  const eyebrowText = isReview
+    ? "HOÀN THÀNH LƯỢT ÔN SAI"
+    : isJapanese
+      ? (result.mode === "vocabulary" ? "HOÀN THÀNH LƯỢT TỪ VỰNG" : result.mode === "kanji" ? "HOÀN THÀNH LƯỢT HÁN TỰ" : "HOÀN THÀNH LƯỢT NGỮ PHÁP")
+      : vocabularyMode
+        ? "HOÀN THÀNH LƯỢT THẺ GHI NHỚ"
+        : "HOÀN THÀNH LƯỢT BÀI TẬP";
+
+  const titleText = isReview
+    ? "Đã ôn tập xong."
+    : isJapanese
+      ? "Thêm một bước tiến."
+      : vocabularyMode
+        ? "Đã nạp xong từ vựng."
+        : "Thêm một bước tiến.";
+
+  return `<section class="result-page"><div class="result-mark">${icon("check")}</div><span class="eyebrow">${eyebrowText}</span><h1>${titleText}</h1><p>${isReview ? "Ôn riêng các câu sai" : html(set?.name)} · ${result.total} ${unit} đã ${isReview ? "làm" : "hoàn thành"}</p>
+    <div class="result-stats"><div><strong>${result.correct}<small>/${result.total}</small></strong><span>${!isJapanese && vocabularyMode ? "đã nhớ" : "đúng"}</span></div><div><strong>${Math.round(result.correct * 100 / result.total)}<small>%</small></strong><span>${!isJapanese && vocabularyMode ? "tỉ lệ nhớ" : "độ chính xác"}</span></div><div><strong>${Math.max(1, Math.round(result.durationMs / 60000))}</strong><span>phút tập trung</span></div></div>
     ${result.setIds && result.setIds.length > 1 ? `<div class="result-set-breakdown"><span class="eyebrow">KẾT QUẢ THEO TỪNG BỘ</span>${result.setIds.map((sId) => {
       const s = state.data.sets.find((item) => item.id === sId);
       const qs = result.results.filter((entry) => {
@@ -943,11 +1412,26 @@ function resultMarkup() {
     ${result.repeats ? `<p>Bạn đã ôn lại ${result.repeats} lần để nhớ chắc hơn.</p>` : ""}
     <div class="result-actions">${isReview
       ? (remaining ? button(`Ôn tiếp ${Math.min(20, remaining)} câu sai còn lại ${icon("arrow")}`, "review-mistakes", "button primary large") : '<span class="completed-note">Tuyệt vời! Bạn đã làm đúng hết các câu sai.</span>')
-      : vocabularyMode
-        ? (remaining ? button(`Ôn tiếp ${Math.min(30, remaining)} thẻ đến hạn ${icon("arrow")}`, "next-batch", "button primary large") : '<span class="completed-note">Đã xong lượt này. Hẹn bạn khi có từ đến hạn ôn tiếp!</span>')
-        : (remaining ? button(`Làm tiếp ${Math.min(30, remaining)} câu ${icon("arrow")}`, "next-batch", "button primary large") : '<span class="completed-note">Đã hoàn thành các câu phù hợp trong bộ này.</span>')
-    }${vocabularyMode && stats?.grammarRemaining ? button(`Làm bài tập áp dụng (Grammar) ${icon("arrow")}`, "begin", "button subtle", 'data-mode="grammar"') : ""}${button(isReview ? "Về trang chủ" : "Về bộ bài", "close-result", "button subtle")}</div>
-    ${wrong.length ? `<details class="result-review"><summary>${vocabularyMode ? `Xem lại ${wrong.length} thẻ cần ôn thêm` : `Xem lại ${wrong.length} câu chưa đúng`}</summary>${wrong.map((item) => { const q = state.data.snapshot.questions.find((q) => q.id === item.questionId); return q ? `<article><h3>${html(q.context || q.prompt)}</h3><p class="muted">${vocabularyMode ? "Tự đánh giá: Chưa nhớ (đã xếp ôn lại)" : `Bạn trả lời: ${html(typeof item.answer === "object" ? displayAnswer(item.answer) : item.answer)}`}</p><p><strong>${html(displayAnswer(q.answer))}</strong></p><p>${html(q.explanation)}</p></article>` : ""; }).join("")}</details>` : ""}</section>`;
+      : isJapanese
+        ? (remaining ? button(`Làm tiếp ${Math.min(30, remaining)} câu ${icon("arrow")}`, "next-batch", "button primary large") : '<span class="completed-note">Đã hoàn thành các câu phù hợp trong phạm vi này.</span>')
+        : vocabularyMode
+          ? (remaining ? button(`Ôn tiếp ${Math.min(30, remaining)} thẻ đến hạn ${icon("arrow")}`, "next-batch", "button primary large") : '<span class="completed-note">Đã xong lượt này. Hẹn bạn khi có từ đến hạn ôn tiếp!</span>')
+          : (remaining ? button(`Làm tiếp ${Math.min(30, remaining)} câu ${icon("arrow")}`, "next-batch", "button primary large") : '<span class="completed-note">Đã hoàn thành các câu phù hợp trong bộ này.</span>')
+    }${!isJapanese && vocabularyMode && stats?.grammarRemaining ? button(`Làm bài tập áp dụng (Grammar) ${icon("arrow")}`, "begin", "button subtle", 'data-mode="grammar"') : ""}${button(isReview ? "Về trang chủ" : "Về bộ bài", "close-result", "button subtle")}</div>
+    ${wrong.length ? `<details class="result-review"><summary>${!isJapanese && vocabularyMode ? `Xem lại ${wrong.length} thẻ cần ôn thêm` : `Xem lại ${wrong.length} câu chưa đúng`}</summary>${wrong.map((item) => {
+      const q = state.data.snapshot.questions.find((q) => q.id === item.questionId);
+      if (!q) return "";
+      const isJa = q.subject === "japanese";
+      const isOrder = isJa && q.type === "ja_grammar_order";
+      const promptDisplay = isJa
+        ? (isOrder ? html(q.context || q.prompt) : renderRubyHtml(q.context || q.prompt))
+        : html(q.context || q.prompt);
+      const answerDisplay = isJa ? renderRubyHtml(displayAnswer(q.answer, q)) : html(displayAnswer(q.answer));
+      const yourAnswer = isJa
+        ? (item.answer != null && item.answer !== "" ? renderRubyHtml(displayAnswer(item.answer, q)) : "Chưa trả lời")
+        : (!isJapanese && vocabularyMode ? "Tự đánh giá: Chưa nhớ (đã xếp ôn lại)" : html(typeof item.answer === "object" ? displayAnswer(item.answer) : item.answer));
+      return `<article><h3 lang="${isJa && !isOrder ? "ja" : "vi"}">${promptDisplay}</h3><p class="muted">Bạn trả lời: <span lang="${isJa ? "ja" : "vi"}">${yourAnswer}</span></p><p><strong>${answerDisplay}</strong></p>${q.explanation ? `<p lang="vi">${isJa ? renderRubyHtml(q.explanation) : html(q.explanation)}</p>` : ""}</article>`;
+    }).join("")}</details>` : ""}</section>`;
 }
 
 
@@ -1079,6 +1563,14 @@ function statsMarkup() {
           </div>
           <div><h3>Từ vựng (SRS)</h3><p>${number(accByDomain.vocabulary.correct)}/${number(accByDomain.vocabulary.total)} câu</p></div>
         </div>
+        ${accByDomain.kanji?.total > 0 ? `
+        <div class="accuracy-card glass">
+          <div class="accuracy-ring" style="--accuracy:${accByDomain.kanji.accuracy ?? 0}%;">
+            <span>${accByDomain.kanji.accuracy != null ? `${accByDomain.kanji.accuracy}%` : "—"}</span>
+          </div>
+          <div><h3>Hán tự</h3><p>${number(accByDomain.kanji.correct)}/${number(accByDomain.kanji.total)} câu</p></div>
+        </div>
+        ` : ""}
         <div class="accuracy-card glass">
           <div class="accuracy-ring" style="--accuracy:${accByDomain.practice.accuracy ?? 0}%;">
             <span>${accByDomain.practice.accuracy != null ? `${accByDomain.practice.accuracy}%` : "—"}</span>
@@ -1210,7 +1702,7 @@ function confirmation(title, text, action, label = "Xác nhận") {
   showModal(`<h2>${title}</h2><p class="modal-description">${text}</p><div class="modal-actions">${button("Quay lại", "close-modal", "button subtle")}${button(label, "confirm", "button primary")}</div>`);
 }
 function importMarkup(message = "") {
-  showModal(`<h2>Thêm một bộ bài.</h2><p class="modal-description">Mỗi file CSV trở thành một bộ riêng để bạn chọn học.</p><label class="upload-area" data-drop-zone>${icon("upload")}<strong>Chọn file hoặc kéo CSV vào đây</strong><span>UTF-8 · Tối đa 5 MB · 2.000 câu</span><input type="file" accept=".csv,text/csv" data-csv aria-label="Chọn file CSV"></label><div id="csv-preview">${message}</div><a class="guide-link" href="./QUESTION_CSV_GUIDE.md" download>${icon("download")} Hướng dẫn tạo CSV cho AI</a>`);
+  showModal(`<h2>Thêm một bộ bài.</h2><p class="modal-description">Mỗi file CSV trở thành một bộ riêng để bạn chọn học.</p><label class="upload-area" data-drop-zone>${icon("upload")}<strong>Chọn file hoặc kéo CSV vào đây</strong><span>UTF-8 · Tối đa 5 MB · 2.000 câu</span><input type="file" accept=".csv,text/csv" data-csv aria-label="Chọn file CSV"></label><div id="csv-preview">${message}</div><div style="display:flex;flex-direction:column;gap:8px"><a class="guide-link" href="./QUESTION_CSV_GUIDE.md" download>${icon("download")} Hướng dẫn tạo CSV cho AI</a><a class="guide-link" href="./JAPANESE_CSV_GUIDE.md" download>${icon("download")} Hướng dẫn tạo bộ bài Tiếng Nhật (ja-v1)</a></div>`);
 }
 async function loadCsv(file) {
   if (state.busy) return;
@@ -1229,10 +1721,14 @@ async function loadCsv(file) {
     const subject = csvPreview.rows[0].subject;
     const grammar = csvPreview.rows.filter((q) => q.domain === "grammar").length;
     const vocabulary = csvPreview.rows.filter((q) => q.domain === "vocabulary").length;
+    const kanji = csvPreview.rows.filter((q) => q.domain === "kanji").length;
     const grades = [...new Set(csvPreview.rows.map((q) => q.grade).filter(Boolean))].sort();
-    const detail = subject === "english"
-      ? `${grammar} Grammar · ${vocabulary} Vocabulary`
-      : `${subjectName(subject)}${grades.length ? ` · Lớp ${grades.join(", ")}` : ""} · Practice`;
+    const levels = [...new Set(csvPreview.rows.map((q) => q.level).filter(Boolean))].sort();
+    const detail = subject === "japanese"
+      ? `Tiếng Nhật ${levels.length ? levels.join(", ") : ""} · ${kanji ? `${kanji} Hán tự · ` : ""}${grammar ? `${grammar} Ngữ pháp · ` : ""}${vocabulary ? `${vocabulary} Từ vựng` : ""}`
+      : subject === "english"
+        ? `${grammar} Grammar · ${vocabulary} Vocabulary`
+        : `${subjectName(subject)}${grades.length ? ` · Lớp ${grades.join(", ")}` : ""} · Practice`;
     const name = file.name.replace(/\.csv$/i, "").replaceAll("_", " ");
     document.querySelector("#csv-preview").innerHTML = `<div class="validation success"><strong>${icon("check")} ${csvPreview.rows.length} câu hợp lệ</strong><span>${html(detail)}</span></div><label class="field-label" for="set-name">Tên bộ bài<input id="set-name" maxlength="120" value="${html(name)}"></label><div class="modal-actions">${button("Thêm vào kho", "save-csv", "button primary large")}</div>`;
   } catch (error) {
@@ -1255,11 +1751,12 @@ async function submit(answer) {
 function renderMixModal(subject, mode = null) {
   const sets = state.data.sets.filter((s) => s.subject === subject);
   const isEnglish = subject === "english";
-  const defaultMode = mode || (isEnglish ? "grammar" : "practice");
+  const isJapanese = subject === "japanese";
+  const defaultMode = mode || (isJapanese ? "grammar" : isEnglish ? "grammar" : "practice");
   const subjects = [...new Set(state.data.sets.map((s) => s.subject))].sort();
   showModal(`<h2>Trộn nhiều bộ bài</h2><p class="modal-description">Chọn từ 2 bộ bài trở lên cùng môn để học chung một lượt.</p>
     ${subjects.length > 1 ? `<label class="field-label">Môn học<select id="mix-subject">${subjects.map((s) => option(s, subjectName(s), subject)).join("")}</select></label>` : ""}
-    ${isEnglish ? `<label class="field-label">Chế độ học<select id="mix-mode">${option("flashcards", "Vocabulary (Từ vựng) — Thẻ ghi nhớ", defaultMode === "grammar" ? "" : "flashcards")}${option("grammar", "Grammar (Ngữ pháp) — Bài tập áp dụng nhiều dạng", defaultMode === "grammar" ? "grammar" : "")}</select></label>` : ""}
+    ${isJapanese ? `<label class="field-label">Chế độ học<select id="mix-mode">${option("grammar", "Ngữ pháp (Grammar)", defaultMode === "grammar" ? "grammar" : "")}${option("kanji", "Hán tự (Kanji)", defaultMode === "kanji" ? "kanji" : "")}${option("vocabulary", "Từ vựng (Luyện tập bài tập)", defaultMode === "vocabulary" ? "vocabulary" : "")}</select></label>` : isEnglish ? `<label class="field-label">Chế độ học<select id="mix-mode">${option("flashcards", "Vocabulary (Từ vựng) — Thẻ ghi nhớ", defaultMode === "grammar" ? "" : "flashcards")}${option("grammar", "Grammar (Ngữ pháp) — Bài tập áp dụng nhiều dạng", defaultMode === "grammar" ? "grammar" : "")}</select></label>` : ""}
     <label class="field-label">Chọn các bộ muốn trộn (tối thiểu 2 bộ)</label>
     <div class="mix-set-list">${sets.map((s) => `<label class="mix-set-item"><input type="checkbox" name="mix-set" value="${html(s.id)}" checked><div><strong>${html(s.name)}</strong><small>${s.count} câu</small></div></label>`).join("")}</div>
     <label class="field-label">Số câu mỗi lượt<select id="mix-limit">${option("10", "10 câu", "30")}${option("20", "20 câu", "30")}${option("30", "30 câu", "30")}</select></label>
@@ -1346,7 +1843,7 @@ async function invokeAction(target) {
     const subjEl = modal.querySelector("#mix-subject");
     const subj = subjEl ? subjEl.value : selectedSet()?.subject || state.data.sets[0]?.subject;
     const modeEl = modal.querySelector("#mix-mode");
-    const mode = modeEl ? modeEl.value : (subj === "english" ? "grammar" : "practice");
+    const mode = modeEl ? modeEl.value : (subj === "japanese" ? "grammar" : subj === "english" ? "grammar" : "practice");
     const limitEl = modal.querySelector("#mix-limit");
     const limit = Number(limitEl?.value) || 30;
 
@@ -1368,12 +1865,15 @@ async function invokeAction(target) {
     state.flipped = false;
     const setId = target.dataset.setId || state.data.selectedSetId;
     let targetSetId = setId;
-    const currentDue = summaryForSet(targetSetId).dueToday || 0;
-    if (currentDue === 0) {
-      const otherSet = state.data.sets.find((s) => s.subject === "english" && (summaryForSet(s.id).dueToday || 0) > 0);
-      if (otherSet) targetSetId = otherSet.id;
-    }
-    const count = summaryForSet(targetSetId).dueToday || 0;
+    const targetSet = state.data.sets.find((s) => s.id === targetSetId);
+    const isJapanese = targetSet?.subject === "japanese";
+    const filters = isJapanese ? {
+      chapter: state.chapter,
+      lesson: state.lesson,
+      level: state.level,
+      topic: state.topic,
+    } : {};
+    const count = summaryForSet(targetSetId, filters).dueToday || 0;
     if (count === 0) {
       toast("Không có từ vựng nào đến hạn ôn hôm nay.");
       return;
@@ -1383,9 +1883,10 @@ async function invokeAction(target) {
       await repository.selectSet(targetSetId);
       await repository.startSession({
         setId: targetSetId,
-        mode: "flashcards",
+        mode: isJapanese ? "vocabulary" : "flashcards",
         dueOnly: true,
         limit,
+        ...filters,
       });
       state.view = "study";
     });
@@ -1404,15 +1905,33 @@ async function invokeAction(target) {
   if (name === "font-size-reset") { applyFontSize(16); return; }
   if (name === "begin") {
     state.flipped = false;
-    await run(async () => { await repository.startSession({ setId: state.data.selectedSetId, mode: target.dataset.mode, level: state.level, topic: state.topic, grade: state.grade, type: state.type, limit: Number(state.limit) || 30 }); state.view = "study"; });
-    window.scrollTo(0, 0); return;
+    const isJapanese = selectedSet()?.subject === "japanese";
+    await run(async () => {
+      await repository.startSession({
+        setId: state.data.selectedSetId,
+        mode: target.dataset.mode,
+        level: state.level,
+        topic: state.topic,
+        grade: state.grade,
+        type: state.type,
+        limit: Number(state.limit) || 30,
+        ...(isJapanese ? {
+          chapter: state.chapter,
+          lesson: state.lesson,
+          section: state.section,
+        } : {}),
+      });
+      state.view = "study";
+    });
+    window.scrollTo(0, 0);
+    return;
   }
   if (name === "option") {
     if (currentSession()?.result) return;
     const index = Number(target.dataset.index);
     const q = currentQuestion();
     if (!q) return;
-    if (q.type === "mcq") {
+    if (q.type === "mcq" || q.subject === "japanese") {
       state.draft.selected = [index];
       const form = root.querySelector("[data-answer-form]");
       if (form) {
@@ -1441,6 +1960,32 @@ async function invokeAction(target) {
     const index = Number(target.dataset.index);
     if (name === "add-token" && !state.draft.ordered.includes(index)) state.draft.ordered.push(index);
     else if (name === "remove-token") state.draft.ordered = state.draft.ordered.filter((i) => i !== index);
+    saveDraft();
+    const form = root.querySelector("[data-answer-form]");
+    if (form) {
+      form.innerHTML = answerMarkup(currentQuestion(), null);
+      updateSubmit();
+    } else {
+      render();
+    }
+    return;
+  }
+  if (name === "ja-order-undo") {
+    if (currentSession()?.result) return;
+    state.draft.ordered.pop();
+    saveDraft();
+    const form = root.querySelector("[data-answer-form]");
+    if (form) {
+      form.innerHTML = answerMarkup(currentQuestion(), null);
+      updateSubmit();
+    } else {
+      render();
+    }
+    return;
+  }
+  if (name === "ja-order-reset") {
+    if (currentSession()?.result) return;
+    state.draft.ordered = [];
     saveDraft();
     const form = root.querySelector("[data-answer-form]");
     if (form) {
@@ -1512,7 +2057,7 @@ async function invokeAction(target) {
   }
   if (name === "choose") {
     const set = state.data.sets.find((item) => item.id === target.dataset.id);
-    await run(async () => { await repository.selectSet(target.dataset.id); state.subject = set?.subject || "all"; state.level = state.topic = state.grade = state.type = "all"; state.limit = 30; state.view = "home"; });
+    await run(async () => { await repository.selectSet(target.dataset.id); state.subject = set?.subject || "all"; state.level = state.topic = state.grade = state.type = state.chapter = state.lesson = state.section = "all"; state.limit = 30; state.view = "home"; });
     window.scrollTo(0, 0);
     return;
   }
@@ -1527,7 +2072,7 @@ async function invokeAction(target) {
     const preview = csvPreview, setName = document.querySelector("#set-name").value.trim();
     if (!setName) { toast("Hãy đặt tên cho bộ bài.", true); return; }
     target.disabled = true;
-    await run(async () => { await repository.importQuestions(preview.rows, preview.filename, setName); closeModal(); state.view = "home"; state.level = state.topic = state.type = "all"; state.limit = 30; toast(`Đã thêm ${preview.rows.length} câu vào bộ mới.`); }); return;
+    await run(async () => { await repository.importQuestions(preview.rows, preview.filename, setName); closeModal(); state.view = "home"; state.level = state.topic = state.type = state.chapter = state.lesson = state.section = "all"; state.limit = 30; toast(`Đã thêm ${preview.rows.length} câu vào bộ mới.`); }); return;
   }
   if (name === "rename") {
     const set = state.data.sets.find((item) => item.id === target.dataset.id);
@@ -1565,7 +2110,7 @@ async function invokeAction(target) {
         ${button("Đóng", "close-modal", "button subtle")}
         ${button(`${icon("check")} Sao chép link`, "copy-share-link", "button primary large")}
       </div>`);
-    return;
+      return;
   }
   if (name === "copy-share-link") {
     const input = modal.querySelector("#share-link-input");
@@ -1617,19 +2162,22 @@ document.addEventListener("change", async (event) => {
   const target = event.target;
   if (target.matches("[data-csv]") && target.files[0]) { void loadCsv(target.files[0]); return; }
   if (target.matches("[data-match]")) { state.draft.matches[target.dataset.match] = target.value; saveDraft(); updateSubmit(); return; }
-  if (target.dataset.filter === "set") { await run(async () => { await repository.selectSet(target.value); state.level = state.topic = state.grade = state.type = "all"; state.limit = 30; }); return; }
+  if (target.dataset.filter === "set") { await run(async () => { await repository.selectSet(target.value); state.level = state.topic = state.grade = state.type = state.chapter = state.lesson = state.section = "all"; state.limit = 30; }); return; }
   if (target.dataset.filter === "subject") {
     state.subject = target.value;
     const first = state.data.sets.find((set) => state.subject === "all" || set.subject === state.subject);
     if (first && first.id !== state.data.selectedSetId) {
-      await run(async () => { await repository.selectSet(first.id); state.level = state.topic = state.grade = state.type = "all"; state.limit = 30; });
+      await run(async () => { await repository.selectSet(first.id); state.level = state.topic = state.grade = state.type = state.chapter = state.lesson = state.section = "all"; state.limit = 30; });
     } else {
-      state.level = state.topic = state.grade = state.type = "all"; state.limit = 30;
+      state.level = state.topic = state.grade = state.type = state.chapter = state.lesson = state.section = "all"; state.limit = 30;
       render();
     }
     return;
   }
   if (target.dataset.filter === "level") { state.level = target.value; state.topic = "all"; render(); }
+  if (target.dataset.filter === "chapter") { state.chapter = target.value; state.lesson = "all"; state.section = "all"; state.topic = "all"; render(); }
+  if (target.dataset.filter === "lesson") { state.lesson = target.value; state.section = "all"; state.topic = "all"; render(); }
+  if (target.dataset.filter === "section") { state.section = target.value; state.topic = "all"; render(); }
   if (target.dataset.filter === "grade") { state.grade = target.value; state.topic = "all"; render(); }
   if (target.dataset.filter === "topic") { state.topic = target.value; render(); }
   if (target.dataset.filter === "type") { state.type = target.value; render(); }

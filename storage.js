@@ -1,4 +1,4 @@
-import { buildCsvPreview, buildLibrary, buildStats, displayAnswer, evaluateAnswer, isReviewDue, learningKeyFor, nextReview, QUESTION_TYPES, selectQuestions } from "./core.js";
+import { buildCsvPreview, buildLibrary, buildStats, displayAnswer, evaluateAnswer, isReviewDue, learningKeyFor, nextReview, QUESTION_TYPES, JA_QUESTION_TYPES, selectQuestions } from "./core.js";
 import { questionsToCsv, mistakeQuestions } from "./stats.js";
 
 const DB_NAME = "nam-english-local";
@@ -6,7 +6,8 @@ const STORE = "workspace";
 const LOCAL_KEY = "nam-english:workspace-v5";
 const PARTS = ["questions", "reviews", "attempts", "imports"];
 const CHANNEL = "nam-english-workspace";
-const MODES = ["grammar", "practice", "vocabulary", "flashcards"];
+const MODES = ["grammar", "practice", "vocabulary", "flashcards", "kanji", "review"];
+const ALL_QUESTION_TYPES = [...QUESTION_TYPES, ...JA_QUESTION_TYPES];
 const MAX_TIMESTAMP = 8.64e15;
 const copy = (value) => structuredClone(value);
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -17,7 +18,10 @@ const fresh = () => ({ ...emptyData(), revision: 0, session: null, summary: null
 const dataOnly = (w) => Object.fromEntries(PARTS.map((part) => [part, copy(w[part] ?? [])]));
 const hasData = (w) => PARTS.some((part) => w?.[part]?.length);
 const validTimestamp = (value) => Number.isFinite(value) && Math.abs(value) <= MAX_TIMESTAMP;
-const domainForMode = (mode) => mode === "flashcards" ? "vocabulary" : mode;
+const domainForMode = (mode) => {
+  if (mode === "flashcards") return "vocabulary";
+  return mode;
+};
 const isPlainObject = (value) => value != null && typeof value === "object" && !Array.isArray(value);
 
 function isStoredAnswer(value) {
@@ -158,7 +162,7 @@ class LocalBackend {
 }
 
 const setQuestions = (w, setId) => w.questions.filter((q) => questionSetIdOf(q) === setId);
-function selection(w, { setId, setIds, domain, level = "all", topic = "all", grade = "all", type = "all", limit = 30, now, dueOnly = false }) {
+function selection(w, { setId, setIds, domain, level = "all", topic = "all", grade = "all", type = "all", chapter = "all", lesson = "all", limit = 30, now, dueOnly = false }) {
   const targetSets = Array.isArray(setIds) && setIds.length > 0 ? new Set(setIds) : (setId ? new Set([setId]) : null);
   const questions = targetSets ? w.questions.filter((q) => targetSets.has(questionSetIdOf(q))) : w.questions;
   const byId = new Map(questions.map((q) => [q.id, q]));
@@ -169,12 +173,36 @@ function selection(w, { setId, setIds, domain, level = "all", topic = "all", gra
     if (attempt.purpose === "review") continue;
     const q = byId.get(attempt.questionId);
     if (!q) continue;
-    if (q.domain !== "vocabulary") done.add(q.id);
-    else if (attempt.correct) {
-      const qSetId = questionSetIdOf(q);
-      if (!completedKeysBySet.has(qSetId)) completedKeysBySet.set(qSetId, new Set());
-      completedKeysBySet.get(qSetId).add(learningKeyFor(q));
+    if (q.subject === "japanese") {
+      done.add(q.id);
+    } else {
+      if (q.domain !== "vocabulary") done.add(q.id);
+      else if (attempt.correct) {
+        const qSetId = questionSetIdOf(q);
+        if (!completedKeysBySet.has(qSetId)) completedKeysBySet.set(qSetId, new Set());
+        completedKeysBySet.get(qSetId).add(learningKeyFor(q));
+      }
     }
+  }
+
+  const isJapanese = questions.some((q) => q.subject === "japanese");
+
+  if (isJapanese) {
+    return selectQuestions(questions, w.reviews, {
+      setId: null,
+      domain,
+      level,
+      topic,
+      grade,
+      type,
+      chapter,
+      lesson,
+      now,
+      limit: Math.max(1, Math.min(30, Number(limit) || 30)),
+      completedQuestionIds: [...done],
+      completedLearningKeys: [],
+      dueOnly: Boolean(dueOnly),
+    });
   }
 
   let vocabularyKeysCompleted = [];
@@ -271,6 +299,8 @@ function validSession(s, w) {
           .map((q) => [q.id, q])
       );
     }
+    const isJapanese = [...questions.values()].some((q) => q.subject === "japanese");
+    if (isJapanese && s.mode === "flashcards") return false;
   }
 
   if (!s.queue.every((id) => typeof id === "string" && questions.has(id))) return false;
@@ -287,8 +317,10 @@ function validSession(s, w) {
       (s.filters.level != null && typeof s.filters.level !== "string") ||
       (s.filters.topic != null && typeof s.filters.topic !== "string") ||
       (s.filters.grade != null && typeof s.filters.grade !== "string") ||
+      (s.filters.chapter != null && typeof s.filters.chapter !== "string" && typeof s.filters.chapter !== "number") ||
+      (s.filters.lesson != null && typeof s.filters.lesson !== "string" && typeof s.filters.lesson !== "number") ||
       (s.filters.dueOnly != null && typeof s.filters.dueOnly !== "boolean") ||
-      (s.filters.type != null && (typeof s.filters.type !== "string" || (!QUESTION_TYPES.includes(s.filters.type) && s.filters.type !== "all"))) ||
+      (s.filters.type != null && (typeof s.filters.type !== "string" || (!ALL_QUESTION_TYPES.includes(s.filters.type) && s.filters.type !== "all"))) ||
       (s.filters.limit != null && (!Number.isInteger(s.filters.limit) || s.filters.limit < 1 || s.filters.limit > 30)))) return false;
   if (s.result == null) return validDraft(s.draft);
   if (!isPlainObject(s.result) || typeof s.result.correct !== "boolean" ||
@@ -297,7 +329,7 @@ function validSession(s, w) {
   const latest = s.log.at(-1);
   const current = s.queue[0];
   return Boolean(latest && latest.questionId === current && latest.correct === s.result.correct &&
-    s.result.expected === displayAnswer(questions.get(current).answer));
+    s.result.expected === displayAnswer(questions.get(current).answer, questions.get(current)));
 }
 
 function validSummary(summary, w) {
@@ -342,14 +374,18 @@ function validSummary(summary, w) {
           .map((q) => [q.id, q])
       );
     }
+    const isJapanese = [...questions.values()].some((q) => q.subject === "japanese");
+    if (isJapanese && summary.mode === "flashcards") return false;
   }
 
   if (summary.filters != null && (!isPlainObject(summary.filters) ||
       (summary.filters.level != null && typeof summary.filters.level !== "string") ||
       (summary.filters.topic != null && typeof summary.filters.topic !== "string") ||
       (summary.filters.grade != null && typeof summary.filters.grade !== "string") ||
+      (summary.filters.chapter != null && typeof summary.filters.chapter !== "string" && typeof summary.filters.chapter !== "number") ||
+      (summary.filters.lesson != null && typeof summary.filters.lesson !== "string" && typeof summary.filters.lesson !== "number") ||
       (summary.filters.dueOnly != null && typeof summary.filters.dueOnly !== "boolean") ||
-      (summary.filters.type != null && (typeof summary.filters.type !== "string" || (!QUESTION_TYPES.includes(summary.filters.type) && summary.filters.type !== "all"))) ||
+      (summary.filters.type != null && (typeof summary.filters.type !== "string" || (!ALL_QUESTION_TYPES.includes(summary.filters.type) && summary.filters.type !== "all"))) ||
       (summary.filters.limit != null && (!Number.isInteger(summary.filters.limit) || summary.filters.limit < 1 || summary.filters.limit > 30)))) return false;
 
   if (!summary.results.every((entry) => isPlainObject(entry) && typeof entry.questionId === "string" &&
@@ -358,14 +394,122 @@ function validSummary(summary, w) {
     summary.correct === summary.results.filter((entry) => entry.correct).length;
 }
 
+function applyJapaneseSrs(w, learningKey, correct, q, now = Date.now()) {
+  const index = w.reviews.findIndex((r) => r.learningKey === learningKey);
+  const previous = index !== -1 ? w.reviews[index] : null;
+
+  if (previous) {
+    if (correct) {
+      if (!isReviewDue(previous, now) && previous.repetitions > 0) {
+        const updated = {
+          ...previous,
+          lastReviewedAt: now,
+          updatedAt: now,
+        };
+        w.reviews[index] = updated;
+        return updated;
+      }
+    } else {
+      if (previous.intervalDays === 0 && previous.dueAt > now) {
+        const updated = {
+          ...previous,
+          lastReviewedAt: now,
+          updatedAt: now,
+        };
+        w.reviews[index] = updated;
+        return updated;
+      }
+    }
+  }
+
+  const reviewUpdate = nextReview(previous, correct, now);
+  const review = {
+    ...reviewUpdate,
+    learningKey,
+    lastQuestionId: q?.id,
+    lastSetId: q ? questionSetIdOf(q) : undefined,
+    firstCompletedAt: previous?.firstCompletedAt ?? (correct ? now : undefined),
+  };
+
+  if (index === -1) {
+    w.reviews.push(review);
+  } else {
+    w.reviews[index] = review;
+  }
+  return review;
+}
+
+function handleJapaneseSrsSubmit(w, s, q, received, correct, isRetry) {
+  const now = Date.now();
+  addAttempt(w, q, received, correct, {
+    id: `${s.id}:${s.step}`,
+    mode: s.mode,
+    purpose: s.purpose || "study",
+    isRetry,
+    dueOnly: Boolean(s.filters?.dueOnly),
+  });
+
+  const key = learningKeyFor(q);
+  if (!key) return null;
+
+  s.firstAnswers ??= {};
+  s.keyEvaluated ??= {};
+
+  if (!isRetry && s.firstAnswers[q.id] === undefined) {
+    s.firstAnswers[q.id] = correct;
+  }
+
+  const targetQIds = s.keyQuestions?.[key] ?? [q.id];
+  const allAnswered = targetQIds.every((id) => s.firstAnswers[id] !== undefined);
+  if (allAnswered && !s.keyEvaluated[key]) {
+    const allCorrect = targetQIds.every((id) => s.firstAnswers[id] === true);
+    const rev = applyJapaneseSrs(w, key, allCorrect, q, now);
+    s.keyEvaluated[key] = true;
+    return rev;
+  }
+
+  return w.reviews.find((r) => r.learningKey === key) ?? null;
+}
+
+function finalizeSessionSrsEvents(w, s) {
+  if (!s || s.mode !== "vocabulary" || !s.keyQuestions) return;
+  const now = Date.now();
+  s.firstAnswers ??= {};
+  s.keyEvaluated ??= {};
+  for (const [key, qIds] of Object.entries(s.keyQuestions)) {
+    if (!s.keyEvaluated[key]) {
+      const answeredIds = qIds.filter((id) => s.firstAnswers[id] !== undefined);
+      if (answeredIds.length > 0) {
+        const allCorrect = answeredIds.length === qIds.length && answeredIds.every((id) => s.firstAnswers[id] === true);
+        const q = w.questions.find((item) => item.id === answeredIds[0]);
+        applyJapaneseSrs(w, key, allCorrect, q, now);
+        s.keyEvaluated[key] = true;
+      }
+    }
+  }
+}
+
 function addAttempt(w, q, answer, correct, extra = {}) {
   const now = Date.now(), attemptId = extra.id || newId();
   if (w.attempts.some((a) => a.id === attemptId)) return null;
   const purpose = extra.purpose === "review" ? "review" : "study";
+  const isJapanese = q.subject === "japanese";
+  const isRetry = Boolean(extra.isRetry);
+  const origin = extra.origin || (
+    isJapanese
+      ? (purpose === "review"
+          ? "ja_mistakes"
+          : (extra.dueOnly
+              ? "ja_srs"
+              : (isRetry ? "ja_retry" : "ja_unseen")))
+      : undefined
+  );
   w.attempts.push({ id: attemptId, questionId: q.id, originalQuestionId: q.originalId || q.id,
-    setId: questionSetIdOf(q), answer, correct, grade: correct ? 4 : 1, attemptedAt: now, mode: extra.mode || q.domain, purpose });
+    setId: questionSetIdOf(q), answer, correct, grade: correct ? 4 : 1, attemptedAt: now, mode: extra.mode || q.domain, purpose,
+    ...(origin ? { origin } : {}) });
   if (purpose === "review") return null;
   if (q.domain !== "vocabulary") return null;
+  if (isJapanese) return null;
   const learningKey = learningKeyFor(q);
   const index = w.reviews.findIndex((r) => r.learningKey === learningKey);
   const previous = w.reviews[index];
@@ -392,7 +536,7 @@ export function validateBackup(value) {
     const declaredSubject = sourceSet.subject == null || sourceSet.subject === ""
       ? null
       : String(sourceSet.subject).trim().toLowerCase();
-    if (declaredSubject && !["english", "chemistry", "physics", "biology"].includes(declaredSubject)) {
+    if (declaredSubject && !["english", "chemistry", "physics", "biology", "japanese"].includes(declaredSubject)) {
       fail("Môn học của bộ trong sao lưu không hợp lệ.");
     }
     sets.set(id, {
@@ -447,11 +591,22 @@ export function validateBackup(value) {
     }
     const mode = attempt.mode ?? question.domain;
     const isReview = attempt.purpose === "review" || mode === "review";
-    const allowedMode = isReview
-      ? (mode === "review" || mode === question.domain || (question.domain === "vocabulary" && ["vocabulary", "flashcards"].includes(mode)))
-      : (question.domain === "vocabulary"
-        ? ["vocabulary", "flashcards"].includes(mode)
-        : mode === question.domain);
+    const isJapanese = question.subject === "japanese";
+    let allowedMode = false;
+    if (isJapanese) {
+      if (mode === "flashcards") {
+        fail("Lịch sử trong sao lưu không hợp lệ: Tiếng Nhật không có flashcards.");
+      }
+      allowedMode = isReview
+        ? (mode === "review" || mode === question.domain)
+        : (mode === question.domain);
+    } else {
+      allowedMode = isReview
+        ? (mode === "review" || mode === question.domain || (question.domain === "vocabulary" && ["vocabulary", "flashcards"].includes(mode)))
+        : (question.domain === "vocabulary"
+          ? ["vocabulary", "flashcards"].includes(mode)
+          : mode === question.domain);
+    }
     if (!allowedMode || (attempt.setId != null && attempt.setId !== question.setId)) fail("Lịch sử trong sao lưu không hợp lệ.");
     attemptIds.add(attempt.id);
     attempts.push({
@@ -465,6 +620,7 @@ export function validateBackup(value) {
       attemptedAt: attempt.attemptedAt,
       mode,
       purpose: isReview ? "review" : "study",
+      ...(attempt.origin ? { origin: attempt.origin } : {}),
     });
   }
 
@@ -487,7 +643,11 @@ export function validateBackup(value) {
     subject: set.subject || "english",
     count: set.count,
   }));
-  return { questions, reviews, attempts, imports };
+  const result = { questions, reviews, attempts, imports };
+  if (Array.isArray(s.srsEvents)) {
+    result.srsEvents = s.srsEvents.filter((event) => event && typeof event.id === "string" && typeof event.learningKey === "string");
+  }
+  return result;
 }
 
 class Repository {
@@ -620,14 +780,20 @@ class Repository {
     }
     const domain = domainForMode(mode);
     const sets = targetSetIds.map((sId) => w.imports.find((set) => set?.id === sId));
-    if (domain === "practice") {
-      const firstSubject = sets[0].subject;
-      if (!sets.every((s) => s.subject === firstSubject)) {
-        fail("Chỉ có thể trộn các bộ bài cùng môn.");
-      }
-    } else if (domain === "grammar" || domain === "vocabulary") {
-      if (!sets.every((s) => s.subject === "english")) {
+    if (sets.some((s) => s.subject === "japanese") && mode === "flashcards") {
+      fail("Tiếng Nhật không hỗ trợ thẻ ghi nhớ (flashcards). Hãy học bằng bài tập.");
+    }
+    const firstSubject = sets[0].subject || "english";
+    if (!sets.every((s) => (s.subject || "english") === firstSubject)) {
+      fail(domain === "practice" ? "Chỉ có thể trộn các bộ bài cùng môn." : (firstSubject === "japanese" ? "Chỉ có thể trộn các bộ bài Tiếng Nhật." : "Chỉ có thể trộn các bộ bài Tiếng Anh."));
+    }
+    if (domain === "grammar" || domain === "vocabulary") {
+      if (firstSubject !== "english" && firstSubject !== "japanese") {
         fail("Chỉ có thể trộn các bộ bài Tiếng Anh.");
+      }
+    } else if (domain === "kanji") {
+      if (firstSubject !== "japanese") {
+        fail("Chỉ có thể học Hán tự với bộ bài Tiếng Nhật.");
       }
     }
     const primarySetId = setId && targetSetIds.includes(setId) ? setId : targetSetIds[0];
@@ -636,7 +802,13 @@ class Repository {
       topic: typeof filters?.topic === "string" ? filters.topic : "all",
       grade: typeof filters?.grade === "string" ? filters.grade : "all",
     };
-    if (typeof filters?.type === "string" && QUESTION_TYPES.includes(filters.type)) {
+    if (filters?.chapter != null && filters.chapter !== "" && filters.chapter !== "all") {
+      sessionFilters.chapter = filters.chapter;
+    }
+    if (filters?.lesson != null && filters.lesson !== "" && filters.lesson !== "all") {
+      sessionFilters.lesson = filters.lesson;
+    }
+    if (typeof filters?.type === "string" && ALL_QUESTION_TYPES.includes(filters.type)) {
       sessionFilters.type = filters.type;
     }
     if (Number.isInteger(filters?.limit) && [10, 20, 30].includes(filters.limit)) {
@@ -658,6 +830,14 @@ class Repository {
       if (filters?.dueOnly) fail("Không có từ vựng nào đến hạn ôn hôm nay.");
       fail("Đã hết câu phù hợp. Đổi bộ lọc hoặc quay lại khi có từ đến hạn.");
     }
+    const keyQuestions = {};
+    for (const q of questions) {
+      if (q.subject === "japanese" && q.domain === "vocabulary") {
+        const k = learningKeyFor(q);
+        keyQuestions[k] ??= [];
+        keyQuestions[k].push(q.id);
+      }
+    }
     w.session = {
       id: newId(),
       setId: primarySetId,
@@ -673,6 +853,9 @@ class Repository {
       draft: null,
       log: [],
       startedAt: Date.now(),
+      keyQuestions,
+      firstAnswers: {},
+      keyEvaluated: {},
     };
     if (!isMixed || targetSetIds.length <= 1) {
       w.selectedSetId = primarySetId;
@@ -696,11 +879,35 @@ class Repository {
     if (s.mode !== "flashcards" && !isStoredAnswer(answer)) fail("Câu trả lời không hợp lệ.");
     if (!validDraft(draft)) fail("Bản nháp không hợp lệ.");
     if (!q) fail("Câu hỏi hiện tại không còn tồn tại. Hãy tải lại trang.");
-    const correct = s.mode === "flashcards" ? answer : evaluateAnswer(q.answer, answer, q.type, { caseSensitive: q.tags?.includes("case-sensitive") });
+    const isJapanese = q.subject === "japanese";
+    const correct = s.mode === "flashcards"
+      ? answer
+      : evaluateAnswer(q.answer, answer, q.type, {
+          caseSensitive: q.tags?.includes("case-sensitive"),
+          options: q.options,
+          acceptedOrders: q.acceptedOrders ?? q.accepted_orders,
+          starPosition: q.starPosition ?? q.star_position,
+        });
     const received = s.mode === "flashcards" ? (answer ? "Đã nhớ" : "Chưa nhớ") : answer;
-    const review = addAttempt(w, q, received, correct, { id: `${s.id}:${step}`, mode: s.mode, purpose: s.purpose || "study" });
+    let review = null;
+    if (isJapanese) {
+      if (s.mode === "vocabulary" && s.purpose !== "review") {
+        const isRetry = Boolean(s.firstAnswers && s.firstAnswers[q.id] !== undefined);
+        review = handleJapaneseSrsSubmit(w, s, q, received, correct, isRetry);
+      } else {
+        addAttempt(w, q, received, correct, {
+          id: `${s.id}:${step}`,
+          mode: s.mode,
+          purpose: s.purpose || "study",
+          isRetry: false,
+          dueOnly: Boolean(s.filters?.dueOnly),
+        });
+      }
+    } else {
+      review = addAttempt(w, q, received, correct, { id: `${s.id}:${step}`, mode: s.mode, purpose: s.purpose || "study" });
+    }
     s.log.push({ questionId: q.id, correct, answer: received });
-    s.result = { correct, received, expected: displayAnswer(q.answer), dueAt: review?.dueAt ?? null, draft: copy(draft) };
+    s.result = { correct, received, expected: displayAnswer(q.answer, q), dueAt: review?.dueAt ?? null, draft: copy(draft) };
     s.draft = null;
     return copy(s.result);
   }); }
@@ -711,6 +918,7 @@ class Repository {
     if (s.purpose !== "review" && ["vocabulary", "flashcards"].includes(s.mode) && !s.result.correct) s.queue.push(current); else s.done += 1;
     s.step += 1; s.result = null; s.draft = null;
     if (!s.queue.length) {
+      finalizeSessionSrsEvents(w, s);
       const first = new Map();
       for (const a of s.log) if (!first.has(a.questionId)) first.set(a.questionId, a);
       w.summary = { setId: s.setId, setIds: s.setIds, mode: s.mode, purpose: s.purpose || "study", total: s.target, correct: [...first.values()].filter((a) => a.correct).length,
@@ -721,6 +929,7 @@ class Repository {
   }); }
   endSession(sessionId) { return this.change((w) => {
     if (!w.session || w.session.id !== sessionId) fail("Lượt học đã đổi ở tab khác. Hãy tải lại trạng thái.");
+    finalizeSessionSrsEvents(w, w.session);
     w.session = null;
   }); }
   dismissSummary() { return this.change((w) => { w.summary = null; }); }

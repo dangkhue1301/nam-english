@@ -21,16 +21,17 @@ const files = [
   "storage.js",
   "stats.js",
   "speech.js",
+  "japanese.js",
   "sw.js",
   "manifest.webmanifest",
   "favicon.svg",
   "QUESTION_CSV_GUIDE.md",
+  "JAPANESE_CSV_GUIDE.md",
   ".nojekyll",
 ];
 // Tất cả tài nguyên công khai mà giao diện cần khi mất mạng. Worker không tự
 // có trong cache này vì trình duyệt quản lý worker theo URL có phiên bản riêng.
 const precacheFiles = files.filter((file) => file !== "sw.js" && file !== ".nojekyll");
-
 if (path.dirname(outputDirectory) !== projectDirectory) {
   throw new Error("Thư mục build không nằm trong dự án.");
 }

@@ -1,7 +1,7 @@
 // Các hàm thống kê, gamification và xuất dữ liệu. Tất cả đều thuần
 // (không đụng DOM hay storage) để test được bằng Node.
 
-import { CSV_HEADERS, learningKeyFor, displayAnswer, SUBJECTS, isReviewDue } from "./core.js";
+import { CSV_HEADERS, learningKeyFor, displayAnswer, SUBJECTS, isReviewDue, japaneseQuestionsToCsv, stripRuby } from "./core.js";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
@@ -159,6 +159,7 @@ export function accuracyByDomain(questions, attempts) {
   const totals = {
     grammar: { total: 0, correct: 0 },
     vocabulary: { total: 0, correct: 0 },
+    kanji: { total: 0, correct: 0 },
     practice: { total: 0, correct: 0 },
   };
   attempts.forEach((attempt) => {
@@ -172,6 +173,7 @@ export function accuracyByDomain(questions, attempts) {
   return {
     grammar: { ...totals.grammar, accuracy: rate(totals.grammar) },
     vocabulary: { ...totals.vocabulary, accuracy: rate(totals.vocabulary) },
+    kanji: { ...totals.kanji, accuracy: rate(totals.kanji) },
     practice: { ...totals.practice, accuracy: rate(totals.practice) },
   };
 }
@@ -623,6 +625,10 @@ function escapeCsvCell(value) {
 }
 
 export function questionsToCsv(questions) {
+  if (Array.isArray(questions) && questions.some((q) => q?.subject === "japanese")) {
+    return japaneseQuestionsToCsv(questions);
+  }
+
   const lines = [CSV_HEADERS.join(",")];
   questions.forEach((question) => {
     const options =
@@ -697,18 +703,43 @@ export function collectVocabularyKeys(questions) {
   ];
 }
 
+function safeStripRuby(text) {
+  if (!text) return "";
+  try {
+    return stripRuby(text);
+  } catch {
+    return String(text);
+  }
+}
+
+function matchesSearchTerm(text, term) {
+  if (!text) return false;
+  const raw = String(text).toLocaleLowerCase("vi").normalize("NFC");
+  if (raw.includes(term)) return true;
+  const stripped = safeStripRuby(text).toLocaleLowerCase("vi").normalize("NFC");
+  return stripped.includes(term);
+}
+
 export function searchQuestions(questions, query) {
   if (!Array.isArray(questions) || typeof query !== "string") return [];
-  const term = query.trim().toLocaleLowerCase("vi");
+  const term = query.trim().toLocaleLowerCase("vi").normalize("NFC");
   if (!term) return [];
   return questions.filter((q) => {
     if (!q || q.active === false) return false;
-    if (q.prompt && String(q.prompt).toLocaleLowerCase("vi").includes(term)) return true;
-    if (q.context && String(q.context).toLocaleLowerCase("vi").includes(term)) return true;
-    if (q.topic && String(q.topic).toLocaleLowerCase("vi").includes(term)) return true;
-    if (q.subtopic && String(q.subtopic).toLocaleLowerCase("vi").includes(term)) return true;
-    const ans = displayAnswer(q.answer);
-    if (ans && String(ans).toLocaleLowerCase("vi").includes(term)) return true;
+    if (matchesSearchTerm(q.prompt, term)) return true;
+    if (matchesSearchTerm(q.context, term)) return true;
+    if (matchesSearchTerm(q.target, term)) return true;
+    if (matchesSearchTerm(q.topic, term)) return true;
+    if (matchesSearchTerm(q.subtopic, term)) return true;
+    if (matchesSearchTerm(q.explanation, term)) return true;
+    if (Array.isArray(q.options)) {
+      for (const opt of q.options) {
+        if (typeof opt === "string" && matchesSearchTerm(opt, term)) return true;
+        if (opt && typeof opt === "object" && matchesSearchTerm(opt.text, term)) return true;
+      }
+    }
+    const ans = displayAnswer(q.answer, q);
+    if (matchesSearchTerm(ans, term)) return true;
     return false;
   });
 }
@@ -806,7 +837,7 @@ export function generateReportMarkdown({ questions = [], attempts = [], imports 
       const subj = SUBJECTS[q.subject]?.name || q.subject || "";
       md += `### ${i + 1}. [${subj} · ${sName}] ${q.prompt}\n\n`;
       if (q.context) md += `*Ngữ cảnh:* ${q.context}\n\n`;
-      md += `- **Đáp án đúng:** ${displayAnswer(q.answer)}\n`;
+      md += `- **Đáp án đúng:** ${displayAnswer(q.answer, q)}\n`;
       if (q.explanation) md += `- **Giải thích:** ${q.explanation}\n`;
       md += `\n`;
     });
@@ -919,7 +950,7 @@ export function generateReportCsv({ questions = [], attempts = [], imports = [],
       escapeSpreadsheetCell(sName),
       escapeSpreadsheetCell(q.topic || ""),
       escapeSpreadsheetCell(q.prompt || ""),
-      escapeSpreadsheetCell(displayAnswer(q.answer)),
+      escapeSpreadsheetCell(displayAnswer(q.answer, q)),
       escapeSpreadsheetCell(q.explanation || ""),
     ].join(","));
   });
