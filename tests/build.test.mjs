@@ -59,6 +59,7 @@ test("build Pages tạo shell PWA cùng phiên bản, digest và danh sách tài
   const app = await readFile(new URL("dist/app.js", root), "utf8");
   assert.match(app, new RegExp(`from "\\./pwa\\.js\\?v=${version}"`));
   assert.ok(app.includes(`./QUESTION_CSV_GUIDE.md?v=${version}`));
+  assert.ok(app.includes(`./JAPANESE_CSV_GUIDE.md?v=${version}`));
 
   const worker = await readFile(new URL("dist/sw.js", root), "utf8");
   assert.ok(worker.includes(`const BUILD_VERSION = "${version}";`));

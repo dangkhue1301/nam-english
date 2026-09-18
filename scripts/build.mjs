@@ -76,6 +76,7 @@ for (const file of files.filter((file) => /\.(js|html|webmanifest)$/.test(file) 
   if (file.endsWith(".js") && file !== "sw.js") {
     content = content.replace(/from "\.\/([a-z-]+\.js)"/g, `from "./$1?v=${version}"`);
     content = content.replace(/\.\/QUESTION_CSV_GUIDE\.md(?:\?[^"']*)?/g, `./QUESTION_CSV_GUIDE.md?v=${version}`);
+    content = content.replace(/\.\/JAPANESE_CSV_GUIDE\.md(?:\?[^"']*)?/g, `./JAPANESE_CSV_GUIDE.md?v=${version}`);
   }
   if (file === "index.html") {
     content = content.replace(/\.\/(app\.js|styles\.css|manifest\.webmanifest|favicon\.svg)(?:\?[^"']*)?/g, `./$1?v=${version}`);

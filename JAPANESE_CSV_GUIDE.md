@@ -1,8 +1,8 @@
 # Hướng dẫn tạo CSV Tiếng Nhật cho NẮM
 
-Phiên bản đề xuất: `ja-v1` · Cập nhật: 18/09/2026.
+Phiên bản chính thức: `ja-v1` · Cập nhật: 18/09/2026.
 
-> Đây là đặc tả cho phần Tiếng Nhật **chưa triển khai**. Website hiện tại chưa nhận định dạng này. Chỉ dùng để chuẩn bị dữ liệu sau khi chốt plan; không coi đây là thông báo đã hỗ trợ nhập CSV tiếng Nhật.
+> **Trạng thái**: Định dạng `ja-v1` đã được **triển khai chính thức** và hoạt động trực tiếp trên website NẮM (`https://dangkhue1301.github.io/nam-english/`). File CSV chuẩn theo đặc tả này có thể kéo thả hoặc nhập trực tiếp để tạo bộ bài Tiếng Nhật (hỗ trợ 8 dạng câu hỏi và hệ thống ôn tập ngắt quãng SRS).
 
 Tài liệu này tự đủ ngữ cảnh để gửi cho AI khác. Chỉ cần cung cấp trình độ, chương/bài, topic và số câu; không bắt buộc cung cấp giáo trình/PDF, không có cột `source`. AI tự soạn câu mới, không chép nguyên đề. Không dùng guide này thay cho `QUESTION_CSV_GUIDE.md` của các môn cũ.
 
@@ -31,7 +31,7 @@ Yêu cầu:
 4. Mỗi câu chọn đáp án có 4 phương án và đúng 1 phương án đúng. Dùng ID cho answer, không dùng số hiển thị hoặc chép văn bản đáp án.
 5. Ngữ pháp ★: kiểm tra mọi accepted_orders và answer tại star_position. Sắp xếp cả câu là dạng riêng.
 6. Mỗi dòng là một câu hỏi. Nếu một từ có 3 dạng thì tạo 3 dòng có id khác nhau, dùng chung learning_key chỉ khi cùng từ, cách đọc và nghĩa.
-7. Cung cấp furigana bằng cú pháp {漢字|かな} cho các phần cần hỗ trợ đọc để học sinh bật/tắt trên web. Không ghi đáp án vào prompt/hint hay furigana của từ đang kiểm tra cách đọc; không thêm ruby vào lựa chọn K1/K2. Phương án nhiễu phải hợp lí, không tạo hai đáp án đúng.
+7. Cung cấp furigana bằng cú pháp {漢字|かな} khi cần chuẩn hóa từ vựng và lưu cấu trúc phiên âm. Giao diện thi bám sát chuẩn đề thi JLPT thực tế (chỉ hiển thị chữ Hán/Kana gốc, không hiện furigana nổi để rèn luyện năng lực đọc thực chiến). Không ghi đáp án vào prompt/hint hay furigana của từ đang kiểm tra cách đọc; không thêm ruby vào lựa chọn K1/K2. Phương án nhiễu phải hợp lí, không tạo hai đáp án đúng.
 8. Dùng đúng quy tắc JSON trong ô CSV, dấu nháy kép và newline. Kiểm tra tổng câu, số cột, ID, key, order và đáp án trước khi xuất.
 9. Không sinh HTML, JavaScript, công thức bảng tính, source, đường dẫn tải tài nguyên hoặc giải thích ngoài CSV.
 
@@ -70,7 +70,7 @@ Có đúng **20 cột**, đúng thứ tự trên. Ô không áp dụng để tr�
 | 16 | `star_position` | Số nguyên 1–4, chỉ dùng cho G2; các dạng khác để trống. |
 | 17 | `explanation` | Bắt buộc. Giải thích bằng tiếng Việt có dấu, có thể kèm câu Nhật đúng và cách đọc sau chấm. |
 | 18 | `theory` | Bắt buộc với 3 dạng grammar: nhắc quy tắc ngắn. Vocabulary/kanji có thể để trống. |
-| 19 | `hint` | Tùy chọn, không cần điền cho đủ. Website dự kiến chỉ hiện cùng phần giải thích sau chấm, không dùng để gợi đáp án khi đang kiểm tra. |
+| 19 | `hint` | Tùy chọn, không cần điền cho đủ. Website chỉ hiển thị cùng phần giải thích sau khi chấm bài, không dùng để gợi đáp án khi đang kiểm tra. |
 | 20 | `learning_key` | Bắt buộc với 3 dạng vocabulary; grammar/kanji để trống. Quy tắc tại phần 7. |
 
 Giới hạn đề xuất: tối đa 5 MB/file, 2.000 dòng câu hỏi, 10.000 đơn vị UTF-16/ô (cách đếm độ dài chuỗi JavaScript). Mỗi ID phương án dài 1–64 ký tự theo bộ ký tự ASCII của ID câu. `target` tối đa 200 ký tự; key tối đa 200. Tối đa 24 thứ tự trong `accepted_orders`; nếu cần quá nhiều, nên viết lại câu ít mơ hồ hơn.
@@ -102,19 +102,22 @@ ID được giữ ổn định kể cả khi web đảo vị trí hiển thị. 
 - Không thay token bằng dấu gạch dưới, `( )` hoặc khoảng trắng; web cần token để render chính xác.
 - G3 không dùng token chỗ trống: toàn câu đúng được ghép từ các mảnh, bao gồm dấu câu.
 
-### Furigana tùy chọn
+### Cú pháp chú âm Furigana và chuẩn hiển thị JLPT
 
-Viết `{漢字|かな}`, ví dụ `{学校|がっこう}`. Dùng được trong `prompt`, `context`, `options[].text`, `explanation`, `theory`, `hint` theo giới hạn từng dạng. Không bắt buộc thêm furigana vào mọi chữ; chọn theo trình độ bài.
+Viết `{漢字|かな}`, ví dụ `{学校|がっこう}`. Dùng được trong `prompt`, `context`, `options[].text`, `explanation`, `theory`, `hint` theo giới hạn từng dạng.
 
-Website dự kiến có công tắc bật/tắt furigana và ghi nhớ lựa chọn. Chỉ cần một file CSV chứa chú âm, không tạo hai bộ bài khác nhau. Bật thì hiện cách đọc đã cung cấp, tắt thì chỉ hiện chữ gốc; đoạn không có chú âm vẫn là chữ gốc, web không tự đoán cách đọc. Công tắc không thay đáp án hay lịch SRS và không được làm lộ cách đọc đang kiểm tra ở K1/K2.
+**Chuẩn hiển thị JLPT trên website:**
+- Theo chuẩn đề thi JLPT thực tế, website **không hiển thị furigana nổi** trên giao diện làm bài thi (nhằm rèn luyện năng lực đọc chữ Hán thực chiến cho học sinh, tránh phụ thuộc vào phiên âm). Giao diện không có nút bật/tắt furigana.
+- Cú pháp `{漢字|かな}` trong CSV có vai trò lưu trữ cấu trúc đọc chuẩn hóa: hệ thống tự động bóc tách chữ Hán gốc để hiển thị câu hỏi và đối soát từ đích (`target`), đồng thời giữ lại thông tin phiên âm để phục vụ đối chiếu từ vựng SRS và hiển thị lời giải chi tiết sau khi nộp bài.
 
+**Quy tắc cú pháp:**
 - Dùng đúng dấu `{`, `|`, `}` ASCII, không lồng token, không rỗng phần chữ/cách đọc, không cho HTML bên trong.
-- Không đặt token chỗ trống trong ruby; token lạ hoặc ngoặc token hỏng là lỗi nhập, không đoán sửa.
-- `target` ghi chữ gốc không ruby; việc tìm từ đích dựa trên văn bản hiển thị sau khi bỏ phần chú âm. Ví dụ context `明日の{約束|やくそく}` khớp `target=約束`.
-- Với các dạng cần đánh dấu target, target phải xuất hiện đúng một lần, trọn vẹn trong một đoạn text hoặc phần chữ gốc của một ruby; không được khớp xuyên ranh giới hai ruby.
-- K1 không được có ruby che phủ bất cứ phần nào của từ đích trong context. K1/K2 không được có ruby trong các phương án trước chấm.
-- Lời giải sau chấm được phép ghi cách đọc/cách viết đầy đủ.
-- Không dùng `<ruby>`, `<rt>`, `<b>` hoặc HTML tùy ý. Renderer phải escape toàn bộ chữ và chỉ tạo ruby từ cú pháp hợp lệ.
+- Không đặt token chỗ trống (`{{gap}}`, `{{slots}}`) bên trong ruby; token lạ hoặc ngoặc token hỏng là lỗi nhập, không đoán sửa.
+- `target` ghi chữ gốc thuần túy, không chứa ký tự ruby `{...|...}`; việc tìm từ đích dựa trên văn bản hiển thị sau khi bỏ phần chú âm. Ví dụ context `明日の{約束|やくそく}` khớp chính xác với `target=約束`.
+- Với các dạng cần đánh dấu target (V2, K1, K2), target phải xuất hiện đúng một lần, trọn vẹn trong một đoạn text hoặc phần chữ gốc của một ruby; không được khớp xuyên ranh giới hai ruby.
+- K1 (chọn cách đọc chữ Hán) tuyệt đối không được có ruby che phủ bất cứ phần nào của từ đích trong context (tránh làm lộ cách đọc). K1/K2 không được có ruby trong các phương án trước chấm.
+- Lời giải (`explanation`) sau chấm được phép ghi cách đọc/cách viết đầy đủ để học sinh đối chiếu kiến thức.
+- Không dùng `<ruby>`, `<rt>`, `<b>` hoặc HTML tùy ý. Renderer tự động escape toàn bộ ký tự đặc biệt để chống XSS và chỉ xử lý cú pháp token chuẩn.
 
 Không tự đổi hiragana ↔ katakana, bỏ dấu kéo dài `ー`, bỏ kana nhỏ hoặc biến `づ` thành `ず`. Không thêm khoảng trắng để web tách từ. Ghép chip tiếng Nhật không cần khoảng trắng kiểu tiếng Anh.
 
@@ -260,4 +263,4 @@ Các lỗi cần tự kiểm:
 9. Ba dạng vocabulary có key ổn định theo mục từ/cách đọc/nghĩa. Cùng key không bị hiểu là chỉ cần giữ một câu.
 10. Không có HTML/script, công thức bảng tính, nguồn ngoài bắt buộc, flashcard, bài đọc/nghe hoặc type tự chế.
 
-Khi tính năng được triển khai, nhập vào màn hình preview trước và kiểm tra cây Chương/Bài, số câu theo dạng và số key SRS. Parser chỉ xác minh cấu trúc và những điều kiện có thể kiểm tra tự động; giáo viên/AI tạo đề vẫn chịu trách nhiệm về độ tự nhiên, độ khó và tính duy nhất của đáp án.
+Tính năng Tiếng Nhật hiện đã hoạt động chính thức trên website NẮM (`https://dangkhue1301.github.io/nam-english/`). Khi nhập file CSV, hãy luôn kiểm tra tại màn hình Xem trước (Preview) cây Chương/Bài, số câu theo từng dạng và số key SRS. Parser của website sẽ tự động xác minh cấu trúc 20 cột, tính duy nhất của ID, tính hợp lệ của JSON và định dạng token; giáo viên/AI tạo đề chịu trách nhiệm về độ tự nhiên của câu văn, độ khó và tính duy nhất của đáp án.
