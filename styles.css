@@ -415,7 +415,24 @@ textarea:disabled { background: var(--surface); color: var(--ink); }
 .answer-footer > .button { flex-shrink: 0; }
 .study-aside { position: sticky; top: 20px; padding: 18px 0; }
 .study-aside h2 { margin-top: 12px; font-size: 1.1rem; line-height: 1.5; }
-.study-aside > p { margin-top: 8px; color: var(--muted); font-size: 0.82rem; }
+.study-aside > p, .study-subtopic { margin-top: 8px; color: var(--muted); font-size: 0.82rem; }
+.topic-details { margin-bottom: 14px; }
+.topic-summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; padding: 4px 0; list-style: none; }
+.topic-summary::-webkit-details-marker { display: none; }
+.topic-summary::marker { display: none; content: ""; }
+.topic-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius-sm); }
+.topic-summary-title { display: inline-flex; align-items: center; gap: 7px; }
+.topic-summary-title::before { content: "▶"; display: inline-block; font-size: 0.65rem; color: var(--accent); transition: transform 0.18s ease; line-height: 1; }
+.topic-details[open] .topic-summary-title::before { transform: rotate(90deg); }
+.topic-summary .eyebrow { margin-bottom: 0; cursor: pointer; }
+.topic-toggle-pill { display: inline-flex; align-items: center; font-size: 0.72rem; font-weight: 600; color: var(--muted); background: var(--surface-strong); border: 1px solid var(--line); border-radius: 12px; padding: 2px 9px; line-height: 1.4; transition: all 0.15s ease; }
+.topic-summary:hover .topic-toggle-pill { color: var(--accent); border-color: var(--accent-light); background: var(--paper); }
+.topic-summary .topic-toggle-expand { display: inline; }
+.topic-summary .topic-toggle-collapse { display: none; }
+.topic-details[open] .topic-summary .topic-toggle-expand { display: none; }
+.topic-details[open] .topic-summary .topic-toggle-collapse { display: inline; }
+.topic-content { margin-top: 2px; }
+.topic-content h2 { margin-top: 10px; font-size: 1.1rem; line-height: 1.5; word-break: break-word; }
 .theory { border-bottom: 1px solid var(--line); padding: 17px 0; }
 .theory:first-of-type { margin-top: 18px; border-top: 1px solid var(--line); }
 .theory summary { color: var(--accent); font-size: 0.84rem; font-weight: 750; cursor: pointer; }
@@ -724,7 +741,7 @@ kbd { display: inline-flex; min-width: 1.8em; justify-content: center; border: 1
   .flash-grades { width: 100%; }
   .flash-grades > .button { flex: 1; }
   .study-aside { position: static; padding: 23px 5px; }
-  .study-aside > h2 { font-size: 1.13rem; }
+  .study-aside h2 { font-size: 1.13rem; }
   .theory p { font-size: 0.93rem; }
   .theory summary { font-size: 0.94rem; }
   .study-tip { display: none; }

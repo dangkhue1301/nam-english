@@ -212,3 +212,25 @@ test("JLPT authenticity: Furigana hidden across app and styles", async () => {
   // In styles.css, rt elements are hidden with display: none !important
   assert.match(css, /rt\s*\{[\s\S]*?display:\s*none\s*!important;/);
 });
+
+test("Collapsible topic details with expand and collapse toggle", async () => {
+  const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+  const app = await readFile(new URL("../app.js", import.meta.url), "utf8");
+
+  // app.js has collapsible details markup with state persistence
+  assert.match(app, /class="topic-details"/);
+  assert.match(app, /data-topic-details/);
+  assert.match(app, /class="topic-summary"/);
+  assert.match(app, /class="topic-toggle-pill"/);
+  assert.match(app, /Thu lại/);
+  assert.match(app, /Mở rộng/);
+  assert.match(app, /state\.topicOpen/);
+  assert.match(app, /localStorage\.getItem\("nam-topic-open"\)/);
+  assert.match(app, /localStorage\.setItem\("nam-topic-open",/);
+
+  // styles.css styles topic-details and toggle pill
+  assert.match(css, /\.topic-details/);
+  assert.match(css, /\.topic-summary/);
+  assert.match(css, /\.topic-toggle-pill/);
+  assert.match(css, /\.topic-details\[open\][\s\S]*?\.topic-summary-title::before/);
+});

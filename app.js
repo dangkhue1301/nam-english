@@ -62,7 +62,7 @@ const notice = document.querySelector("#notice");
 const pwaStatus = document.querySelector("#pwa-status");
 const pwaStatusText = document.querySelector("#pwa-status-text");
 const pwaInstall = document.querySelector("#pwa-install");
-const state = { view: "home", data: null, busy: false, subject: "all", grade: "all", level: "all", topic: "all", type: "all", chapter: "all", lesson: "all", section: "all", limit: 30, search: "", searchMode: "sets", draft: null, draftKey: "", flipped: false, timerVisible: false, studyStartedAt: null };
+const state = { view: "home", data: null, busy: false, subject: "all", grade: "all", level: "all", topic: "all", type: "all", chapter: "all", lesson: "all", section: "all", limit: 30, search: "", searchMode: "sets", draft: null, draftKey: "", flipped: false, timerVisible: false, studyStartedAt: null, topicOpen: (() => { try { return localStorage.getItem("nam-topic-open") !== "false"; } catch { return true; } })() };
 let studyTimerInterval = null;
 
 function currentTheme() {
@@ -1333,8 +1333,21 @@ function sessionMarkup() {
         ${result ? button(`Tiếp theo ${icon("arrow")}`, "next", "button primary large") : isFlash ? (!state.flipped ? button(`Lật thẻ xem nghĩa ${icon("arrow")}`, "flip", "button primary large") : `<div class="flash-grades">${button("↺ Chưa nhớ (học lại)", "grade-forgot", "button subtle")}${button("✓ Đã nhớ", "grade-remember", "button primary")}</div>`) : button(`Chấm câu này ${icon("check")}`, "submit", "button primary large", `data-submit ${!answerReady() ? "disabled" : ""}`)}
       </div>
     </section><aside class="study-aside">
-      <span class="eyebrow">CHỦ ĐIỂM</span>
-      <h2>${html(q.topic)}</h2>
+      <details class="topic-details" ${state.topicOpen !== false ? "open" : ""} data-topic-details>
+        <summary class="topic-summary" title="Bấm để mở rộng hoặc thu lại chủ điểm">
+          <span class="topic-summary-title">
+            <span class="eyebrow">CHỦ ĐIỂM</span>
+          </span>
+          <span class="topic-toggle-pill" aria-hidden="true">
+            <span class="topic-toggle-collapse">Thu lại</span>
+            <span class="topic-toggle-expand">Mở rộng</span>
+          </span>
+        </summary>
+        <div class="topic-content">
+          <h2 ${isJapanese ? 'lang="ja"' : ""}>${html(q.topic)}</h2>
+          ${!isFlash && shouldShowSubtopic(q, result) ? `<p class="study-subtopic">${html(q.subtopic)}</p>` : ""}
+        </div>
+      </details>
       ${isFlash ? `
         <div class="flashcard-aside-info">
           <span class="aside-badge">${icon("book")} Thẻ ghi nhớ</span>
@@ -1349,7 +1362,6 @@ function sessionMarkup() {
           </div>
         </div>
       ` : `
-        ${shouldShowSubtopic(q, result) ? `<p class="study-subtopic">${html(q.subtopic)}</p>` : ""}
         ${q.theory ? `<details class="theory"><summary>${icon("book")} Nhắc lý thuyết</summary><p lang="vi">${isJapanese ? renderRubyHtml(q.theory) : html(q.theory)}</p></details>` : ""}
         ${q.hint ? `<details class="theory"><summary>Gợi ý nhỏ</summary><p lang="vi">${isJapanese ? renderRubyHtml(q.hint) : html(q.hint)}</p></details>` : ""}
       `}
@@ -2312,6 +2324,15 @@ document.addEventListener("drop", (event) => {
   if (event.dataTransfer.files[0]) void loadCsv(event.dataTransfer.files[0]);
 });
 modal.addEventListener("cancel", () => { loadToken += 1; csvPreview = null; });
+document.addEventListener("toggle", (event) => {
+  const target = event.target;
+  if (target?.matches?.("[data-topic-details]")) {
+    state.topicOpen = target.open;
+    try {
+      localStorage.setItem("nam-topic-open", String(target.open));
+    } catch {}
+  }
+}, true);
 
 
 async function checkShareHash() {
