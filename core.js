@@ -5,6 +5,8 @@ import {
   evaluateJapaneseAnswer,
   japaneseQuestionsToCsv,
   stripRuby,
+  renderRubyHtml,
+  escapeHtml,
   formatJapaneseSentence,
   JA_CSV_HEADERS,
 } from "./japanese.js";
@@ -16,6 +18,7 @@ export {
   evaluateJapaneseAnswer,
   japaneseQuestionsToCsv,
   stripRuby,
+  renderRubyHtml,
   formatJapaneseSentence,
 };
 
@@ -901,4 +904,132 @@ export function decodeSharePayload(base64Str) {
   } catch {
     throw new Error("Dữ liệu UTF-8 không hợp lệ.");
   }
+}
+
+export function formatInlineMarkdown(text) {
+  return String(text ?? "")
+    .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/(?<!\*)\*([^*\s\n](?:[^*\n]*[^*\s\n])?)\*(?!\*)/g, "<em>$1</em>")
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>");
+}
+
+export function splitExplanationSections(text) {
+  if (!text || typeof text !== "string") return [];
+
+  const normalized = text.replace(/\r\n/g, "\n").trim();
+
+  const markerRegex = /(?:^|[\s\n。、!?.,])(?:\*\*)?(Thứ tự đúng|Thứ tự|Câu hoàn chỉnh|Câu đúng|Dịch câu đúng|Dịch câu|Dịch ngữ cảnh|Dịch nghĩa|Dịch|Giải thích|Phân tích|Lưu ý|Cấu trúc|Ý nghĩa|Từ vựng|Ngữ pháp|Cách dùng)(?:\*\*)?\s*[:：](?:\*\*)?/gi;
+
+  const matches = [];
+  let m;
+  while ((m = markerRegex.exec(normalized)) !== null) {
+    const raw = m[0];
+    const prefixLen = raw.match(/^[\s\n。、!?.,]*/)[0].length;
+    const start = m.index + prefixLen;
+    const label = m[1].trim();
+    matches.push({
+      start,
+      label,
+      rawMarker: raw.slice(prefixLen),
+      markerLength: raw.length - prefixLen,
+    });
+  }
+
+  if (matches.length === 0) {
+    const lines = normalized.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    return lines.map((line) => ({ label: null, content: line }));
+  }
+
+  const sections = [];
+  if (matches[0].start > 0) {
+    const pre = normalized.slice(0, matches[0].start).trim();
+    if (pre) sections.push({ label: null, content: pre });
+  }
+
+  for (let i = 0; i < matches.length; i++) {
+    const cur = matches[i];
+    const contentStart = cur.start + cur.markerLength;
+    const contentEnd = i + 1 < matches.length ? matches[i + 1].start : normalized.length;
+    let content = normalized.slice(contentStart, contentEnd).trim();
+    content = content.replace(/^\*\*\s*/, "").replace(/\s*\*\*$/, "").trim();
+
+    if (/^Dịch/i.test(cur.label)) {
+      const quoteMatch = content.match(/^("(?:[^"\\]|\\.)*"|“[^”]*”|'[^']*'|「[^」]*」|『[^』]*』)(?:\.|\s)*([\s\S]*)$/);
+      if (quoteMatch && quoteMatch[2] && quoteMatch[2].trim()) {
+        const trans = quoteMatch[1].trim();
+        const trailing = quoteMatch[2].trim();
+        sections.push({ label: cur.label, content: trans });
+
+        const starSentenceMatch = trailing.match(/^(Mảnh ở vị trí [^.]+\.)\s*([\s\S]*)$/i);
+        if (starSentenceMatch) {
+          sections.push({ label: "Vị trí ★", content: starSentenceMatch[1].trim() });
+          if (starSentenceMatch[2].trim()) {
+            sections.push({ label: "Giải thích", content: starSentenceMatch[2].trim() });
+          }
+        } else {
+          sections.push({ label: "Giải thích", content: trailing });
+        }
+        continue;
+      }
+    }
+
+    if (/^Câu (?:hoàn chỉnh|đúng)/i.test(cur.label)) {
+      const starMatch = content.match(/^(.*?)(?:[。.]\s*)(Mảnh ở vị trí [^.]+\.?)\s*([\s\S]*)$/i);
+      if (starMatch && !/Dịch/i.test(starMatch[1])) {
+        sections.push({ label: cur.label, content: starMatch[1].trim() });
+        sections.push({ label: "Vị trí ★", content: starMatch[2].trim() });
+        if (starMatch[3].trim()) {
+          sections.push({ label: "Giải thích", content: starMatch[3].trim() });
+        }
+        continue;
+      }
+    }
+
+    sections.push({ label: cur.label, content });
+  }
+
+  return sections;
+}
+
+export function formatExplanationHtml(text, { isJapanese = false } = {}) {
+  if (!text) return "";
+  const sections = splitExplanationSections(text);
+  if (sections.length === 0) return "";
+
+  const blocks = sections.map((sec) => {
+    const rawContent = sec.content;
+    let formattedContent = isJapanese ? renderRubyHtml(rawContent) : escapeHtml(rawContent);
+    formattedContent = formatInlineMarkdown(formattedContent);
+
+    if (!sec.label) {
+      return `<div class="explanation-row"><span class="explanation-text">${formattedContent}</span></div>`;
+    }
+
+    const isSentence = /^Câu (?:hoàn chỉnh|đúng)/i.test(sec.label);
+    const isTranslation = /^Dịch/i.test(sec.label);
+    const isOrder = /^Thứ tự/i.test(sec.label);
+    const isStar = /^Vị trí ★/i.test(sec.label);
+
+    let rowClass = "explanation-row";
+    if (isSentence) rowClass += " explanation-row-sentence";
+    else if (isTranslation) rowClass += " explanation-row-translation";
+    else if (isOrder) rowClass += " explanation-row-order";
+    else if (isStar) rowClass += " explanation-row-star";
+    else rowClass += " explanation-row-notes";
+
+    const labelHtml = `<strong class="explanation-label">${escapeHtml(sec.label)}:</strong>`;
+
+    let valueHtml = "";
+    if (isSentence) {
+      valueHtml = `<strong class="explanation-sentence" ${isJapanese ? 'lang="ja"' : ""}>${formattedContent}</strong>`;
+    } else if (isTranslation) {
+      valueHtml = `<span class="explanation-translation">${formattedContent}</span>`;
+    } else {
+      valueHtml = `<span class="explanation-text">${formattedContent}</span>`;
+    }
+
+    return `<div class="${rowClass}">${labelHtml} ${valueHtml}</div>`;
+  });
+
+  return `<div class="explanation-content">${blocks.join("")}</div>`;
 }

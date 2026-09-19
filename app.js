@@ -16,7 +16,7 @@ const JAPANESE_SAMPLE_CSV = "schema,subject,id,level,chapter,lesson,section,topi
   "ja-v1,japanese,k003,N4,1,2,kanji,Thời gian & Di chuyển,ja_kanji_reading,Chọn cách đọc của từ được đánh dấu.,\"来週、{東京|とうきょう}へ出発します。\",出発,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"しゅっぱつ\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"しゅつはつ\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"しゅうはつ\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"しゅつぱつ\\\"}]\",o1,,,\"Dịch câu: \\\"Tuần tới, tôi sẽ xuất phát đi Tokyo.\\\" 出発 gồm 出 và Phát, có âm ngắt đọc là しゅっぱつ, nghĩa là xuất phát / khởi hành.\",,,\r\n" +
   "ja-v1,japanese,k004,N4,1,2,kanji,Thời gian & Di chuyển,ja_kanji_writing,Chọn cách viết chữ Hán đúng cho từ được đánh dấu.,計画をじゅんびしています。,じゅんび,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"準備\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"準偏\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"基準\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"設備\\\"}]\",o1,,,\"Dịch câu: \\\"Tôi đang chuẩn bị cho kế hoạch.\\\" じゅんび viết bằng chữ Hán là 準備 (Chuẩn bị).\",,,\r\n";
 
-import { buildCsvPreview, buildStats, displayAnswer, isReviewDue, resolveEscapeAction, stableShuffle, TYPE_LABELS, learningKeyFor, normalizeText, SUBJECTS, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "./core.js";
+import { buildCsvPreview, buildStats, displayAnswer, formatExplanationHtml, formatInlineMarkdown, isReviewDue, resolveEscapeAction, stableShuffle, TYPE_LABELS, learningKeyFor, normalizeText, SUBJECTS, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "./core.js";
 import { createRepository, readDashboard, exportBackup, validateBackup } from "./storage.js";
 import {
   questionsToCsv,
@@ -1226,7 +1226,7 @@ function sessionMarkup() {
             ${result.correct ? icon("check") : '<span class="feedback-repeat-icon">↺</span>'}
             <strong>${result.correct ? "Đã ghi nhớ!" : "Chưa nhớ — Sẽ ôn lại"}</strong>
           </div>
-          <p>${html(q.explanation || (result.correct ? "Bạn đã ghi nhớ tốt từ này." : "Đừng lo, thẻ này sẽ quay lại ở cuối lượt học để bạn ôn lại."))}</p>
+          ${q.explanation ? `<div class="feedback-explanation">${formatExplanationHtml(q.explanation, { isJapanese: q.subject === "japanese" })}</div>` : `<p>${result.correct ? "Bạn đã ghi nhớ tốt từ này." : "Đừng lo, thẻ này sẽ quay lại ở cuối lượt học để bạn ôn lại."}</p>`}
           ${result.correct && result.dueAt ? `<small>Lịch hẹn ôn tiếp: ${day(result.dueAt)}</small>` : !result.correct ? '<small>Thẻ sẽ xuất hiện lại ở cuối lượt học để bạn ôn tập.</small>' : ""}
         </div>
       `;
@@ -1267,7 +1267,7 @@ function sessionMarkup() {
           </div>
           ${!result.correct ? `<p class="expected"><span>Đáp án đúng</span><strong lang="ja">${expectedHtml}</strong></p>` : ""}
           ${fullSentenceHtml}
-          ${q.explanation ? `<p class="feedback-explanation">${renderRubyHtml(q.explanation)}</p>` : ""}
+          ${q.explanation ? `<div class="feedback-explanation">${formatExplanationHtml(q.explanation, { isJapanese: true })}</div>` : ""}
           ${isRetry && !result.correct ? '<small>Câu này sẽ tiếp tục quay lại ở cuối lượt để bạn luyện đến khi đúng.</small>' : (!isReview && s.mode === "vocabulary" && !result.correct ? '<small>Từ này sẽ xuất hiện lại ở cuối lượt học để bạn luyện tập.</small>' : (result.dueAt ? `<small>Hẹn ôn lại: ${day(result.dueAt)}</small>` : ""))}
         </div>
       `;
@@ -1276,7 +1276,7 @@ function sessionMarkup() {
         <div class="feedback ${result.correct ? "success" : "wrong"}" role="status">
           <div class="feedback-title">${icon(result.correct ? "check" : "close")}<strong>${result.correct ? "Chính xác!" : "Chưa đúng, cùng xem lại nhé."}</strong></div>
           ${!result.correct ? `<p class="expected"><span>Đáp án đúng</span><strong>${html(result.expected)}</strong></p>` : ""}
-          <p>${html(q.explanation)}</p>
+          ${q.explanation ? `<div class="feedback-explanation">${formatExplanationHtml(q.explanation, { isJapanese: false })}</div>` : ""}
           ${!isReview && isVocabulary(s.mode) && !result.correct ? '<small>Từ này sẽ xuất hiện lại ở cuối lượt học.</small>' : result.dueAt ? `<small>Hẹn ôn lại: ${day(result.dueAt)}</small>` : ""}
         </div>
       `;
@@ -1345,7 +1345,7 @@ function sessionMarkup() {
                 ${f.explanation ? `
                   <div class="flashcard-expl-box">
                     <span class="flashcard-box-label">GIẢI THÍCH CHI TIẾT</span>
-                    <p class="flashcard-expl-text">${html(f.explanation)}</p>
+                    <div class="flashcard-expl-text">${formatExplanationHtml(f.explanation, { isJapanese: q.subject === "japanese" })}</div>
                   </div>
                 ` : ""}
                 ${f.example ? `
@@ -1400,8 +1400,8 @@ function sessionMarkup() {
           </div>
         </div>
       ` : `
-        ${(!isJapanese || result) && q.theory ? `<details class="theory"><summary>${icon("book")} Nhắc lý thuyết</summary><p lang="vi">${isJapanese ? renderRubyHtml(q.theory) : html(q.theory)}</p></details>` : ""}
-        ${(!isJapanese || result) && q.hint ? `<details class="theory"><summary>Gợi ý nhỏ</summary><p lang="vi">${isJapanese ? renderRubyHtml(q.hint) : html(q.hint)}</p></details>` : ""}
+        ${(!isJapanese || result) && q.theory ? `<details class="theory"><summary>${icon("book")} Nhắc lý thuyết</summary><div class="theory-content" lang="vi">${formatInlineMarkdown(isJapanese ? renderRubyHtml(q.theory) : html(q.theory))}</div></details>` : ""}
+        ${(!isJapanese || result) && q.hint ? `<details class="theory"><summary>Gợi ý nhỏ</summary><div class="theory-content" lang="vi">${formatInlineMarkdown(isJapanese ? renderRubyHtml(q.hint) : html(q.hint))}</div></details>` : ""}
       `}
       <p class="study-tip">${isReview ? "Ôn lại để khắc sâu kiến thức.<br>Làm đúng sẽ loại khỏi danh sách sai." : "Cứ làm theo nhịp của bạn.<br>Tiến độ luôn được lưu lại."}</p>
     </aside></div></div>`;
@@ -1487,7 +1487,7 @@ function resultMarkup() {
       const yourAnswer = isJa
         ? (item.answer != null && item.answer !== "" ? renderRubyHtml(displayAnswer(item.answer, q)) : "Chưa trả lời")
         : (!isJapanese && vocabularyMode ? "Tự đánh giá: Chưa nhớ (đã xếp ôn lại)" : html(typeof item.answer === "object" ? displayAnswer(item.answer) : item.answer));
-      return `<article><h3 lang="${isJa && !isOrder ? "ja" : "vi"}">${promptDisplay}</h3><p class="muted">Bạn trả lời: <span lang="${isJa ? "ja" : "vi"}">${yourAnswer}</span></p><p><strong>${answerDisplay}</strong></p>${q.explanation ? `<p lang="vi">${isJa ? renderRubyHtml(q.explanation) : html(q.explanation)}</p>` : ""}</article>`;
+      return `<article><h3 lang="${isJa && !isOrder ? "ja" : "vi"}">${promptDisplay}</h3><p class="muted">Bạn trả lời: <span lang="${isJa ? "ja" : "vi"}">${yourAnswer}</span></p><p><strong>${answerDisplay}</strong></p>${q.explanation ? `<div class="feedback-explanation" lang="vi">${formatExplanationHtml(q.explanation, { isJapanese: isJa })}</div>` : ""}</article>`;
     }).join("")}</details>` : ""}</section>`;
 }
 

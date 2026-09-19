@@ -407,6 +407,18 @@ textarea:disabled { background: var(--surface); color: var(--ink); }
 .feedback-title strong { font-size: 0.98rem; }
 .feedback p { font-size: 0.93rem; line-height: 1.7; white-space: pre-wrap; }
 .feedback small { display: block; margin-top: 12px; color: var(--muted); font-size: 0.76rem; }
+.feedback-explanation { margin-top: 14px; }
+.explanation-content { display: flex; flex-direction: column; gap: 9px; font-size: 0.94rem; line-height: 1.65; }
+.explanation-row { display: block; word-break: break-word; }
+.explanation-row-sentence { background: rgba(0, 0, 0, 0.035); border-left: 3px solid var(--accent); padding: 6px 10px; border-radius: 0 6px 6px 0; margin: 2px 0; }
+[data-theme="dark"] .explanation-row-sentence { background: rgba(255, 255, 255, 0.05); }
+.explanation-label { font-weight: 700; color: var(--ink); margin-right: 4px; }
+.explanation-sentence { font-weight: 700; color: var(--ink); font-size: 1.02em; }
+.explanation-translation { color: var(--text); }
+.explanation-row-star { background: rgba(234, 179, 8, 0.12); border-left: 3px solid #eab308; padding: 4px 8px; border-radius: 0 6px 6px 0; }
+.explanation-row-star .explanation-label { color: #b45309; }
+[data-theme="dark"] .explanation-row-star .explanation-label { color: #facc15; }
+.explanation-text { color: var(--text); }
 .expected { margin: 13px 0; }
 .expected > span { display: block; margin-bottom: 4px; color: var(--muted); font-size: 0.74rem; }
 .expected strong { color: var(--ink); font-size: 1.1rem; }
@@ -437,7 +449,7 @@ textarea:disabled { background: var(--surface); color: var(--ink); }
 .theory:first-of-type { margin-top: 18px; border-top: 1px solid var(--line); }
 .theory summary { color: var(--accent); font-size: 0.84rem; font-weight: 750; cursor: pointer; }
 .theory summary svg { width: 17px; height: 17px; margin-right: 5px; }
-.theory p { margin-top: 12px; font-size: 0.85rem; line-height: 1.8; overflow-wrap: anywhere; white-space: pre-wrap; }
+.theory p, .theory-content { margin-top: 12px; font-size: 0.85rem; line-height: 1.8; overflow-wrap: anywhere; white-space: pre-wrap; }
 .study-aside .study-tip { margin-top: 28px; font-size: 0.76rem; line-height: 1.8; }
 .flash-answer { display: flex; min-height: 170px; flex-direction: column; align-items: center; justify-content: center; gap: 18px; margin-top: 28px; border: 1px dashed var(--subtle); border-radius: var(--radius); padding: 24px; background: var(--surface); text-align: center; }
 .flash-answer > span { color: var(--muted); font-size: 0.88rem; }
@@ -742,7 +754,7 @@ kbd { display: inline-flex; min-width: 1.8em; justify-content: center; border: 1
   .flash-grades > .button { flex: 1; }
   .study-aside { position: static; padding: 23px 5px; }
   .study-aside h2 { font-size: 1.13rem; }
-  .theory p { font-size: 0.93rem; }
+  .theory p, .theory-content { font-size: 0.93rem; }
   .theory summary { font-size: 0.94rem; }
   .study-tip { display: none; }
   .feedback { padding: 18px; }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { buildCsvPreview, buildStats, CSV_HEADERS, evaluateAnswer, isReviewDue, nextReview, normalizeText, parseCsv, QUESTION_TYPES, resolveEscapeAction, selectQuestions, stableShuffle, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "../core.js";
+import { buildCsvPreview, buildStats, CSV_HEADERS, evaluateAnswer, formatExplanationHtml, formatInlineMarkdown, isReviewDue, nextReview, normalizeText, parseCsv, QUESTION_TYPES, resolveEscapeAction, selectQuestions, splitExplanationSections, stableShuffle, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "../core.js";
 import { questionsToCsv } from "../stats.js";
 import { question, vocabulary } from "./helpers.mjs";
 
@@ -372,4 +372,43 @@ test("resolveEscapeAction: khi học Flashcards ở mặt sau thì unflip trư�
   assert.equal(resolveEscapeAction({ modalOpen: false, view: "home" }), null);
   assert.equal(resolveEscapeAction({ modalOpen: false, view: "library" }), null);
 });
+
+test("formatExplanationHtml: tách dòng, in đậm câu hoàn chỉnh và nhãn giải thích", () => {
+  const sample1 = 'Câu hoàn chỉnh: スケジュールに無理があることが分かったので、計画を立て直す必要がある。 Dịch câu: "Vì nhận thấy lịch trình có điểm bất hợp lý nên chúng tôi cần phải lập lại kế hoạch." Động từ 立てる bỏ ます thành 立て直す (lập lại, xây dựng lại kế hoạch).';
+  const sections = splitExplanationSections(sample1);
+  assert.equal(sections.length, 3);
+  assert.equal(sections[0].label, "Câu hoàn chỉnh");
+  assert.equal(sections[0].content, "スケジュールに無理があることが分かったので、計画を立て直す必要がある。");
+  assert.equal(sections[1].label, "Dịch câu");
+  assert.equal(sections[1].content, '"Vì nhận thấy lịch trình có điểm bất hợp lý nên chúng tôi cần phải lập lại kế hoạch."');
+  assert.equal(sections[2].label, "Giải thích");
+  assert.match(sections[2].content, /Động từ 立てる/);
+
+  const html = formatExplanationHtml(sample1, { isJapanese: true });
+  // Kiểm tra in đậm nhãn
+  assert.match(html, /<strong class="explanation-label">Câu hoàn chỉnh:<\/strong>/);
+  assert.match(html, /<strong class="explanation-label">Dịch câu:<\/strong>/);
+  assert.match(html, /<strong class="explanation-label">Giải thích:<\/strong>/);
+  // Kiểm tra in đậm câu tiếng Nhật
+  assert.match(html, /<strong class="explanation-sentence" lang="ja">スケジュールに無理があることが分かったので、計画を立て直す必要がある。<\/strong>/);
+  // Kiểm tra có đủ 3 dòng riêng biệt
+  assert.equal((html.match(/class="explanation-row/g) || []).length, 3);
+});
+
+test("formatExplanationHtml: hỗ trợ ruby, thứ tự đúng G2 và markdown inline", () => {
+  const sampleG2 = 'Thứ tự đúng: 友達 (3) → に (2) → もらった (4) → 本 (1). Câu hoàn chỉnh: これは{友達|ともだち}にもらった本です。Dịch câu: "Đây là sách bạn tặng." Mảnh ở vị trí ★ (số 3) là もらった.';
+  const htmlG2 = formatExplanationHtml(sampleG2, { isJapanese: true });
+  assert.match(htmlG2, /<strong class="explanation-label">Thứ tự đúng:<\/strong>/);
+  assert.match(htmlG2, /<ruby>友達<rt>ともだち<\/rt><\/ruby>/);
+  assert.match(htmlG2, /<strong class="explanation-sentence" lang="ja">/);
+  assert.match(htmlG2, /<strong class="explanation-label">Dịch câu:<\/strong>/);
+  assert.match(htmlG2, /<strong class="explanation-label">Vị trí ★:<\/strong>/);
+
+  const sampleMd = '**Lưu ý:** Cần chú ý từ `test` và **in đậm**.';
+  const htmlMd = formatExplanationHtml(sampleMd, { isJapanese: false });
+  assert.match(htmlMd, /<strong class="explanation-label">Lưu ý:<\/strong>/);
+  assert.match(htmlMd, /<code>test<\/code>/);
+  assert.match(htmlMd, /<strong>in đậm<\/strong>/);
+});
+
 
