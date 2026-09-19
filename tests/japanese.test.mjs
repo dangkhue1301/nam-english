@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { buildCsvPreview } from "../core.js";
 import {
   JA_SCHEMA,
   JA_SUBJECT,
@@ -177,6 +178,14 @@ test("stripRuby: loại bỏ hoàn toàn furigana giữ nguyên chữ gốc", ()
 // -------------------------------------------------------------
 // 3. Parser mẫu 8 câu trong JAPANESE_CSV_GUIDE.md thành công 0 lỗi
 // -------------------------------------------------------------
+test("buildCsvPreview: nhận diện đúng file CSV tiếng Nhật khi header có BOM UTF-8 và dấu ngoặc kép", () => {
+  const csv = `\uFEFF"schema","subject","id","level","chapter","lesson","section","topic","type","prompt","context","target","options","answer","accepted_orders","star_position","explanation","theory","hint","learning_key"\r\n"ja-v1","japanese","1","N5","1","1","grammar","topic","ja_grammar_choice","prompt","Đây là {{gap}} sách.","","[{""id"":""o1"",""text"":""1""},{""id"":""o2"",""text"":""2""},{""id"":""o3"",""text"":""3""},{""id"":""o4"",""text"":""4""}]","o1","","","Giải thích có bản dịch","theory","",""`;
+  const result = buildCsvPreview(csv, "test.csv");
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].subject, "japanese");
+});
+
 test("Parse bộ mẫu 8 câu trong JAPANESE_CSV_GUIDE.md thành công 0 lỗi", async () => {
   const guide = await readFile(new URL("../JAPANESE_CSV_GUIDE.md", import.meta.url), "utf8");
   const blocks = [...guide.matchAll(/```csv\r?\n([\s\S]*?)```/g)].map((m) => m[1]);
@@ -423,6 +432,26 @@ test("Negative: K1 target bị ruby che phủ trong context", () => {
   assert.match(p.errors[0], /ja_kanji_reading: context không được có ruby che phủ target "新聞"/);
 });
 
+test("Positive: K1 target không có ruby che phủ dù câu có ruby ở chữ khác (ví dụ 大学 và {学|まな})", () => {
+  const k1Valid = baseQuestion({
+    type: "ja_kanji_reading",
+    section: "kanji",
+    context: "大学で{学|まな}んでいます。",
+    target: "大学",
+    options: JSON.stringify([
+      { id: "o1", text: "だいがく" },
+      { id: "o2", text: "たいがく" },
+      { id: "o3", text: "おおがく" },
+      { id: "o4", text: "だいきゃく" },
+    ]),
+    answer: "o1",
+    theory: "",
+  });
+  const p = parseJapaneseCsv(questionRowToCsv(k1Valid));
+  assert.equal(p.errors.length, 0);
+  assert.equal(p.questions.length, 1);
+});
+
 test("Negative: K1/K2 có ruby trong options trước khi chấm", () => {
   const k1OptRuby = baseQuestion({
     type: "ja_kanji_reading",
@@ -632,12 +661,35 @@ test("evaluateJapaneseAnswer: G3 hỗ trợ mảnh tương đương (hoán đổ
 });
 
 test("formatJapaneseSentence: nối các mảnh tiếng Nhật bằng chuỗi rỗng không chèn khoảng trắng", () => {
-  const options = [
-    { id: "p1", text: "これは" },
-    { id: "p2", text: "私の" },
-    { id: "p3", text: "本です。" },
-  ];
-  const sentence = formatJapaneseSentence(options, ["p1", "p2", "p3"]);
-  assert.equal(sentence, "これは私の本です。");
-  assert.equal(sentence.includes(" "), false, "Không được chèn khoảng trắng vào câu tiếng Nhật");
+  const options = [{ id: "o1", text: "本" }, { id: "o2", text: "です" }, { id: "o3", text: "これは" }];
+  const sentence = formatJapaneseSentence(options, ["o3", "o1", "o2"]);
+  assert.equal(sentence, "これは本です");
+});
+
+import { displayAnswer } from "../core.js";
+
+test("displayAnswer: G2 (chỉ trả về mảnh tại ★ được chọn) và G3 (trả về câu ghép theo order)", () => {
+  const qG2 = {
+    type: "ja_grammar_star",
+    options: [
+      { id: "o1", text: "A" },
+      { id: "o2", text: "B" },
+      { id: "o3", text: "C" },
+      { id: "o4", text: "D" }
+    ],
+    answer: "o3"
+  };
+  assert.equal(displayAnswer("o3", qG2), "C");
+
+  const qG3 = {
+    type: "ja_grammar_order",
+    options: [
+      { id: "o1", text: "本" },
+      { id: "o2", text: "です" },
+      { id: "o3", text: "これ" },
+      { id: "o4", text: "は" }
+    ],
+    acceptedOrders: [["o3", "o4", "o1", "o2"]]
+  };
+  assert.equal(displayAnswer(null, qG3), "これは本です");
 });

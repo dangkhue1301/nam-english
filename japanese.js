@@ -672,7 +672,7 @@ export function parseJapaneseCsv(text, filename = "japanese.csv") {
           const rubyCoversTarget = contextTokens.some((t) => {
             if (t.type !== "ruby") return false;
             const bNorm = t.base.normalize("NFC");
-            return bNorm.includes(targetNorm) || targetNorm.includes(bNorm);
+            return bNorm.includes(targetNorm);
           });
           if (rubyCoversTarget) {
             throw new Error(`ja_kanji_reading: context không được có ruby che phủ target "${raw.target}"`);

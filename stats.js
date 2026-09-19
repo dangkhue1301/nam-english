@@ -184,10 +184,17 @@ export function topicMastery(questions, attempts) {
   const topics = new Map();
 
   active.forEach((question) => {
-    const key = `${question.domain}\u0000${question.topic}`;
+    let key;
+    if (question.subject === "japanese") {
+      key = `ja:${question.chapter || ""}:${question.lesson || ""}:${question.section || question.domain || ""}:${question.topic || ""}`;
+    } else {
+      key = `${question.domain}\u0000${question.topic}`;
+    }
     const entry = topics.get(key) ?? {
       topic: question.topic,
       domain: question.domain,
+      subject: question.subject,
+      chapter: question.chapter,
       total: 0,
       attempted: new Set(),
       attempts: 0,
@@ -200,7 +207,13 @@ export function topicMastery(questions, attempts) {
   attempts.forEach((attempt) => {
     const question = byId.get(attempt.questionId);
     if (!question) return;
-    const entry = topics.get(`${question.domain}\u0000${question.topic}`);
+    let key;
+    if (question.subject === "japanese") {
+      key = `ja:${question.chapter || ""}:${question.lesson || ""}:${question.section || question.domain || ""}:${question.topic || ""}`;
+    } else {
+      key = `${question.domain}\u0000${question.topic}`;
+    }
+    const entry = topics.get(key);
     if (!entry) return;
     entry.attempted.add(question.id);
     entry.attempts += 1;
@@ -211,6 +224,8 @@ export function topicMastery(questions, attempts) {
     .map((entry) => ({
       topic: entry.topic,
       domain: entry.domain,
+      subject: entry.subject,
+      chapter: entry.chapter,
       total: entry.total,
       attempted: entry.attempted.size,
       coverage: entry.total > 0 ? entry.attempted.size / entry.total : 0,

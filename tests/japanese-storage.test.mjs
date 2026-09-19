@@ -403,6 +403,64 @@ for (const mode of ["localStorage", "IndexedDB"]) {
     assert.equal(rev.lapses, 0);
   });
 
+  test(`${mode}: SRS không tăng lịch ôn trước hạn khi từ đang trong chu kỳ lapse (dueAt > now và interval = 0)`, async (t) => {
+    const { repo } = await setup(t, mode);
+    const key = "ja:vocab:test:lapse";
+    const v1 = makeJaVocab({ id: "v101", learning_key: key, prompt: "Câu 1" });
+    const v2 = makeJaVocab({ id: "v102", learning_key: key, prompt: "Câu 2" });
+    const set = await repo.importQuestions([v1, v2], "lapse.csv");
+
+    // Lượt 1: làm v1 sai -> rơi vào lapse 10 phút
+    let s = await repo.startSession({ setId: set.id, mode: "vocabulary", limit: 1 });
+    await repo.submit(s.id, s.step, "o2"); // sai
+    await repo.advance(s.id, s.step);
+    s = (await repo.snapshot()).session;
+    await repo.submit(s.id, s.step, "o1"); // retry đúng để kết thúc phiên
+    await repo.advance(s.id, s.step);
+    
+    let w = await repo.snapshot();
+    let rev = w.reviews.find((r) => r.learningKey === key);
+    assert.equal(rev.intervalDays, 0);
+    assert.equal(rev.lapses, 1);
+    const initialDueAt = rev.dueAt;
+
+    // Lượt 2: làm biến thể mới v2 (cùng key) đúng trước khi hết hạn 10 phút
+    s = await repo.startSession({ setId: set.id, mode: "vocabulary", limit: 1 });
+    await repo.submit(s.id, s.step, "o1"); // v2 đúng
+    await repo.advance(s.id, s.step);
+    
+    w = await repo.snapshot();
+    rev = w.reviews.find((r) => r.learningKey === key);
+    // KHÔNG được đẩy lịch lên 1 ngày, vẫn giữ trong chu kỳ lapse
+    assert.equal(rev.intervalDays, 0);
+    assert.equal(rev.dueAt, initialDueAt);
+  });
+
+  test(`${mode}: endSession sớm khi đã làm 1/3 câu đúng KHÔNG bị tính là lapse/sai`, async (t) => {
+    const { repo } = await setup(t, mode);
+    const key = "ja:vocab:test:early";
+    const v1 = makeJaVocab({ id: "v201", learning_key: key, prompt: "Câu 1" });
+    const v2 = makeJaVocab({ id: "v202", learning_key: key, prompt: "Câu 2" });
+    const v3 = makeJaVocab({ id: "v203", learning_key: key, prompt: "Câu 3" });
+    const set = await repo.importQuestions([v1, v2, v3], "early.csv");
+    
+    let s = await repo.startSession({ setId: set.id, mode: "vocabulary" });
+    await repo.submit(s.id, s.step, "o1"); // v1 đúng
+    await repo.advance(s.id, s.step);
+    
+    // Thoát sớm khi mới làm 1/3 câu
+    await repo.endSession(s.id);
+    
+    const w = await repo.snapshot();
+    const event = w.srsEvents.find(e => e.learningKey === key);
+    assert.ok(event, "Có sự kiện SRS được lưu");
+    assert.equal(event.applied, true, "Đã chốt sự kiện");
+    const rev = w.reviews.find(r => r.learningKey === key);
+    assert.ok(rev, "Đã tạo bản ghi review");
+    assert.equal(rev.lastGrade, 4, "Chốt đúng trên các câu đã làm");
+    assert.equal(rev.lapses, 0, "Không bị phạt lapse thành sai");
+  });
+
   test(`${mode}: Hán tự (kanji) và Ngữ pháp (grammar) KHÔNG tham gia SRS`, async (t) => {
     const { repo } = await setup(t, mode);
     const k = makeJaKanji({ id: "k501" });
@@ -574,5 +632,52 @@ for (const mode of ["localStorage", "IndexedDB"]) {
     assert.equal(restoredSnapshot.questions.length, 8);
     assert.equal(restoredSnapshot.attempts.length, 1);
     assert.equal(restoredSnapshot.attempts[0].origin, "ja_unseen");
+  });
+
+  test(`${mode}: backup xuất version 3, validateBackup lọc bỏ event sai thời gian và phục hồi SRS từ phiên dở`, async (t) => {
+    const { repo } = await setup(t, mode);
+    const v1 = makeJaVocab({ id: "v901", learning_key: "ja:vocab:test:safe" });
+    const set = await repo.importQuestions([v1], "safe.csv");
+
+    const snap = await repo.snapshot();
+    const backup = exportBackup(snap);
+    assert.equal(backup.version, 3, "Backup xuất version 3");
+
+    // 1. Kiểm tra sự kiện có thời gian sai bị loại bỏ
+    const corruptBackup = structuredClone(backup);
+    corruptBackup.snapshot.srsEvents = [
+      { id: "e1", learningKey: "ja:vocab:test:safe", createdAt: NaN, updatedAt: Date.now() },
+      { id: "e2", learningKey: "ja:vocab:test:safe", createdAt: Date.now(), updatedAt: "invalid" },
+      { id: "e3", learningKey: "ja:vocab:test:safe", createdAt: Date.now(), updatedAt: Date.now(), applied: false },
+    ];
+    const valCorrupt = validateBackup(corruptBackup);
+    assert.equal(valCorrupt.srsEvents.length, 1);
+    assert.equal(valCorrupt.srsEvents[0].id, "e3");
+
+    // 2. Cảnh báo đối với backup v2
+    const v2Backup = structuredClone(backup);
+    v2Backup.version = 2;
+    delete v2Backup.snapshot.srsEvents;
+    const valV2 = validateBackup(v2Backup);
+    assert.ok(valV2.warning, "Có cảnh báo khi khôi phục v2");
+
+    // 3. Phục hồi phiên đang dở có kết quả từ bản cũ
+    v2Backup.snapshot.session = {
+      id: "sess-incomplete",
+      mode: "vocabulary",
+      keyQuestions: { "ja:vocab:test:safe": [v1.id] },
+      firstAnswers: { [v1.id]: true },
+      startedAt: Date.now() - 10000,
+    };
+    const valRecovered = validateBackup(v2Backup);
+    assert.equal(valRecovered.srsEvents.length, 1);
+    assert.equal(valRecovered.srsEvents[0].firstAnswers[v1.id], true);
+
+    // Chốt kết quả phiên dở khi replaceAll
+    await repo.replaceAll(v2Backup);
+    const restored = await repo.snapshot();
+    const rev = restored.reviews.find(r => r.learningKey === "ja:vocab:test:safe");
+    assert.ok(rev, "Đã chốt SRS từ phiên dở");
+    assert.equal(rev.lastGrade, 4);
   });
 }

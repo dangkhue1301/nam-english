@@ -159,12 +159,26 @@ export function orderingAnswerUsesOptions(options, answers, settings = {}) {
 export function buildCsvPreview(text, filename = "questions.csv") {
   const content = String(text).replace(/^\uFEFF/, "");
 
-  const firstLine = (content.split(/\r?\n/)[0] ?? "").trim();
-  const isJapaneseCsv =
-    firstLine.startsWith("schema,subject") ||
-    firstLine.includes("ja-v1") ||
-    (firstLine.startsWith("schema") && firstLine.includes("japanese")) ||
-    firstLine === JA_CSV_HEADERS.join(",");
+  // Detect Japanese CSV by parsed headers, not raw first line
+  let isJapaneseCsv = false;
+  try {
+    const probeRows = parseCsv(content);
+    if (probeRows.length > 0) {
+      const parsedHeaders = probeRows[0].map(h => h.trim());
+      isJapaneseCsv = (
+        parsedHeaders.length === JA_CSV_HEADERS.length &&
+        JA_CSV_HEADERS.every((h, i) => parsedHeaders[i] === h)
+      );
+    }
+  } catch {
+    // If CSV parsing fails at probe stage, fall through to legacy detection
+    const firstLine = (content.split(/\r?\n/)[0] ?? "").trim();
+    isJapaneseCsv =
+      firstLine.startsWith("schema,subject") ||
+      firstLine.includes("ja-v1") ||
+      (firstLine.startsWith("schema") && firstLine.includes("japanese")) ||
+      firstLine === JA_CSV_HEADERS.join(",");
+  }
 
   if (isJapaneseCsv) {
     const parsed = parseJapaneseCsv(content, filename);
@@ -459,11 +473,20 @@ export function displayAnswer(expected, optionsOrQuestion) {
     const questionObj = (opts && typeof opts === "object" && !Array.isArray(opts)) ? opts : null;
     const optList = Array.isArray(opts) ? opts : questionObj?.options;
 
-    if (questionObj?.type === "ja_grammar_order" || (Array.isArray(questionObj?.acceptedOrders) || Array.isArray(questionObj?.accepted_orders))) {
+    // G3: ordering — show sentence from submitted order or first accepted order
+    if (questionObj?.type === "ja_grammar_order") {
       const orders = questionObj?.acceptedOrders ?? questionObj?.accepted_orders ?? [];
-      const firstOrder = orders[0] ?? (Array.isArray(target) ? target : []);
+      const order = Array.isArray(target) ? target : (orders[0] ?? []);
       if (Array.isArray(optList)) {
-        return formatJapaneseSentence(optList, firstOrder);
+        return formatJapaneseSentence(optList, order);
+      }
+    }
+
+    // G2: star — show the selected fragment text, not the full sentence
+    if (questionObj?.type === "ja_grammar_star") {
+      if (Array.isArray(optList) && typeof target === "string") {
+        const selectedOpt = optList.find((o) => o.id === target);
+        if (selectedOpt) return selectedOpt.text;
       }
     }
 

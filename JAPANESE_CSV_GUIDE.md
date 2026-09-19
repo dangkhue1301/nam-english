@@ -1,4 +1,4 @@
-# Hướng dẫn tạo CSV Tiếng Nhật cho NẮM
+# Hướng dẫn tạo CSV tiếng Nhật cho NẮM
 
 Phiên bản chính thức: `ja-v1` · Cập nhật: 18/09/2026.
 
@@ -106,8 +106,8 @@ ID được giữ ổn định kể cả khi web đảo vị trí hiển thị. 
 
 Viết `{漢字|かな}`, ví dụ `{学校|がっこう}`. Dùng được trong `prompt`, `context`, `options[].text`, `explanation`, `theory`, `hint` theo giới hạn từng dạng.
 
-**Chuẩn hiển thị JLPT trên website:**
-- Theo chuẩn đề thi JLPT thực tế, website **không hiển thị furigana nổi** trên giao diện làm bài thi (nhằm rèn luyện năng lực đọc chữ Hán thực chiến cho học sinh, tránh phụ thuộc vào phiên âm). Giao diện không có nút bật/tắt furigana.
+**Chuẩn hiển thị trên website:**
+- Website **mặc định hiển thị furigana nổi** trên giao diện làm bài thi. Người học có thể bật/tắt hiển thị này tùy nhu cầu luyện tập.
 - Cú pháp `{漢字|かな}` trong CSV có vai trò lưu trữ cấu trúc đọc chuẩn hóa: hệ thống tự động bóc tách chữ Hán gốc để hiển thị câu hỏi và đối soát từ đích (`target`), đồng thời giữ lại thông tin phiên âm để phục vụ đối chiếu từ vựng SRS và hiển thị lời giải chi tiết sau khi nộp bài.
 
 **Quy tắc cú pháp:**
@@ -142,7 +142,7 @@ Không tự đổi hiragana ↔ katakana, bỏ dấu kéo dài `ー`, bỏ kana 
 
 Ví dụ: order `o3 → o2 → o4 → o1`, sao ở vị trí 3 → `answer=o4`.
 
-### G3. Ngữ pháp sắp xếp câu
+### G3. Ngữ pháp sắp xếp câu (luyện thêm)
 
 - `section=grammar`, `type=ja_grammar_order`.
 - `context`: nghĩa/câu gợi ý bằng tiếng Việt; `options`: 2–12 mảnh của toàn câu Nhật.

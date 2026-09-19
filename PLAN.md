@@ -2,12 +2,18 @@
 
 Cập nhật: 18/09/2026.
 
-## Đợt hiện tại — Lập kế hoạch Tiếng Nhật, chưa build
+## Đợt hiện tại — Tiếng Nhật (ja-v1) - Sẵn sàng phát hành
 
-Người dùng yêu cầu lên kế hoạch toàn diện trước, chưa triển khai. Đã xác nhận thêm hai dạng Hán tự (chọn cách đọc, chọn chữ Hán đúng), giữ SRS cho bài tập từ vựng Nhật, không có flashcard tiếng Nhật và có nút bật/tắt furigana nhớ lựa chọn. Furigana không được lộ đáp án Hán tự trước chấm. Đề N2 tháng 7/2023 được dùng làm mẫu định dạng, không tự nhập hoặc công bố nguyên đề.
+Đã hoàn thành triển khai toàn bộ các đợt theo kế hoạch Tiếng Nhật:
+- **Đợt A (Nhập liệu & Hiển thị an toàn)**: Nhận diện CSV `ja-v1`, escape HTML/attribute an toàn, xử lý G2/G3.
+- **Đợt B (Lưu trữ & Lịch ôn Nhật)**: Tách SRS theo learning_key, lưu `isRetry`, xử lý endSession/lapse đúng quy tắc, xuất/nhập backup v3.
+- **Đợt C (Giao diện Home & Trình bày)**: Thêm cây thư mục (Bộ -> Chương -> Bài -> Mục -> Chủ điểm), scope filters, preview thống kê số lượng 8 dạng.
+- **Đợt D (Kiểm thử & Bàn giao)**: Hoàn thiện `JAPANESE_CSV_GUIDE.md` và `PLAN.md`.
 
-- Kế hoạch chi tiết: [JAPANESE_PLAN.md](JAPANESE_PLAN.md), gồm 8 dạng bài, cây Chương/Bài, tiến độ theo câu, SRS theo từ, lưu trữ/migration, UI tối thiểu và bộ nghiệm thu.
-- Contract CSV riêng cho AI tạo câu: [JAPANESE_CSV_GUIDE.md](JAPANESE_CSV_GUIDE.md), đề xuất `ja-v1` gồm 20 cột. Bản web hiện tại chưa hỗ trợ profile này.
+**Kết quả kiểm thử**: 154/154 bài kiểm thử đạt (100% pass), bao gồm các regression tests cụ thể. Trạng thái dự án: **Sẵn sàng build và phát hành khi có lệnh**.
+
+- Kế hoạch chi tiết: [JAPANESE_PLAN.md](JAPANESE_PLAN.md)
+- Contract CSV riêng cho AI tạo câu: [JAPANESE_CSV_GUIDE.md](JAPANESE_CSV_GUIDE.md)
 - Giữ nguyên `QUESTION_CSV_GUIDE.md` và tính năng của các môn cũ. Không xóa kho bài, không sửa mã, không build/push trong đợt lập kế hoạch.
 - Khi người dùng duyệt build: Terra Max triển khai theo các đợt trong plan mới; agent chính rà soát và kiểm chứng. Đọc lại HEAD lúc đó, không reset về commit lịch sử.
 

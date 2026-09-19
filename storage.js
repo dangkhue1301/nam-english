@@ -14,8 +14,11 @@ const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.r
 const fail = (message) => { throw new Error(message); };
 export const questionSetIdOf = (q) => q?.setId || "legacy-v1";
 const emptyData = () => ({ questions: [], reviews: [], attempts: [], imports: [] });
-const fresh = () => ({ ...emptyData(), revision: 0, session: null, summary: null, selectedSetId: null, recovery: null });
-const dataOnly = (w) => Object.fromEntries(PARTS.map((part) => [part, copy(w[part] ?? [])]));
+const fresh = () => ({ ...emptyData(), revision: 0, session: null, summary: null, selectedSetId: null, recovery: null, srsEvents: [] });
+const dataOnly = (w) => ({
+  ...Object.fromEntries(PARTS.map((part) => [part, copy(w[part] ?? [])])),
+  srsEvents: copy(w?.srsEvents ?? []),
+});
 const hasData = (w) => PARTS.some((part) => w?.[part]?.length);
 const validTimestamp = (value) => Number.isFinite(value) && Math.abs(value) <= MAX_TIMESTAMP;
 const domainForMode = (mode) => {
@@ -400,7 +403,7 @@ function applyJapaneseSrs(w, learningKey, correct, q, now = Date.now()) {
 
   if (previous) {
     if (correct) {
-      if (!isReviewDue(previous, now) && previous.repetitions > 0) {
+      if (!isReviewDue(previous, now)) {
         const updated = {
           ...previous,
           lastReviewedAt: now,
@@ -455,16 +458,38 @@ function handleJapaneseSrsSubmit(w, s, q, received, correct, isRetry) {
   s.firstAnswers ??= {};
   s.keyEvaluated ??= {};
 
+  w.srsEvents ??= [];
+  const eventId = `${s.id}:${key}`;
+  let srsEvent = w.srsEvents.find((e) => e.id === eventId);
+  const targetQIds = s.keyQuestions?.[key] ?? [q.id];
+  if (!srsEvent) {
+    srsEvent = {
+      id: eventId,
+      sessionId: s.id,
+      learningKey: key,
+      questionIds: targetQIds,
+      firstAnswers: {},
+      applied: false,
+      appliedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    w.srsEvents.push(srsEvent);
+  }
+
   if (!isRetry && s.firstAnswers[q.id] === undefined) {
     s.firstAnswers[q.id] = correct;
   }
+  srsEvent.firstAnswers[q.id] = s.firstAnswers[q.id];
+  srsEvent.updatedAt = now;
 
-  const targetQIds = s.keyQuestions?.[key] ?? [q.id];
   const allAnswered = targetQIds.every((id) => s.firstAnswers[id] !== undefined);
   if (allAnswered && !s.keyEvaluated[key]) {
     const allCorrect = targetQIds.every((id) => s.firstAnswers[id] === true);
     const rev = applyJapaneseSrs(w, key, allCorrect, q, now);
     s.keyEvaluated[key] = true;
+    srsEvent.applied = true;
+    srsEvent.appliedAt = now;
     return rev;
   }
 
@@ -476,14 +501,36 @@ function finalizeSessionSrsEvents(w, s) {
   const now = Date.now();
   s.firstAnswers ??= {};
   s.keyEvaluated ??= {};
+  w.srsEvents ??= [];
   for (const [key, qIds] of Object.entries(s.keyQuestions)) {
     if (!s.keyEvaluated[key]) {
       const answeredIds = qIds.filter((id) => s.firstAnswers[id] !== undefined);
       if (answeredIds.length > 0) {
-        const allCorrect = answeredIds.length === qIds.length && answeredIds.every((id) => s.firstAnswers[id] === true);
+        const allCorrect = answeredIds.every((id) => s.firstAnswers[id] === true);
         const q = w.questions.find((item) => item.id === answeredIds[0]);
         applyJapaneseSrs(w, key, allCorrect, q, now);
         s.keyEvaluated[key] = true;
+
+        const eventId = `${s.id}:${key}`;
+        let srsEvent = w.srsEvents.find((e) => e.id === eventId);
+        if (!srsEvent) {
+          srsEvent = {
+            id: eventId,
+            sessionId: s.id,
+            learningKey: key,
+            questionIds: qIds,
+            firstAnswers: { ...s.firstAnswers },
+            applied: true,
+            appliedAt: now,
+            createdAt: now,
+            updatedAt: now,
+          };
+          w.srsEvents.push(srsEvent);
+        } else {
+          srsEvent.applied = true;
+          srsEvent.appliedAt = now;
+          srsEvent.updatedAt = now;
+        }
       }
     }
   }
@@ -506,7 +553,7 @@ function addAttempt(w, q, answer, correct, extra = {}) {
   );
   w.attempts.push({ id: attemptId, questionId: q.id, originalQuestionId: q.originalId || q.id,
     setId: questionSetIdOf(q), answer, correct, grade: correct ? 4 : 1, attemptedAt: now, mode: extra.mode || q.domain, purpose,
-    ...(origin ? { origin } : {}) });
+    ...(origin ? { origin } : {}), ...(isRetry ? { isRetry: true } : {}) });
   if (purpose === "review") return null;
   if (q.domain !== "vocabulary") return null;
   if (isJapanese) return null;
@@ -645,7 +692,53 @@ export function validateBackup(value) {
   }));
   const result = { questions, reviews, attempts, imports };
   if (Array.isArray(s.srsEvents)) {
-    result.srsEvents = s.srsEvents.filter((event) => event && typeof event.id === "string" && typeof event.learningKey === "string");
+    result.srsEvents = s.srsEvents.filter((event) => {
+      if (!event || typeof event.id !== "string" || !event.id) return false;
+      if (typeof event.learningKey !== "string" || !event.learningKey) return false;
+      if (event.createdAt != null && !validTimestamp(event.createdAt)) return false;
+      if (event.updatedAt != null && !validTimestamp(event.updatedAt)) return false;
+      if (event.appliedAt != null && !validTimestamp(event.appliedAt)) return false;
+      return true;
+    }).map((event) => ({
+      ...event,
+      createdAt: validTimestamp(event.createdAt) ? event.createdAt : Date.now(),
+      updatedAt: validTimestamp(event.updatedAt) ? event.updatedAt : Date.now(),
+      applied: Boolean(event.applied),
+      appliedAt: validTimestamp(event.appliedAt) ? event.appliedAt : (event.applied ? (validTimestamp(event.updatedAt) ? event.updatedAt : Date.now()) : null),
+    }));
+  } else {
+    result.srsEvents = [];
+    result.warning = "Bản sao lưu phiên bản cũ (v2) không chứa sự kiện SRS đang chờ; không thể tự suy đoán kết quả dở dang.";
+  }
+
+  const sessionSource = s.session || value?.session;
+  if (sessionSource && sessionSource.mode === "vocabulary" && sessionSource.keyQuestions && sessionSource.firstAnswers) {
+    const started = validTimestamp(sessionSource.startedAt) ? sessionSource.startedAt : Date.now();
+    for (const [key, qIds] of Object.entries(sessionSource.keyQuestions)) {
+      if (!result.srsEvents.some((e) => e.learningKey === key)) {
+        const answered = Object.fromEntries(
+          qIds.filter((id) => sessionSource.firstAnswers[id] !== undefined)
+              .map((id) => [id, sessionSource.firstAnswers[id]])
+        );
+        if (Object.keys(answered).length > 0) {
+          result.srsEvents.push({
+            id: `${sessionSource.id || "recovered"}:${key}`,
+            sessionId: sessionSource.id || "recovered",
+            learningKey: key,
+            questionIds: qIds,
+            firstAnswers: answered,
+            applied: false,
+            appliedAt: null,
+            createdAt: started,
+            updatedAt: started,
+          });
+        }
+      }
+    }
+  }
+
+  if (value?.version === 2 && !result.warning) {
+    result.warning = "Bản sao lưu phiên bản cũ (v2); kết quả phiên đang dở sẽ không được tự động suy đoán.";
   }
   return result;
 }
@@ -693,8 +786,8 @@ class Repository {
   deleteSet(setId) { return this.change((w) => {
     if (!w.imports.some((set) => set.id === setId)) fail("Không tìm thấy bộ bài.");
     archive(w);
-    const removed = new Set(setQuestions(w, setId).map((q) => q.id));
-    w.questions = w.questions.filter((q) => !removed.has(q.id));
+    const removed = new Set(w.questions.filter((q) => q.setId === setId).map((q) => q.id));
+    w.questions = w.questions.filter((q) => q.setId !== setId);
     w.attempts = w.attempts.filter((a) => !removed.has(a.questionId));
     w.imports = w.imports.filter((set) => set.id !== setId);
     const keys = new Set(w.questions.filter((q) => q.domain === "vocabulary").map(learningKeyFor));
@@ -704,10 +797,31 @@ class Repository {
     if (w.selectedSetId === setId) w.selectedSetId = w.imports[0]?.id ?? null;
     w.summary = null;
   }); }
-  clearAll() { return this.change((w) => { archive(w); Object.assign(w, emptyData(), { session: null, summary: null, selectedSetId: null }); }); }
+  clearAll() { return this.change((w) => { archive(w); Object.assign(w, emptyData(), { session: null, summary: null, selectedSetId: null, srsEvents: [] }); }); }
   replaceAll(value) {
     const data = validateBackup(value);
-    return this.change((w) => { archive(w); Object.assign(w, data, { session: null, summary: null, selectedSetId: data.imports[0]?.id ?? null }); });
+    return this.change((w) => {
+      archive(w);
+      if (Array.isArray(data.srsEvents)) {
+        for (const event of data.srsEvents) {
+          if (!event.applied && event.firstAnswers) {
+            const answeredIds = Object.keys(event.firstAnswers);
+            if (answeredIds.length > 0) {
+              const allCorrect = answeredIds.every((id) => event.firstAnswers[id] === true);
+              const q = data.questions.find((item) => item.learningKey === event.learningKey);
+              if (q) {
+                const ts = validTimestamp(event.updatedAt) ? event.updatedAt : (validTimestamp(event.createdAt) ? event.createdAt : Date.now());
+                applyJapaneseSrs(data, event.learningKey, allCorrect, q, ts);
+                event.applied = true;
+                event.appliedAt = ts;
+              }
+            }
+          }
+        }
+      }
+      Object.assign(w, data, { session: null, summary: null, selectedSetId: data.imports[0]?.id ?? null, srsEvents: data.srsEvents ?? [] });
+      return { warning: data.warning ?? null };
+    });
   }
   startMistakesSession({ limit = 20 } = {}) { return this.change((w) => {
     if (validSession(w.session, w)) fail("Hãy tiếp tục hoặc kết thúc lượt đang học trước.");
@@ -889,17 +1003,18 @@ class Repository {
           starPosition: q.starPosition ?? q.star_position,
         });
     const received = s.mode === "flashcards" ? (answer ? "Đã nhớ" : "Chưa nhớ") : answer;
+    let isRetry = false;
     let review = null;
     if (isJapanese) {
+      isRetry = Boolean(s.firstAnswers && s.firstAnswers[q.id] !== undefined);
       if (s.mode === "vocabulary" && s.purpose !== "review") {
-        const isRetry = Boolean(s.firstAnswers && s.firstAnswers[q.id] !== undefined);
         review = handleJapaneseSrsSubmit(w, s, q, received, correct, isRetry);
       } else {
         addAttempt(w, q, received, correct, {
           id: `${s.id}:${step}`,
           mode: s.mode,
           purpose: s.purpose || "study",
-          isRetry: false,
+          isRetry,
           dueOnly: Boolean(s.filters?.dueOnly),
         });
       }
@@ -907,7 +1022,7 @@ class Repository {
       review = addAttempt(w, q, received, correct, { id: `${s.id}:${step}`, mode: s.mode, purpose: s.purpose || "study" });
     }
     s.log.push({ questionId: q.id, correct, answer: received });
-    s.result = { correct, received, expected: displayAnswer(q.answer, q), dueAt: review?.dueAt ?? null, draft: copy(draft) };
+    s.result = { correct, received, expected: displayAnswer(q.answer, q), dueAt: review?.dueAt ?? null, draft: copy(draft), isRetry };
     s.draft = null;
     return copy(s.result);
   }); }
@@ -985,4 +1100,4 @@ export async function readDashboard(repository, requestedSetId = null) {
     stats: buildStats(questions, snapshot.reviews, attempts, selected ? [selected] : []) };
 }
 export async function getSessionQuestions(repository, filters) { return selection(await repository.snapshot(), filters); }
-export function exportBackup(snapshot) { return { app: "nam-english", version: 2, exportedAt: new Date().toISOString(), snapshot: dataOnly(snapshot) }; }
+export function exportBackup(snapshot) { return { app: "nam-english", version: 3, exportedAt: new Date().toISOString(), snapshot: dataOnly(snapshot) }; }

@@ -52,8 +52,22 @@ import {
   formatJapaneseSentence,
 } from "./japanese.js";
 
+const FURIGANA_KEY = "nam-furigana";
+function currentFurigana() {
+  try {
+    const stored = localStorage.getItem(FURIGANA_KEY);
+    if (stored === "off") return false;
+    if (stored === "on") return true;
+  } catch { /* ignore */ }
+  return true; // default ON for first time
+}
+function setFurigana(val) {
+  try { localStorage.setItem(FURIGANA_KEY, val ? "on" : "off"); } catch { /* ignore */ }
+}
+
 function renderRubyHtml(text, options = {}) {
-  return renderRubyHtmlBase(text, { ...options, showRuby: false });
+  const showRuby = options.showRuby ?? currentFurigana();
+  return renderRubyHtmlBase(text, { ...options, showRuby });
 }
 
 const root = document.querySelector("#app");
@@ -380,6 +394,38 @@ function highlightJapaneseTarget(htmlStr, target) {
   return htmlStr.replace(new RegExp(`(${escaped})`, "g"), '<u class="ja-target-highlight">$1</u>');
 }
 
+function renderQuestionContext(q, result = true) {
+  if (!q.context) return "";
+  if (q.subject === "japanese") {
+    const ctx = q.context;
+    if (q.type === "ja_grammar_choice" || q.type === "ja_vocab_context") {
+      const rendered = renderRubyHtml(ctx);
+      return rendered.replaceAll("{{gap}}", '<span class="ja-gap" aria-label="Chỗ trống">[ &hellip; ]</span>');
+    }
+    if (q.type === "ja_grammar_star") {
+      const starPos = Number(q.star_position ?? q.starPosition) || 3;
+      const slotsMarkup = `<span class="ja-slots-group" role="group" aria-label="4 vị trí sắp xếp">${[1, 2, 3, 4].map((pos) => {
+        const isStar = pos === starPos;
+        return `<span class="ja-slot ${isStar ? "ja-slot-star" : ""}" aria-label="${isStar ? `Vị trí số ${pos} trong 4 vị trí (vị trí ngôi sao ★)` : `Vị trí số ${pos} trong 4 vị trí`}">${isStar ? "★" : pos}</span>`;
+      }).join("")}</span>`;
+      const rendered = renderRubyHtml(ctx);
+      return rendered.replaceAll("{{slots}}", slotsMarkup);
+    }
+    if (q.type === "ja_kanji_reading") {
+      const rendered = renderRubyHtml(ctx, {
+        hideTarget: result ? null : q.target,
+      });
+      return highlightJapaneseTarget(rendered, q.target);
+    }
+    if (q.type === "ja_kanji_writing" || q.type === "ja_vocab_paraphrase") {
+      const rendered = renderRubyHtml(ctx);
+      return highlightJapaneseTarget(rendered, q.target);
+    }
+    return renderRubyHtml(ctx);
+  }
+  return html(q.context);
+}
+
 function renderJapaneseQuestionContent(q, result) {
   let targetBadgeHtml = "";
   if (q.type === "ja_vocab_usage" && q.target) {
@@ -387,32 +433,7 @@ function renderJapaneseQuestionContent(q, result) {
     targetBadgeHtml = `<div class="ja-target-badge-wrap"><span class="ja-target-badge" lang="ja">${renderedTarget}</span></div>`;
   }
 
-  let contextHtml = "";
-  if (q.context) {
-    const ctx = q.context;
-    if (q.type === "ja_grammar_choice" || q.type === "ja_vocab_context") {
-      const rendered = renderRubyHtml(ctx);
-      contextHtml = rendered.replaceAll("{{gap}}", '<span class="ja-gap" aria-label="Chỗ trống">[ &hellip; ]</span>');
-    } else if (q.type === "ja_grammar_star") {
-      const starPos = Number(q.star_position ?? q.starPosition) || 3;
-      const slotsMarkup = `<span class="ja-slots-group" role="group" aria-label="4 vị trí sắp xếp">${[1, 2, 3, 4].map((pos) => {
-        const isStar = pos === starPos;
-        return `<span class="ja-slot ${isStar ? "ja-slot-star" : ""}" aria-label="${isStar ? `Vị trí số ${pos} trong 4 vị trí (vị trí ngôi sao ★)` : `Vị trí số ${pos} trong 4 vị trí`}">${isStar ? "★" : pos}</span>`;
-      }).join("")}</span>`;
-      const rendered = renderRubyHtml(ctx);
-      contextHtml = rendered.replaceAll("{{slots}}", slotsMarkup);
-    } else if (q.type === "ja_kanji_reading") {
-      const rendered = renderRubyHtml(ctx, {
-        hideTarget: result ? null : q.target,
-      });
-      contextHtml = highlightJapaneseTarget(rendered, q.target);
-    } else if (q.type === "ja_kanji_writing" || q.type === "ja_vocab_paraphrase") {
-      const rendered = renderRubyHtml(ctx);
-      contextHtml = highlightJapaneseTarget(rendered, q.target);
-    } else {
-      contextHtml = renderRubyHtml(ctx);
-    }
-  }
+  const contextHtml = renderQuestionContext(q, result);
 
   let formattedContext = "";
   if (contextHtml) {
@@ -623,8 +644,8 @@ function homeMarkup() {
   const xp = xpFromAttempts(attempts);
   const level = levelInfo(xp);
   const xpMarkup = attempts.length ? `<div class="home-xp" style="margin-bottom:20px;">
-    <div><strong>Cấp ${level.level}</strong><span>${number(level.current)} / ${number(level.cost)} XP</span></div>
-    <div class="progress-track" aria-label="Tiến độ lên cấp"><span style="width:${level.progress}%;"></span></div>
+    <div><strong>Cấp ${level.level}</strong><span>${number(level.intoLevel)} / ${number(level.needed)} XP</span></div>
+    <div class="progress-track" aria-label="Tiến độ lên cấp"><span style="width:${Math.round(level.progress * 100)}%;"></span></div>
   </div>` : "";
   const isJapanese = set.subject === "japanese";
   const english = set.subject === "english";
@@ -712,6 +733,7 @@ function homeMarkup() {
     const cards = [];
     const limit = state.limit || 30;
 
+    const emptyMsg = scopeSummary.total === 0 ? "Không có câu phù hợp" : "Đã hoàn thành các câu";
     if (state.section === "all" || state.section === "kanji") {
       const count = scopeSummary.kanjiRemaining || 0;
       cards.push(`
@@ -720,7 +742,7 @@ function homeMarkup() {
           <h2>Hán tự</h2>
           <p>Luyện cách đọc (K1) và cách viết chữ Hán (K2) chuẩn theo ngữ cảnh.</p>
           <div class="mode-count"><strong>${number(count)}</strong><span>câu chưa làm</span></div>
-          ${button(count ? `Bắt đầu ${Math.min(limit, count)} câu Hán tự ${icon("arrow")}` : "Đã hoàn thành các câu", "begin", "button mode-start", `data-mode="kanji" ${!count || currentSession() ? "disabled" : ""}`)}
+          ${button(count ? `Bắt đầu ${Math.min(limit, count)} câu Hán tự ${icon("arrow")}` : emptyMsg, "begin", "button mode-start", `data-mode="kanji" ${!count || currentSession() ? "disabled" : ""}`)}
           <span class="mode-footnote">Làm bài tập chọn đáp án; câu đã làm sẽ không lặp lại.</span>
         </article>
       `);
@@ -734,7 +756,7 @@ function homeMarkup() {
           <h2>Ngữ pháp</h2>
           <p>Điền khuyết (G1), tìm mảnh ghép ngôi sao ★ (G2) và sắp xếp câu (G3).</p>
           <div class="mode-count"><strong>${number(count)}</strong><span>câu chưa làm</span></div>
-          ${button(count ? `Bắt đầu ${Math.min(limit, count)} câu Ngữ pháp ${icon("arrow")}` : "Đã hoàn thành các câu", "begin", "button mode-start", `data-mode="grammar" ${!count || currentSession() ? "disabled" : ""}`)}
+          ${button(count ? `Bắt đầu ${Math.min(limit, count)} câu Ngữ pháp ${icon("arrow")}` : emptyMsg, "begin", "button mode-start", `data-mode="grammar" ${!count || currentSession() ? "disabled" : ""}`)}
           <span class="mode-footnote">Làm bài tập ngữ pháp; có lời giải và câu hoàn chỉnh sau khi chấm.</span>
         </article>
       `);
@@ -767,8 +789,8 @@ function homeMarkup() {
         countMarkup = `<div class="mode-count"><strong>${number(count)}</strong><span>câu bài tập chưa làm</span></div>`;
         buttonMarkup = button(`Luyện tập ${Math.min(limit, count)} câu từ vựng ${icon("arrow")}`, "begin", "button mode-start", `data-mode="vocabulary" ${currentSession() ? "disabled" : ""}`);
       } else {
-        countMarkup = `<div class="mode-count"><strong>0</strong><span>Đã hoàn thành các câu</span></div>`;
-        buttonMarkup = button("Đã hoàn thành các câu", "begin", "button mode-start", 'data-mode="vocabulary" disabled');
+        countMarkup = `<div class="mode-count"><strong>0</strong><span>${emptyMsg}</span></div>`;
+        buttonMarkup = button(emptyMsg, "begin", "button mode-start", 'data-mode="vocabulary" disabled');
       }
 
       cards.push(`
@@ -786,6 +808,7 @@ function homeMarkup() {
     return cards.join("");
   };
 
+  const hasFilter = state.chapter !== "all" || state.lesson !== "all" || state.section !== "all" || state.topic !== "all" || state.level !== "all";
   const jaTreeMarkup = isJapanese ? `
     <div class="ja-tree-scope-card glass">
       <div class="ja-tree-breadcrumb">
@@ -797,13 +820,25 @@ function homeMarkup() {
         ${state.level !== "all" ? `<span class="pill">${html(state.level)}</span>` : ""}
       </div>
       <div class="ja-scope-metrics">
+        ${hasFilter ? `
         <div class="ja-metric">
-          <span class="ja-metric-label">Đã làm</span>
+          <span class="ja-metric-label">Phạm vi</span>
           <strong class="ja-metric-val">${scopeSummary.done}/${scopeSummary.total} <small>câu</small></strong>
         </div>
         <div class="ja-metric-divider"></div>
         <div class="ja-metric">
-          <span class="ja-metric-label">Cần luyện lại</span>
+          <span class="ja-metric-label">Toàn bộ CSV</span>
+          <strong class="ja-metric-val">${full.done}/${full.total} <small>câu</small></strong>
+        </div>
+        ` : `
+        <div class="ja-metric">
+          <span class="ja-metric-label">Đã làm</span>
+          <strong class="ja-metric-val">${scopeSummary.done}/${scopeSummary.total} <small>câu</small></strong>
+        </div>
+        `}
+        <div class="ja-metric-divider"></div>
+        <div class="ja-metric">
+          <span class="ja-metric-label">Câu từ vựng cần luyện lại</span>
           <strong class="ja-metric-val ${scopeSummary.needRetry > 0 ? "accent" : ""}">${scopeSummary.needRetry} <small>câu</small></strong>
         </div>
         <div class="ja-metric-divider"></div>
@@ -863,8 +898,8 @@ function questionSearchCard(q) {
   return `<article class="question-search-card">
     <div class="question-search-card-top"><span>${html(set?.name || "Bộ bài")}</span><span class="pill">${subjectName(q.subject)} · ${html(TYPE_LABELS[q.type] || q.type)}</span></div>
     <h3>${html(q.prompt)}</h3>
-    ${q.context ? `<p class="question-context">${html(q.context)}</p>` : ""}
-    <div class="search-q-answer"><strong>Đáp án:</strong><span>${html(displayAnswer(q.answer))}</span></div>
+    ${q.context ? `<p class="question-context">${renderQuestionContext(q, true)}</p>` : ""}
+    <div class="search-q-answer"><strong>Đáp án:</strong><span>${q.subject === "japanese" ? renderRubyHtml(displayAnswer(q.answer, q)) : html(displayAnswer(q.answer))}</span></div>
     <div class="question-search-meta"><span class="eyebrow">${html(q.topic)}${q.subtopic ? ` / ${html(q.subtopic)}` : ""}</span>${button(`Xem bộ bài ${icon("arrow")}`, "choose", "button subtle", `data-id="${html(q.setId)}"`)}</div>
   </article>`;
 }
@@ -924,7 +959,7 @@ function answerMarkup(q, result) {
             ? d.ordered.map((index) => {
                 const opt = options[index];
                 const text = renderRubyHtml(opt?.text ?? "");
-                return button(`${text}<span aria-hidden="true" class="token-remove-x">×</span>`, "remove-token", "token ja-token selected", `data-index="${index}" ${disabled} aria-label="Bỏ mảnh ${stripRuby(opt?.text ?? "")}"`);
+                return button(`${text}<span aria-hidden="true" class="token-remove-x">×</span>`, "remove-token", "token ja-token selected", `data-index="${index}" ${disabled} aria-label="Bỏ mảnh ${html(stripRuby(opt?.text ?? ""))}"`);
               }).join("")
             : '<span class="muted ja-builder-placeholder" lang="vi">Chạm các mảnh bên dưới để xếp thành câu tiếng Nhật...</span>'}
         </div>
@@ -953,8 +988,8 @@ function answerMarkup(q, result) {
     return `<fieldset class="choices ja-choices ${isUsage ? "choices-single-col" : ""}"><legend class="sr-only">${isStar ? `Chọn phương án điền vào vị trí số ${starPos} (★)` : "Chọn một đáp án đúng"}</legend>${options.map((opt, index) => {
       const selected = d.selected.includes(index);
       const right = result && opt.id === q.answer;
-      const showOptRuby = isKanjiWriting && !result ? false : true;
-      const textHtml = renderRubyHtml(opt.text, { showRuby: showOptRuby });
+      const showOptRuby = isKanjiWriting && !result ? false : undefined;
+      const textHtml = renderRubyHtml(opt.text, showOptRuby !== undefined ? { showRuby: showOptRuby } : {});
 
       return `<button type="button" data-action="option" data-index="${index}" class="choice ja-choice${selected ? " selected" : ""}${right ? " correct" : result && selected ? " incorrect" : ""}" aria-pressed="${selected}" ${disabled}><span class="choice-letter">${String.fromCharCode(65 + index)}</span><span lang="ja" class="ja-choice-text">${textHtml}</span>${right ? icon("check") : ""}</button>`;
     }).join("")}</fieldset>`;
@@ -1196,7 +1231,7 @@ function sessionMarkup() {
         </div>
       `;
     } else if (isJapanese) {
-      const isRetry = Boolean(s.firstAnswers && s.firstAnswers[q.id] !== undefined);
+      const isRetry = Boolean(result.isRetry);
       const retryBadge = isRetry ? `<span class="pill retry-pill">↺ Luyện lại</span>` : "";
 
       let fullSentenceHtml = "";
@@ -1253,6 +1288,7 @@ function sessionMarkup() {
     <span>${isReview ? "Ôn riêng các câu sai" : html(set?.name)}</span>
     <strong>Câu ${s.done + 1}/${s.target}</strong>
     ${state.timerVisible ? `<span class="study-timer" aria-live="off">${icon("clock")}<span id="study-timer-text">00:00</span></span>` : ""}
+    ${q.subject === "japanese" ? `<button class="furigana-toggle" aria-pressed="${currentFurigana()}" data-action="toggle-furigana" aria-label="Bật/tắt furigana">振 Furigana</button>` : ""}
     ${button(icon("clock"), "toggle-timer", "icon-button", `title="${state.timerVisible ? "Ẩn đồng hồ" : "Hiện đồng hồ"}" aria-label="Bật/tắt đồng hồ"`)}
   </div><div class="progress-track study-progress" role="progressbar" aria-valuenow="${s.done}" aria-valuemin="0" aria-valuemax="${s.target}" aria-label="Tiến độ lượt học"><span style="width:${percent}%"></span></div>
     <div class="study-grid"><section class="question-card ${isFlash ? "flash-card-container" : ""}">
@@ -1333,6 +1369,7 @@ function sessionMarkup() {
         ${result ? button(`Tiếp theo ${icon("arrow")}`, "next", "button primary large") : isFlash ? (!state.flipped ? button(`Lật thẻ xem nghĩa ${icon("arrow")}`, "flip", "button primary large") : `<div class="flash-grades">${button("↺ Chưa nhớ (học lại)", "grade-forgot", "button subtle")}${button("✓ Đã nhớ", "grade-remember", "button primary")}</div>`) : button(`Chấm câu này ${icon("check")}`, "submit", "button primary large", `data-submit ${!answerReady() ? "disabled" : ""}`)}
       </div>
     </section><aside class="study-aside">
+      ${(!isJapanese || result) ? `
       <details class="topic-details" ${state.topicOpen !== false ? "open" : ""} data-topic-details>
         <summary class="topic-summary" title="Bấm để mở rộng hoặc thu lại chủ điểm">
           <span class="topic-summary-title">
@@ -1348,6 +1385,7 @@ function sessionMarkup() {
           ${!isFlash && shouldShowSubtopic(q, result) ? `<p class="study-subtopic">${html(q.subtopic)}</p>` : ""}
         </div>
       </details>
+      ` : ""}
       ${isFlash ? `
         <div class="flashcard-aside-info">
           <span class="aside-badge">${icon("book")} Thẻ ghi nhớ</span>
@@ -1362,8 +1400,8 @@ function sessionMarkup() {
           </div>
         </div>
       ` : `
-        ${q.theory ? `<details class="theory"><summary>${icon("book")} Nhắc lý thuyết</summary><p lang="vi">${isJapanese ? renderRubyHtml(q.theory) : html(q.theory)}</p></details>` : ""}
-        ${q.hint ? `<details class="theory"><summary>Gợi ý nhỏ</summary><p lang="vi">${isJapanese ? renderRubyHtml(q.hint) : html(q.hint)}</p></details>` : ""}
+        ${(!isJapanese || result) && q.theory ? `<details class="theory"><summary>${icon("book")} Nhắc lý thuyết</summary><p lang="vi">${isJapanese ? renderRubyHtml(q.theory) : html(q.theory)}</p></details>` : ""}
+        ${(!isJapanese || result) && q.hint ? `<details class="theory"><summary>Gợi ý nhỏ</summary><p lang="vi">${isJapanese ? renderRubyHtml(q.hint) : html(q.hint)}</p></details>` : ""}
       `}
       <p class="study-tip">${isReview ? "Ôn lại để khắc sâu kiến thức.<br>Làm đúng sẽ loại khỏi danh sách sai." : "Cứ làm theo nhịp của bạn.<br>Tiến độ luôn được lưu lại."}</p>
     </aside></div></div>`;
@@ -1410,7 +1448,7 @@ function resultMarkup() {
         : "Thêm một bước tiến.";
 
   return `<section class="result-page"><div class="result-mark">${icon("check")}</div><span class="eyebrow">${eyebrowText}</span><h1>${titleText}</h1><p>${isReview ? "Ôn riêng các câu sai" : html(set?.name)} · ${result.total} ${unit} đã ${isReview ? "làm" : "hoàn thành"}</p>
-    <div class="result-stats"><div><strong>${result.correct}<small>/${result.total}</small></strong><span>${!isJapanese && vocabularyMode ? "đã nhớ" : "đúng"}</span></div><div><strong>${Math.round(result.correct * 100 / result.total)}<small>%</small></strong><span>${!isJapanese && vocabularyMode ? "tỉ lệ nhớ" : "độ chính xác"}</span></div><div><strong>${Math.max(1, Math.round(result.durationMs / 60000))}</strong><span>phút tập trung</span></div></div>
+    <div class="result-stats"><div><strong>${result.correct}<small>/${result.total}</small></strong><span>${!isJapanese && vocabularyMode ? "đã nhớ" : "đúng"}</span></div><div><strong>${Math.round(result.correct * 100 / result.total)}<small>%</small></strong><span>${!isJapanese && vocabularyMode ? "tỷ lệ nhớ" : "độ chính xác"}</span></div><div><strong>${Math.max(1, Math.round(result.durationMs / 60000))}</strong><span>thời gian phiên, gồm cả tạm nghỉ</span></div></div>
     ${result.setIds && result.setIds.length > 1 ? `<div class="result-set-breakdown"><span class="eyebrow">KẾT QUẢ THEO TỪNG BỘ</span>${result.setIds.map((sId) => {
       const s = state.data.sets.find((item) => item.id === sId);
       const qs = result.results.filter((entry) => {
@@ -1435,9 +1473,16 @@ function resultMarkup() {
       if (!q) return "";
       const isJa = q.subject === "japanese";
       const isOrder = isJa && q.type === "ja_grammar_order";
-      const promptDisplay = isJa
-        ? (isOrder ? html(q.context || q.prompt) : renderRubyHtml(q.context || q.prompt))
-        : html(q.context || q.prompt);
+      let promptDisplay;
+      if (isJa) {
+        if (isOrder) {
+          promptDisplay = html(q.context || q.prompt);
+        } else {
+          promptDisplay = q.context ? renderQuestionContext(q, true) : renderRubyHtml(q.prompt);
+        }
+      } else {
+        promptDisplay = html(q.context || q.prompt);
+      }
       const answerDisplay = isJa ? renderRubyHtml(displayAnswer(q.answer, q)) : html(displayAnswer(q.answer));
       const yourAnswer = isJa
         ? (item.answer != null && item.answer !== "" ? renderRubyHtml(displayAnswer(item.answer, q)) : "Chưa trả lời")
@@ -1601,7 +1646,7 @@ function statsMarkup() {
         ${masteryList.map((m) => `<div class="mastery-row">
           <div class="mastery-title">
             <strong>${html(m.topic)}</strong>
-            <span><span class="pill">${html(subjectName(m.subject || m.domain))}</span></span>
+            <span>${m.subject === "japanese" && m.chapter ? `<span class="pill">Chương ${html(m.chapter)}</span>` : ""}<span class="pill">${html(subjectName(m.subject || m.domain))}</span></span>
           </div>
           <div class="mastery-meter">
             <div class="progress-track"><span style="width:${Math.round(m.coverage * 100)}%;"></span></div>
@@ -1736,13 +1781,31 @@ async function loadCsv(file) {
     const kanji = csvPreview.rows.filter((q) => q.domain === "kanji").length;
     const grades = [...new Set(csvPreview.rows.map((q) => q.grade).filter(Boolean))].sort();
     const levels = [...new Set(csvPreview.rows.map((q) => q.level).filter(Boolean))].sort();
-    const detail = subject === "japanese"
-      ? `Tiếng Nhật ${levels.length ? levels.join(", ") : ""} · ${kanji ? `${kanji} Hán tự · ` : ""}${grammar ? `${grammar} Ngữ pháp · ` : ""}${vocabulary ? `${vocabulary} Từ vựng` : ""}`
-      : subject === "english"
+    let detailHtml;
+    if (subject === "japanese") {
+      const counts = { G1: 0, G2: 0, G3: 0, V1: 0, V2: 0, V3: 0, K1: 0, K2: 0 };
+      const keys = new Set();
+      csvPreview.rows.forEach(q => {
+        if (q.type === "ja_grammar_choice") counts.G1++;
+        if (q.type === "ja_grammar_star") counts.G2++;
+        if (q.type === "ja_grammar_order") counts.G3++;
+        if (q.type === "ja_vocab_context") counts.V1++;
+        if (q.type === "ja_vocab_paraphrase") counts.V2++;
+        if (q.type === "ja_vocab_usage") counts.V3++;
+        if (q.type === "ja_kanji_reading") counts.K1++;
+        if (q.type === "ja_kanji_writing") counts.K2++;
+        if (q.learningKey) keys.add(q.learningKey);
+      });
+      const lines = Object.entries(counts).filter(([, c]) => c > 0).map(([k, c]) => `${k}: ${c} câu`);
+      detailHtml = `Tiếng Nhật ${levels.length ? levels.join(", ") : ""}<br><div style="font-size:0.9em;margin-top:4px;">Thống kê: ${lines.join(" · ")}<br>Mục từ SRS: <strong>${keys.size}</strong></div>`;
+    } else {
+      const detail = subject === "english"
         ? `${grammar} Grammar · ${vocabulary} Vocabulary`
         : `${subjectName(subject)}${grades.length ? ` · Lớp ${grades.join(", ")}` : ""} · Practice`;
+      detailHtml = html(detail);
+    }
     const name = file.name.replace(/\.csv$/i, "").replaceAll("_", " ");
-    document.querySelector("#csv-preview").innerHTML = `<div class="validation success"><strong>${icon("check")} ${csvPreview.rows.length} câu hợp lệ</strong><span>${html(detail)}</span></div><label class="field-label" for="set-name">Tên bộ bài<input id="set-name" maxlength="120" value="${html(name)}"></label><div class="modal-actions">${button("Thêm vào kho", "save-csv", "button primary large")}</div>`;
+    document.querySelector("#csv-preview").innerHTML = `<div class="validation success"><strong>${icon("check")} ${csvPreview.rows.length} câu hợp lệ</strong><span>${detailHtml}</span></div><label class="field-label" for="set-name">Tên bộ bài<input id="set-name" maxlength="120" value="${html(name)}"></label><div class="modal-actions">${button("Thêm vào kho", "save-csv", "button primary large")}</div>`;
   } catch (error) {
     if (token !== loadToken) return;
     csvPreview = null;
@@ -1794,6 +1857,11 @@ async function invokeAction(target) {
   if (name === "toggle-timer") {
     state.timerVisible = !state.timerVisible;
     if (state.timerVisible && !state.studyStartedAt) state.studyStartedAt = Date.now();
+    render();
+    return;
+  }
+  if (name === "toggle-furigana") {
+    setFurigana(!currentFurigana());
     render();
     return;
   }
@@ -2203,7 +2271,15 @@ document.addEventListener("change", async (event) => {
       if (token !== loadToken || !modal.open) return;
       pendingBackup = validateBackup(JSON.parse(text));
       const payload = pendingBackup;
-      confirmation("Thay kho hiện tại bằng bản sao lưu?", `File hợp lệ: ${payload.imports.length} bộ, ${payload.questions.length} câu. Bản hiện tại sẽ được lưu trước khi thay.`, async () => { await repository.replaceAll(payload); toast("Đã khôi phục dữ liệu."); }, "Khôi phục");
+      const preview = document.querySelector("#backup-preview");
+      if (preview) {
+        preview.innerHTML = `<div class="validation ${payload.warning ? "warning" : "success"}"><strong>${payload.warning ? "⚠️ " : icon("check") + " "}${payload.imports.length} bộ · ${payload.questions.length} câu hợp lệ</strong>${payload.warning ? `<p class="warning-text" style="color:var(--accent,#d97706);margin-top:6px;">${html(payload.warning)}</p>` : ""}</div>`;
+      }
+      const confirmDesc = `File hợp lệ: ${payload.imports.length} bộ, ${payload.questions.length} câu.${payload.warning ? `\n\n⚠️ Cảnh báo: ${payload.warning}` : " Bản hiện tại sẽ được lưu trước khi thay."}`;
+      confirmation("Thay kho hiện tại bằng bản sao lưu?", confirmDesc, async () => {
+        await repository.replaceAll(payload);
+        toast(payload.warning ? `Đã khôi phục. Cảnh báo: ${payload.warning}` : "Đã khôi phục dữ liệu.", Boolean(payload.warning));
+      }, "Khôi phục");
     } catch (error) { const preview = document.querySelector("#backup-preview"); if (token === loadToken && preview) preview.innerHTML = `<p class="validation error" role="alert">${html(error instanceof SyntaxError ? "File JSON không hợp lệ." : error.message)}</p>`; }
   }
 });

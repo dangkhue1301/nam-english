@@ -1485,13 +1485,28 @@ ruby {
 }
 
 rt {
-  display: none !important;
   font-size: 0.55em;
   font-weight: 400;
   color: var(--muted);
   line-height: 1;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.furigana-toggle {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  transition: background 0.2s;
+}
+.furigana-toggle[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
 }
 
 /* G2: Slots and star position */
