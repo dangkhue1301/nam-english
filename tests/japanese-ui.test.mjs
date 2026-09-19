@@ -265,3 +265,23 @@ test("Furigana options: không ghi đè showRuby: true cố định khi người
   assert.doesNotMatch(app, /showOptRuby\s*=\s*isKanjiWriting\s*&&\s*!result\s*\?\s*false\s*:\s*true/);
   assert.match(app, /showOptRuby\s*=\s*isKanjiWriting\s*&&\s*!result\s*\?\s*false\s*:\s*undefined/);
 });
+
+test("Explanation renderer (U1 & U3): truyền currentFurigana() và tuân thủ design tokens trong styles.css", async () => {
+  const app = await readFile(new URL("../app.js", import.meta.url), "utf8");
+  const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+
+  // Truyền showRuby: currentFurigana() vào các điểm hiển thị lời giải
+  assert.match(app, /formatExplanationHtml\(q\.explanation,\s*\{\s*isJapanese:\s*true,\s*showRuby:\s*currentFurigana\(\)\s*\}\)/);
+  assert.match(app, /formatExplanationHtml\(q\.explanation,\s*\{\s*isJapanese:\s*isJa,\s*showRuby:\s*currentFurigana\(\)\s*\}\)/);
+
+  // styles.css: .explanation-row có white-space: pre-wrap
+  assert.match(css, /\.explanation-row\s*\{[^}]*white-space:\s*pre-wrap/);
+
+  // Không dùng biến undefined --text trong explanation hay furigana-toggle
+  assert.doesNotMatch(css, /\.explanation-translation\s*\{[^}]*var\(--text\)/);
+  assert.doesNotMatch(css, /\.explanation-text\s*\{[^}]*var\(--text\)/);
+  assert.doesNotMatch(css, /\.furigana-toggle\s*\{[^}]*var\(--border\)/);
+  assert.doesNotMatch(css, /\.furigana-toggle\s*\{[^}]*var\(--card\)/);
+  assert.doesNotMatch(css, /\.furigana-toggle\s*\{[^}]*var\(--text\)/);
+});
+

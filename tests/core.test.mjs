@@ -411,4 +411,91 @@ test("formatExplanationHtml: hỗ trợ ruby, thứ tự đúng G2 và markdown 
   assert.match(htmlMd, /<strong>in đậm<\/strong>/);
 });
 
+test("formatExplanationHtml (U1): tuân theo tùy chọn showRuby khi render tiếng Nhật", () => {
+  const text = "Câu hoàn chỉnh: {学校|がっこう}へ行きます。";
+  const withRuby = formatExplanationHtml(text, { isJapanese: true, showRuby: true });
+  assert.match(withRuby, /<ruby>学校<rt>がっこう<\/rt><\/ruby>/);
+
+  const withoutRuby = formatExplanationHtml(text, { isJapanese: true, showRuby: false });
+  assert.doesNotMatch(withoutRuby, /<rt>/);
+  assert.doesNotMatch(withoutRuby, /<ruby>/);
+  assert.match(withoutRuby, /学校へ行きます。/);
+});
+
+test("formatExplanationHtml (U2): không làm mất hoặc lộ dấu markdown ở biên nội dung", () => {
+  // Đậm bao quanh toàn bộ nội dung
+  const t1 = "Giải thích: **Quan trọng**";
+  const h1 = formatExplanationHtml(t1, { isJapanese: false });
+  assert.match(h1, /<span class="explanation-text"><strong>Quan trọng<\/strong><\/span>/);
+
+  // Đậm ở cuối nội dung
+  const t2 = "Giải thích: Đây là **đáp án đúng**";
+  const h2 = formatExplanationHtml(t2, { isJapanese: false });
+  assert.match(h2, /Đây là <strong>đáp án đúng<\/strong>/);
+  assert.doesNotMatch(h2, /\*\*/);
+
+  // Đậm ở đầu nội dung
+  const t3 = "Giải thích: **Quan trọng** ở đây.";
+  const h3 = formatExplanationHtml(t3, { isJapanese: false });
+  assert.match(h3, /<strong>Quan trọng<\/strong> ở đây\./);
+  assert.doesNotMatch(h3, /\*\*/);
+
+  // Nhãn có bao quanh bởi markdown **
+  const t4 = "**Giải thích:** **Cần chú ý** điểm này.";
+  const h4 = formatExplanationHtml(t4, { isJapanese: false });
+  assert.match(h4, /<strong class="explanation-label">Giải thích:<\/strong>/);
+  assert.match(h4, /<strong>Cần chú ý<\/strong> điểm này\./);
+  assert.doesNotMatch(h4, /\*\*/);
+});
+
+test("formatExplanationHtml (U3): nhận diện trực tiếp nhãn Vị trí ★ và giữ nguyên newline nội bộ", () => {
+  const text = 'Dịch câu: ① Câu thứ nhất.\n② Câu thứ hai.\nVị trí ★: o2\nGiải thích: Mẫu câu N4.';
+  const sections = splitExplanationSections(text);
+  assert.equal(sections.length, 3);
+  assert.equal(sections[0].label, "Dịch câu");
+  assert.equal(sections[0].content, "① Câu thứ nhất.\n② Câu thứ hai.");
+  assert.equal(sections[1].label, "Vị trí ★");
+  assert.equal(sections[1].content, "o2");
+  assert.equal(sections[2].label, "Giải thích");
+  assert.equal(sections[2].content, "Mẫu câu N4.");
+
+  const html = formatExplanationHtml(text, { isJapanese: true });
+  assert.match(html, /explanation-row-translation/);
+  assert.match(html, /① Câu thứ nhất\.\n② Câu thứ hai\./);
+  assert.match(html, /explanation-row-star/);
+  assert.match(html, /<strong class="explanation-label">Vị trí ★:<\/strong>/);
+});
+
+test("formatInlineMarkdown (U4): bảo vệ nội dung inline code, không parse đậm/nghiêng bên trong code", () => {
+  const input = "Dùng `**mẫu**` và `*nghiêng*` cùng **in đậm** ở đây.";
+  const result = formatInlineMarkdown(input);
+  assert.match(result, /<code>\*\*mẫu\*\*<\/code>/);
+  assert.match(result, /<code>\*nghiêng\*<\/code>/);
+  assert.match(result, /<strong>in đậm<\/strong>/);
+  assert.doesNotMatch(result, /<code><strong>/);
+  assert.doesNotMatch(result, /<code><em>/);
+});
+
+test("splitExplanationSections: không tách nhầm marker nằm bên trong inline code span", () => {
+  const text = [
+    "Câu hoàn chỉnh: きのう、友達と映画を見ました。",
+    "Dịch câu: \"Hôm qua, tôi đã xem phim cùng bạn.\"",
+    "Giải thích: Hãy chú ý đoạn `Dịch câu: ví dụ` hoặc `Vị trí ★: 3` không được coi là nhãn.",
+  ].join("\n");
+
+  const sections = splitExplanationSections(text);
+  assert.equal(sections.length, 3);
+  assert.equal(sections[0].label, "Câu hoàn chỉnh");
+  assert.equal(sections[1].label, "Dịch câu");
+  assert.equal(sections[2].label, "Giải thích");
+  assert.ok(sections[2].content.includes("`Dịch câu: ví dụ`"));
+  assert.ok(sections[2].content.includes("`Vị trí ★: 3`"));
+
+  const html = formatExplanationHtml(text, { isJapanese: true });
+  assert.match(html, /<code>Dịch câu: ví dụ<\/code>/);
+  assert.match(html, /<code>Vị trí ★: 3<\/code>/);
+});
+
+
+
 

@@ -1226,7 +1226,7 @@ function sessionMarkup() {
             ${result.correct ? icon("check") : '<span class="feedback-repeat-icon">↺</span>'}
             <strong>${result.correct ? "Đã ghi nhớ!" : "Chưa nhớ — Sẽ ôn lại"}</strong>
           </div>
-          ${q.explanation ? `<div class="feedback-explanation">${formatExplanationHtml(q.explanation, { isJapanese: q.subject === "japanese" })}</div>` : `<p>${result.correct ? "Bạn đã ghi nhớ tốt từ này." : "Đừng lo, thẻ này sẽ quay lại ở cuối lượt học để bạn ôn lại."}</p>`}
+          ${q.explanation ? `<div class="feedback-explanation">${formatExplanationHtml(q.explanation, { isJapanese: q.subject === "japanese", showRuby: currentFurigana() })}</div>` : `<p>${result.correct ? "Bạn đã ghi nhớ tốt từ này." : "Đừng lo, thẻ này sẽ quay lại ở cuối lượt học để bạn ôn lại."}</p>`}
           ${result.correct && result.dueAt ? `<small>Lịch hẹn ôn tiếp: ${day(result.dueAt)}</small>` : !result.correct ? '<small>Thẻ sẽ xuất hiện lại ở cuối lượt học để bạn ôn tập.</small>' : ""}
         </div>
       `;
@@ -1267,7 +1267,7 @@ function sessionMarkup() {
           </div>
           ${!result.correct ? `<p class="expected"><span>Đáp án đúng</span><strong lang="ja">${expectedHtml}</strong></p>` : ""}
           ${fullSentenceHtml}
-          ${q.explanation ? `<div class="feedback-explanation">${formatExplanationHtml(q.explanation, { isJapanese: true })}</div>` : ""}
+          ${q.explanation ? `<div class="feedback-explanation">${formatExplanationHtml(q.explanation, { isJapanese: true, showRuby: currentFurigana() })}</div>` : ""}
           ${isRetry && !result.correct ? '<small>Câu này sẽ tiếp tục quay lại ở cuối lượt để bạn luyện đến khi đúng.</small>' : (!isReview && s.mode === "vocabulary" && !result.correct ? '<small>Từ này sẽ xuất hiện lại ở cuối lượt học để bạn luyện tập.</small>' : (result.dueAt ? `<small>Hẹn ôn lại: ${day(result.dueAt)}</small>` : ""))}
         </div>
       `;
@@ -1345,7 +1345,7 @@ function sessionMarkup() {
                 ${f.explanation ? `
                   <div class="flashcard-expl-box">
                     <span class="flashcard-box-label">GIẢI THÍCH CHI TIẾT</span>
-                    <div class="flashcard-expl-text">${formatExplanationHtml(f.explanation, { isJapanese: q.subject === "japanese" })}</div>
+                    <div class="flashcard-expl-text">${formatExplanationHtml(f.explanation, { isJapanese: q.subject === "japanese", showRuby: currentFurigana() })}</div>
                   </div>
                 ` : ""}
                 ${f.example ? `
@@ -1487,7 +1487,7 @@ function resultMarkup() {
       const yourAnswer = isJa
         ? (item.answer != null && item.answer !== "" ? renderRubyHtml(displayAnswer(item.answer, q)) : "Chưa trả lời")
         : (!isJapanese && vocabularyMode ? "Tự đánh giá: Chưa nhớ (đã xếp ôn lại)" : html(typeof item.answer === "object" ? displayAnswer(item.answer) : item.answer));
-      return `<article><h3 lang="${isJa && !isOrder ? "ja" : "vi"}">${promptDisplay}</h3><p class="muted">Bạn trả lời: <span lang="${isJa ? "ja" : "vi"}">${yourAnswer}</span></p><p><strong>${answerDisplay}</strong></p>${q.explanation ? `<div class="feedback-explanation" lang="vi">${formatExplanationHtml(q.explanation, { isJapanese: isJa })}</div>` : ""}</article>`;
+      return `<article><h3 lang="${isJa && !isOrder ? "ja" : "vi"}">${promptDisplay}</h3><p class="muted">Bạn trả lời: <span lang="${isJa ? "ja" : "vi"}">${yourAnswer}</span></p><p><strong>${answerDisplay}</strong></p>${q.explanation ? `<div class="feedback-explanation" lang="vi">${formatExplanationHtml(q.explanation, { isJapanese: isJa, showRuby: currentFurigana() })}</div>` : ""}</article>`;
     }).join("")}</details>` : ""}</section>`;
 }
 

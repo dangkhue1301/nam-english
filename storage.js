@@ -15,10 +15,24 @@ const fail = (message) => { throw new Error(message); };
 export const questionSetIdOf = (q) => q?.setId || "legacy-v1";
 const emptyData = () => ({ questions: [], reviews: [], attempts: [], imports: [] });
 const fresh = () => ({ ...emptyData(), revision: 0, session: null, summary: null, selectedSetId: null, recovery: null, srsEvents: [] });
-const dataOnly = (w) => ({
-  ...Object.fromEntries(PARTS.map((part) => [part, copy(w[part] ?? [])])),
-  srsEvents: copy(w?.srsEvents ?? []),
-});
+const dataOnly = (w) => {
+  if (w?.session) migrateSessionSrsEvents(w);
+  const allEvents = copy(w?.srsEvents ?? []);
+  const allPending = allEvents.filter((e) => !e.applied);
+  const pending = allPending.length > 5000
+    ? allPending.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5000).reverse()
+    : allPending;
+  const cap = Math.max(0, 5000 - pending.length);
+  const applied = cap > 0
+    ? allEvents.filter((e) => e.applied)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+        .slice(0, cap)
+    : [];
+  return {
+    ...Object.fromEntries(PARTS.map((part) => [part, copy(w?.[part] ?? [])])),
+    srsEvents: [...pending, ...applied],
+  };
+};
 const hasData = (w) => PARTS.some((part) => w?.[part]?.length);
 const validTimestamp = (value) => Number.isFinite(value) && Math.abs(value) <= MAX_TIMESTAMP;
 const domainForMode = (mode) => {
@@ -68,8 +82,59 @@ function fromLegacy(legacy) {
   }
   return w;
 }
+function migrateSessionSrsEvents(w) {
+  if (!w) return;
+  w.srsEvents ??= [];
+  const s = w.session;
+  if (!s || s.mode !== "vocabulary" || !s.keyQuestions || !s.firstAnswers) return;
+  const sessionTime = validTimestamp(s.startedAt) ? s.startedAt : (validTimestamp(s.updatedAt) ? s.updatedAt : Date.now());
+  for (const [key, qIds] of Object.entries(s.keyQuestions)) {
+    if (!Array.isArray(qIds)) continue;
+    const answeredIds = qIds.filter((id) => s.firstAnswers[id] !== undefined);
+    if (answeredIds.length === 0) continue;
+
+    let eventTime = null;
+    for (const qId of answeredIds) {
+      const att = w.attempts?.find((a) => a.questionId === qId && a.id?.startsWith?.(`${s.id}:`));
+      if (att && validTimestamp(att.attemptedAt)) {
+        eventTime = eventTime != null ? Math.max(eventTime, att.attemptedAt) : att.attemptedAt;
+      }
+    }
+    if (eventTime == null) {
+      eventTime = sessionTime;
+    }
+    const isApplied = Boolean(s.keyEvaluated?.[key]);
+    const eventId = `${s.id}:${key}`;
+    let event = w.srsEvents.find((e) => e.id === eventId);
+    if (!event) {
+      w.srsEvents.push({
+        id: eventId,
+        sessionId: s.id,
+        learningKey: key,
+        questionIds: [...qIds],
+        firstAnswers: Object.fromEntries(answeredIds.map((id) => [id, s.firstAnswers[id]])),
+        applied: isApplied,
+        appliedAt: isApplied ? eventTime : null,
+        createdAt: eventTime,
+        updatedAt: eventTime,
+      });
+    } else {
+      for (const id of answeredIds) {
+        if (event.firstAnswers[id] === undefined) {
+          event.firstAnswers[id] = s.firstAnswers[id];
+        }
+      }
+      if (isApplied && !event.applied) {
+        event.applied = true;
+        event.appliedAt = eventTime;
+      }
+    }
+  }
+}
+
 function checkWorkspace(w) {
   if (!w || !PARTS.every((part) => Array.isArray(w[part]))) fail("Kho dữ liệu không hợp lệ. Hãy thử mở lại trang hoặc dùng bản sao lưu.");
+  migrateSessionSrsEvents(w);
   return w;
 }
 function storageError(error) {
@@ -691,47 +756,114 @@ export function validateBackup(value) {
     count: set.count,
   }));
   const result = { questions, reviews, attempts, imports };
-  if (Array.isArray(s.srsEvents)) {
-    result.srsEvents = s.srsEvents.filter((event) => {
-      if (!event || typeof event.id !== "string" || !event.id) return false;
-      if (typeof event.learningKey !== "string" || !event.learningKey) return false;
-      if (event.createdAt != null && !validTimestamp(event.createdAt)) return false;
-      if (event.updatedAt != null && !validTimestamp(event.updatedAt)) return false;
-      if (event.appliedAt != null && !validTimestamp(event.appliedAt)) return false;
-      return true;
-    }).map((event) => ({
-      ...event,
-      createdAt: validTimestamp(event.createdAt) ? event.createdAt : Date.now(),
-      updatedAt: validTimestamp(event.updatedAt) ? event.updatedAt : Date.now(),
-      applied: Boolean(event.applied),
-      appliedAt: validTimestamp(event.appliedAt) ? event.appliedAt : (event.applied ? (validTimestamp(event.updatedAt) ? event.updatedAt : Date.now()) : null),
-    }));
+  if (s.srsEvents !== undefined) {
+    if (!Array.isArray(s.srsEvents) || s.srsEvents.length > 5000) {
+      fail("Danh sách sự kiện SRS trong sao lưu không hợp lệ.");
+    }
+    const eventIds = new Set();
+    result.srsEvents = [];
+    for (const event of s.srsEvents) {
+      if (!isPlainObject(event)) fail("Sự kiện SRS trong sao lưu không hợp lệ.");
+      if (typeof event.id !== "string" || !event.id || event.id.length > 300 || eventIds.has(event.id)) {
+        fail(`Sự kiện SRS (${event?.id || "không có ID"}) bị lỗi hoặc trùng ID.`);
+      }
+      eventIds.add(event.id);
+      if (typeof event.sessionId !== "string" || !event.sessionId || event.sessionId.length > 300) {
+        fail(`Sự kiện SRS (${event.id}) có sessionId không hợp lệ.`);
+      }
+      if (typeof event.learningKey !== "string" || !event.learningKey || event.learningKey.length > 500) {
+        fail(`Sự kiện SRS (${event.id}) có learningKey không hợp lệ.`);
+      }
+      if (typeof event.applied !== "boolean") {
+        fail(`Sự kiện SRS (${event.id}) có trạng thái applied không phải boolean.`);
+      }
+      if (!validTimestamp(event.createdAt) || !validTimestamp(event.updatedAt)) {
+        fail(`Sự kiện SRS (${event.id}) có mốc thời gian không hợp lệ.`);
+      }
+      if (event.applied) {
+        if (!validTimestamp(event.appliedAt)) {
+          fail(`Sự kiện SRS (${event.id}) đã áp dụng nhưng thiếu appliedAt hợp lệ.`);
+        }
+      } else {
+        if (event.appliedAt != null) {
+          fail(`Sự kiện SRS (${event.id}) chưa áp dụng nhưng có appliedAt.`);
+        }
+      }
+      if (!Array.isArray(event.questionIds) || !event.questionIds.length) {
+        fail(`Sự kiện SRS (${event.id}) không có danh sách câu hỏi hợp lệ.`);
+      }
+      const qIdSet = new Set();
+      for (const qId of event.questionIds) {
+        if (typeof qId !== "string" || !qId || qIdSet.has(qId)) {
+          fail(`Sự kiện SRS (${event.id}) chứa ID câu hỏi không hợp lệ hoặc trùng lặp.`);
+        }
+        qIdSet.add(qId);
+        const q = questionsById.get(qId);
+        if (!q) {
+          fail(`Sự kiện SRS (${event.id}) trỏ đến câu hỏi không tồn tại: ${qId}.`);
+        }
+        if (q.subject !== "japanese" || q.domain !== "vocabulary") {
+          fail(`Sự kiện SRS (${event.id}) trỏ đến câu hỏi không phải từ vựng tiếng Nhật.`);
+        }
+        if (learningKeyFor(q) !== event.learningKey) {
+          fail(`Sự kiện SRS (${event.id}) trỏ đến câu hỏi không khớp learningKey.`);
+        }
+      }
+      if (!isPlainObject(event.firstAnswers)) {
+        fail(`Sự kiện SRS (${event.id}) có firstAnswers không phải plain object.`);
+      }
+      for (const [ansQId, ansVal] of Object.entries(event.firstAnswers)) {
+        if (!qIdSet.has(ansQId)) {
+          fail(`Sự kiện SRS (${event.id}) chứa câu trả lời cho câu không nằm trong questionIds: ${ansQId}.`);
+        }
+        if (typeof ansVal !== "boolean") {
+          fail(`Sự kiện SRS (${event.id}) có câu trả lời không phải boolean cho câu: ${ansQId}.`);
+        }
+      }
+      result.srsEvents.push({
+        id: event.id,
+        sessionId: event.sessionId,
+        learningKey: event.learningKey,
+        questionIds: [...event.questionIds],
+        firstAnswers: { ...event.firstAnswers },
+        applied: event.applied,
+        appliedAt: event.applied ? event.appliedAt : null,
+        createdAt: event.createdAt,
+        updatedAt: event.updatedAt,
+      });
+    }
   } else {
     result.srsEvents = [];
-    result.warning = "Bản sao lưu phiên bản cũ (v2) không chứa sự kiện SRS đang chờ; không thể tự suy đoán kết quả dở dang.";
+    result.warning = "Bản sao lưu phiên bản cũ (v2); kết quả phiên đang dở sẽ không được tự động suy đoán.";
   }
 
   const sessionSource = s.session || value?.session;
   if (sessionSource && sessionSource.mode === "vocabulary" && sessionSource.keyQuestions && sessionSource.firstAnswers) {
     const started = validTimestamp(sessionSource.startedAt) ? sessionSource.startedAt : Date.now();
     for (const [key, qIds] of Object.entries(sessionSource.keyQuestions)) {
-      if (!result.srsEvents.some((e) => e.learningKey === key)) {
-        const answered = Object.fromEntries(
-          qIds.filter((id) => sessionSource.firstAnswers[id] !== undefined)
-              .map((id) => [id, sessionSource.firstAnswers[id]])
-        );
-        if (Object.keys(answered).length > 0) {
-          result.srsEvents.push({
-            id: `${sessionSource.id || "recovered"}:${key}`,
-            sessionId: sessionSource.id || "recovered",
-            learningKey: key,
-            questionIds: qIds,
-            firstAnswers: answered,
-            applied: false,
-            appliedAt: null,
-            createdAt: started,
-            updatedAt: started,
-          });
+      if (Array.isArray(qIds) && !result.srsEvents.some((e) => e.learningKey === key)) {
+        const validQIds = qIds.filter((id) => {
+          const q = questionsById.get(id);
+          return q && q.subject === "japanese" && q.domain === "vocabulary" && learningKeyFor(q) === key;
+        });
+        if (validQIds.length > 0) {
+          const answered = Object.fromEntries(
+            validQIds.filter((id) => typeof sessionSource.firstAnswers[id] === "boolean")
+                .map((id) => [id, sessionSource.firstAnswers[id]])
+          );
+          if (Object.keys(answered).length > 0) {
+            result.srsEvents.push({
+              id: `${sessionSource.id || "recovered"}:${key}`,
+              sessionId: sessionSource.id || "recovered",
+              learningKey: key,
+              questionIds: validQIds,
+              firstAnswers: answered,
+              applied: false,
+              appliedAt: null,
+              createdAt: started,
+              updatedAt: started,
+            });
+          }
         }
       }
     }
@@ -792,7 +924,33 @@ class Repository {
     w.imports = w.imports.filter((set) => set.id !== setId);
     const keys = new Set(w.questions.filter((q) => q.domain === "vocabulary").map(learningKeyFor));
     w.reviews = w.reviews.filter((r) => keys.has(r.learningKey));
-    if (w.session && (w.session.setId === setId || w.session.setIds?.includes(setId))) w.session = null;
+    if (w.srsEvents?.length) {
+      w.srsEvents = w.srsEvents.filter((e) => e.questionIds.some((id) => !removed.has(id)));
+      for (const e of w.srsEvents) {
+        const before = e.questionIds.length;
+        e.questionIds = e.questionIds.filter((id) => !removed.has(id));
+        for (const id of Object.keys(e.firstAnswers)) {
+          if (removed.has(id)) delete e.firstAnswers[id];
+        }
+      }
+    }
+    if (w.session && (w.session.setId === setId || w.session.setIds?.includes(setId))) {
+      if (w.session.mode === "vocabulary" && w.session.keyQuestions && w.session.firstAnswers) {
+        for (const [key, qIds] of Object.entries(w.session.keyQuestions)) {
+          const remainingQIds = qIds.filter((id) => !removed.has(id));
+          if (remainingQIds.length > 0) {
+            w.session.keyQuestions[key] = remainingQIds;
+          } else {
+            delete w.session.keyQuestions[key];
+          }
+        }
+        for (const id of Object.keys(w.session.firstAnswers)) {
+          if (removed.has(id)) delete w.session.firstAnswers[id];
+        }
+        finalizeSessionSrsEvents(w, w.session);
+      }
+      w.session = null;
+    }
     if (w.summary && (w.summary.setId === setId || w.summary.setIds?.includes(setId))) w.summary = null;
     if (w.selectedSetId === setId) w.selectedSetId = w.imports[0]?.id ?? null;
     w.summary = null;
@@ -803,18 +961,40 @@ class Repository {
     return this.change((w) => {
       archive(w);
       if (Array.isArray(data.srsEvents)) {
-        for (const event of data.srsEvents) {
-          if (!event.applied && event.firstAnswers) {
-            const answeredIds = Object.keys(event.firstAnswers);
-            if (answeredIds.length > 0) {
-              const allCorrect = answeredIds.every((id) => event.firstAnswers[id] === true);
-              const q = data.questions.find((item) => item.learningKey === event.learningKey);
-              if (q) {
-                const ts = validTimestamp(event.updatedAt) ? event.updatedAt : (validTimestamp(event.createdAt) ? event.createdAt : Date.now());
-                applyJapaneseSrs(data, event.learningKey, allCorrect, q, ts);
-                event.applied = true;
-                event.appliedAt = ts;
-              }
+        const pending = data.srsEvents
+          .filter((event) => !event.applied && event.firstAnswers)
+          .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+        // Dedup: chỉ gộp trong cùng phiên (sessionId + learningKey), giữ event mới nhất trong phiên đó
+        const bestBySessionAndKey = new Map();
+        for (const event of pending) {
+          const comboKey = `${event.sessionId}:${event.learningKey}`;
+          const existing = bestBySessionAndKey.get(comboKey);
+          if (!existing || (event.createdAt || 0) > (existing.createdAt || 0)) {
+            bestBySessionAndKey.set(comboKey, event);
+          }
+        }
+        const uniquePending = [];
+        for (const event of pending) {
+          const comboKey = `${event.sessionId}:${event.learningKey}`;
+          if (bestBySessionAndKey.get(comboKey) === event) {
+            uniquePending.push(event);
+          } else {
+            event.applied = true;
+            event.appliedAt = event.createdAt || Date.now();
+          }
+        }
+
+        for (const event of uniquePending) {
+          const answeredIds = Object.keys(event.firstAnswers);
+          if (answeredIds.length > 0) {
+            const allCorrect = answeredIds.every((id) => event.firstAnswers[id] === true);
+            const q = data.questions.find((item) => (item.learningKey || learningKeyFor(item)) === event.learningKey);
+            if (q) {
+              const ts = validTimestamp(event.updatedAt) ? event.updatedAt : (validTimestamp(event.createdAt) ? event.createdAt : Date.now());
+              applyJapaneseSrs(data, event.learningKey, allCorrect, q, ts);
+              event.applied = true;
+              event.appliedAt = ts;
             }
           }
         }

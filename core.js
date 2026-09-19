@@ -907,10 +907,20 @@ export function decodeSharePayload(base64Str) {
 }
 
 export function formatInlineMarkdown(text) {
-  return String(text ?? "")
+  const codes = [];
+  const withTokens = String(text ?? "").replace(/`([^`\n]+)`/g, (_, code) => {
+    const idx = codes.length;
+    codes.push(code);
+    return `\x00CODE_${idx}\x00`;
+  });
+
+  const formatted = withTokens
     .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/(?<!\*)\*([^*\s\n](?:[^*\n]*[^*\s\n])?)\*(?!\*)/g, "<em>$1</em>")
-    .replace(/`([^`\n]+)`/g, "<code>$1</code>");
+    .replace(/(?<!\*)\*([^*\s\n](?:[^*\n]*[^*\s\n])?)\*(?!\*)/g, "<em>$1</em>");
+
+  return formatted.replace(/\x00CODE_(\d+)\x00/g, (_, idx) => {
+    return `<code>${codes[Number(idx)]}</code>`;
+  });
 }
 
 export function splitExplanationSections(text) {
@@ -918,15 +928,28 @@ export function splitExplanationSections(text) {
 
   const normalized = text.replace(/\r\n/g, "\n").trim();
 
-  const markerRegex = /(?:^|[\s\n。、!?.,])(?:\*\*)?(Thứ tự đúng|Thứ tự|Câu hoàn chỉnh|Câu đúng|Dịch câu đúng|Dịch câu|Dịch ngữ cảnh|Dịch nghĩa|Dịch|Giải thích|Phân tích|Lưu ý|Cấu trúc|Ý nghĩa|Từ vựng|Ngữ pháp|Cách dùng)(?:\*\*)?\s*[:：](?:\*\*)?/gi;
+  // Bảo vệ code span khỏi marker regex
+  const codes = [];
+  const safe = normalized.replace(/`([^`\n]+)`/g, (_, code) => {
+    const idx = codes.length;
+    codes.push(code);
+    return `\x00CODE_${idx}\x00`;
+  });
+  const restoreCodes = (s) => s.replace(/\x00CODE_(\d+)\x00/g, (_, i) => `\`${codes[Number(i)]}\``);
+
+  const labels = "(?:Thứ tự đúng|Thứ tự|Câu hoàn chỉnh|Câu đúng|Dịch câu đúng|Dịch câu|Dịch ngữ cảnh|Dịch nghĩa|Dịch|Vị trí ★|Giải thích|Phân tích|Lưu ý|Cấu trúc|Ý nghĩa|Từ vựng|Ngữ pháp|Cách dùng)";
+  const markerRegex = new RegExp(
+    `(?:^|[\\s\\n。、!?.,])(?:\\*\\*(${labels})\\*\\*\\s*[:：]|\\*\\*(${labels})\\s*[:：]\\s*\\*\\*|(${labels})\\s*[:：])\\s*`,
+    "gi"
+  );
 
   const matches = [];
   let m;
-  while ((m = markerRegex.exec(normalized)) !== null) {
+  while ((m = markerRegex.exec(safe)) !== null) {
     const raw = m[0];
     const prefixLen = raw.match(/^[\s\n。、!?.,]*/)[0].length;
     const start = m.index + prefixLen;
-    const label = m[1].trim();
+    const label = (m[1] || m[2] || m[3]).trim();
     matches.push({
       start,
       label,
@@ -936,25 +959,24 @@ export function splitExplanationSections(text) {
   }
 
   if (matches.length === 0) {
-    const lines = normalized.split(/\n+/).map((l) => l.trim()).filter(Boolean);
-    return lines.map((line) => ({ label: null, content: line }));
+    const lines = safe.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    return lines.map((line) => ({ label: null, content: restoreCodes(line) }));
   }
 
   const sections = [];
   if (matches[0].start > 0) {
-    const pre = normalized.slice(0, matches[0].start).trim();
-    if (pre) sections.push({ label: null, content: pre });
+    const pre = safe.slice(0, matches[0].start).trim();
+    if (pre) sections.push({ label: null, content: restoreCodes(pre) });
   }
 
   for (let i = 0; i < matches.length; i++) {
     const cur = matches[i];
     const contentStart = cur.start + cur.markerLength;
-    const contentEnd = i + 1 < matches.length ? matches[i + 1].start : normalized.length;
-    let content = normalized.slice(contentStart, contentEnd).trim();
-    content = content.replace(/^\*\*\s*/, "").replace(/\s*\*\*$/, "").trim();
+    const contentEnd = i + 1 < matches.length ? matches[i + 1].start : safe.length;
+    const content = restoreCodes(safe.slice(contentStart, contentEnd).trim());
 
     if (/^Dịch/i.test(cur.label)) {
-      const quoteMatch = content.match(/^("(?:[^"\\]|\\.)*"|“[^”]*”|'[^']*'|「[^」]*」|『[^』]*』)(?:\.|\s)*([\s\S]*)$/);
+      const quoteMatch = content.match(/^("(?:[^"\\]|\\.)*"|"[^"]*"|'[^']*'|「[^」]*」|『[^』]*』)(?:\.|\s)*([\s\S]*)$/);
       if (quoteMatch && quoteMatch[2] && quoteMatch[2].trim()) {
         const trans = quoteMatch[1].trim();
         const trailing = quoteMatch[2].trim();
@@ -991,14 +1013,14 @@ export function splitExplanationSections(text) {
   return sections;
 }
 
-export function formatExplanationHtml(text, { isJapanese = false } = {}) {
+export function formatExplanationHtml(text, { isJapanese = false, showRuby = true } = {}) {
   if (!text) return "";
   const sections = splitExplanationSections(text);
   if (sections.length === 0) return "";
 
   const blocks = sections.map((sec) => {
     const rawContent = sec.content;
-    let formattedContent = isJapanese ? renderRubyHtml(rawContent) : escapeHtml(rawContent);
+    let formattedContent = isJapanese ? renderRubyHtml(rawContent, { showRuby }) : escapeHtml(rawContent);
     formattedContent = formatInlineMarkdown(formattedContent);
 
     if (!sec.label) {

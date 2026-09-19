@@ -693,3 +693,42 @@ test("displayAnswer: G2 (chỉ trả về mảnh tại ★ được chọn) và 
   };
   assert.equal(displayAnswer(null, qG3), "これは本です");
 });
+
+import { splitExplanationSections, formatExplanationHtml } from "../core.js";
+
+test("JAPANESE_CSV_GUIDE.md (D1): khối CSV mẫu đồng bộ đầy đủ quy tắc g001 và g002", async () => {
+  const guide = await readFile(new URL("../JAPANESE_CSV_GUIDE.md", import.meta.url), "utf8");
+  const blocks = [...guide.matchAll(/```csv\r?\n([\s\S]*?)```/g)].map((m) => m[1]);
+  const sampleCsv = blocks.find((b) => b.includes("g001"));
+  assert.ok(sampleCsv, "Tìm thấy khối CSV mẫu trong JAPANESE_CSV_GUIDE.md");
+
+  const parsed = parseJapaneseCsv(sampleCsv, "sample-8.csv");
+  assert.deepEqual(parsed.errors, []);
+  assert.equal(parsed.rows.length, 8);
+
+  const g001 = parsed.rows.find((q) => q.id === "g001");
+  assert.ok(g001);
+  assert.match(g001.explanation, /Câu hoàn chỉnh:/);
+  assert.match(g001.explanation, /Dịch câu:/);
+  assert.match(g001.explanation, /Giải thích:/);
+
+  const g001Sections = splitExplanationSections(g001.explanation);
+  assert.ok(g001Sections.some((s) => s.label === "Câu hoàn chỉnh"));
+  assert.ok(g001Sections.some((s) => s.label === "Dịch câu"));
+  assert.ok(g001Sections.some((s) => s.label === "Giải thích"));
+
+  const g002 = parsed.rows.find((q) => q.id === "g002");
+  assert.ok(g002);
+  assert.match(g002.explanation, /Vị trí ★:/);
+  const g002Sections = splitExplanationSections(g002.explanation);
+  assert.ok(g002Sections.some((s) => s.label === "Vị trí ★"));
+
+  // Kiểm tra formatExplanationHtml sinh ra các class tương ứng
+  const g001Html = formatExplanationHtml(g001.explanation, { isJapanese: true });
+  assert.match(g001Html, /explanation-row-sentence/);
+  assert.match(g001Html, /explanation-row-translation/);
+
+  const g002Html = formatExplanationHtml(g002.explanation, { isJapanese: true });
+  assert.match(g002Html, /explanation-row-star/);
+});
+
