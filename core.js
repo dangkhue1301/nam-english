@@ -31,6 +31,8 @@ export const QUESTION_TYPES = [
   "word_formation",
   "ordering",
   "matching",
+  "true_false",
+  "short_answer",
 ];
 
 export const SESSION_QUESTION_LIMIT = 30;
@@ -40,6 +42,8 @@ export const SUBJECTS = {
   chemistry: { name: "Hóa học", short: "Hóa", description: "Chất, phản ứng và tính toán" },
   physics: { name: "Vật lí", short: "Lí", description: "Hiện tượng, quy luật và bài tập" },
   biology: { name: "Sinh học", short: "Sinh", description: "Sự sống và thế giới tự nhiên" },
+  history: { name: "Lịch sử", short: "Sử", description: "Sự kiện, nhân vật và tiến trình" },
+  geography: { name: "Địa lí", short: "Địa", description: "Tự nhiên, dân cư và kinh tế" },
   japanese: { name: "Tiếng Nhật", short: "Nhật", description: "Hán tự, ngữ pháp và từ vựng" },
 };
 
@@ -52,8 +56,37 @@ export const TYPE_LABELS = {
   word_formation: "Dạng từ",
   ordering: "Sắp xếp",
   matching: "Ghép cặp",
+  true_false: "Đúng/Sai",
+  short_answer: "Trả lời ngắn",
   ...JA_TYPE_LABELS,
 };
+
+export const ALLOWED_SUBJECT_TYPES = {
+  english: [
+    "mcq", "multiple_select", "fill_blank", "error_correction",
+    "sentence_transformation", "word_formation", "ordering", "matching",
+  ],
+  chemistry: [
+    "mcq", "true_false", "short_answer",
+    "multiple_select", "fill_blank", "error_correction",
+    "sentence_transformation", "word_formation", "ordering", "matching",
+  ],
+  physics: [
+    "mcq", "true_false", "short_answer",
+    "multiple_select", "fill_blank", "error_correction",
+    "sentence_transformation", "word_formation", "ordering", "matching",
+  ],
+  biology: [
+    "mcq", "true_false", "short_answer",
+    "multiple_select", "fill_blank", "error_correction",
+    "sentence_transformation", "word_formation", "ordering", "matching",
+  ],
+  history: ["mcq", "true_false"],
+  geography: ["mcq", "true_false"],
+  japanese: JA_QUESTION_TYPES,
+};
+
+export const ENGLISH_QUESTION_TYPES = ALLOWED_SUBJECT_TYPES.english;
 
 export const CSV_HEADERS = [
   "subject",
@@ -81,6 +114,12 @@ export function splitList(value) {
     .split("||")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+export function splitExactList(value) {
+  return String(value ?? "")
+    .split("||")
+    .map((item) => item.trim());
 }
 
 export function parseCsv(text) {
@@ -138,6 +177,14 @@ export function normalizeText(value, { caseSensitive = false } = {}) {
     .trim()
     .replace(/[.!?]+$/g, "");
   return caseSensitive ? text : text.toLocaleLowerCase("en");
+}
+
+export function normalizeShortAnswer(value, { caseSensitive = false } = {}) {
+  const text = String(value ?? "")
+    .normalize("NFKC")
+    .trim()
+    .replace(/\s+/g, " ");
+  return caseSensitive ? text : text.toLowerCase();
 }
 
 function tokenBag(parts, settings = {}) {
@@ -245,6 +292,7 @@ export function buildCsvPreview(text, filename = "questions.csv") {
 
   const rows = [];
   const errors = [];
+  const warnings = [];
   const ids = new Set();
 
   matrix.slice(1).forEach((cells, index) => {
@@ -264,9 +312,16 @@ export function buildCsvPreview(text, filename = "questions.csv") {
       const id = raw.id;
       const subject = isLegacyEnglish ? "english" : raw.subject.toLowerCase();
       const grade = raw.grade || "";
-      if (!Object.hasOwn(SUBJECTS, subject)) throw new Error("subject phải là english, chemistry, physics hoặc biology");
-      if (subject !== "english" && !["6", "7", "8", "9"].includes(grade)) throw new Error("Hóa, Lí và Sinh cần grade là 6, 7, 8 hoặc 9");
-      if (grade && !["6", "7", "8", "9"].includes(grade)) throw new Error("grade chỉ nhận lớp 6 đến lớp 9");
+      if (!Object.hasOwn(SUBJECTS, subject) || subject === "japanese") {
+        throw new Error("subject phải là english, chemistry, physics, biology, history hoặc geography");
+      }
+      const isThcsSubject = ["chemistry", "physics", "biology", "history", "geography"].includes(subject);
+      if (isThcsSubject && !["6", "7", "8", "9"].includes(grade)) {
+        throw new Error("Hóa, Lí, Sinh, Sử và Địa cần grade là 6, 7, 8 hoặc 9");
+      }
+      if (grade && !["6", "7", "8", "9"].includes(grade)) {
+        throw new Error("grade chỉ nhận lớp 6 đến lớp 9");
+      }
       const domain =
         raw.domain.toLowerCase() === "vocab"
           ? "vocabulary"
@@ -282,10 +337,19 @@ export function buildCsvPreview(text, filename = "questions.csv") {
         );
       }
       if (subject === "english" ? !["grammar", "vocabulary"].includes(domain) : domain !== "practice") {
-        throw new Error("Tiếng Anh dùng domain grammar/vocabulary; Hóa, Lí và Sinh dùng practice");
+        throw new Error("Tiếng Anh dùng domain grammar/vocabulary; Hóa, Lí, Sinh, Sử và Địa dùng practice");
       }
       if (!QUESTION_TYPES.includes(type)) {
         throw new Error(`type không hỗ trợ: ${raw.type}`);
+      }
+      if (subject === "english" && ["true_false", "short_answer"].includes(type)) {
+        throw new Error(`Tiếng Anh không hỗ trợ dạng bài ${TYPE_LABELS[type] || type}`);
+      }
+      if (["history", "geography"].includes(subject) && !["mcq", "true_false"].includes(type)) {
+        throw new Error(`Môn ${SUBJECTS[subject]?.name || subject} chỉ hỗ trợ dạng mcq và true_false`);
+      }
+      if (["chemistry", "physics", "biology"].includes(subject) && !["mcq", "true_false", "short_answer"].includes(type)) {
+        warnings.push(`Dòng ${index + 2}: Dạng bài "${raw.type}" là dạng cũ của môn ${SUBJECTS[subject]?.name}. Khuyến nghị dùng mcq, true_false hoặc short_answer.`);
       }
       if (!raw.topic || !raw.prompt) {
         throw new Error("thiếu topic hoặc prompt");
@@ -301,18 +365,45 @@ export function buildCsvPreview(text, filename = "questions.csv") {
         throw new Error("vocabulary cần learning_key");
       }
 
-      const optionItems = splitList(raw.options);
       const tags = splitList(raw.tags);
       const normalize = (value) => normalizeText(value, { caseSensitive: tags.includes("case-sensitive") });
-      if (optionItems.length > 30) throw new Error("mỗi câu nhận tối đa 30 options");
-      if (["mcq", "multiple_select"].includes(type) &&
-          new Set(optionItems.map(normalize)).size !== optionItems.length) {
-        throw new Error("options bị trùng sau khi chuẩn hóa chữ và dấu câu");
-      }
-      let options = optionItems;
-      let answer = splitList(raw.answer);
 
-      if (type === "matching") {
+      let options;
+      let answer;
+
+      if (type === "true_false") {
+        const rawOptionItems = splitExactList(raw.options);
+        if (rawOptionItems.length !== 4 || rawOptionItems.some((opt) => !opt)) {
+          throw new Error("true_false cần đúng 4 mệnh đề không rỗng ngăn cách bằng ||");
+        }
+        const rawAnswerItems = splitExactList(raw.answer);
+        if (rawAnswerItems.length !== 4) {
+          throw new Error("true_false cần đúng 4 đáp án true/false ngăn cách bằng ||");
+        }
+        for (let i = 0; i < 4; i++) {
+          const ansLower = rawAnswerItems[i].toLowerCase();
+          if (ansLower !== "true" && ansLower !== "false") {
+            throw new Error(`Đáp án ý ${["a", "b", "c", "d"][i]} của true_false phải là "true" hoặc "false", nhận được: "${rawAnswerItems[i]}"`);
+          }
+        }
+        options = rawOptionItems;
+        answer = rawAnswerItems.map((a) => a.toLowerCase());
+      } else if (type === "short_answer") {
+        if (raw.options && raw.options.trim()) {
+          throw new Error("short_answer không dùng options, trường options phải để trống");
+        }
+        const rawAnswers = splitExactList(raw.answer);
+        if (rawAnswers.length === 0 || rawAnswers.some((a) => !a)) {
+          throw new Error("short_answer cần ít nhất một đáp án hợp lệ, không chứa đáp án rỗng");
+        }
+        if (rawAnswers.some((a) => a.length > 200)) {
+          throw new Error("đáp án của short_answer không được vượt quá 200 ký tự");
+        }
+        options = [];
+        answer = rawAnswers;
+      } else if (type === "matching") {
+        const optionItems = splitList(raw.options);
+        if (optionItems.length > 30) throw new Error("mỗi câu nhận tối đa 30 options");
         const pairs = optionItems.map((item) => {
           const separator = item.indexOf("=>");
           if (separator < 1) {
@@ -339,6 +430,12 @@ export function buildCsvPreview(text, filename = "questions.csv") {
           pairs.map((pair) => [pair.left, pair.right]),
         );
       } else {
+        const optionItems = splitList(raw.options);
+        if (optionItems.length > 30) throw new Error("mỗi câu nhận tối đa 30 options");
+        if (["mcq", "multiple_select"].includes(type) &&
+            new Set(optionItems.map(normalize)).size !== optionItems.length) {
+          throw new Error("options bị trùng sau khi chuẩn hóa chữ và dấu câu");
+        }
         const answers = splitList(raw.answer);
         if (answers.length === 0) throw new Error("thiếu answer");
         if (
@@ -347,8 +444,16 @@ export function buildCsvPreview(text, filename = "questions.csv") {
         ) {
           throw new Error(`${type} cần ít nhất 2 options`);
         }
-        if (type === "mcq" && answers.length !== 1) {
-          throw new Error("mcq cần đúng 1 đáp án");
+        if (type === "mcq") {
+          if (answers.length !== 1) {
+            throw new Error("mcq cần đúng 1 đáp án");
+          }
+          if (["history", "geography"].includes(subject) && optionItems.length !== 4) {
+            throw new Error("mcq môn Sử và Địa bắt buộc phải có đúng 4 phương án");
+          }
+          if (["chemistry", "physics", "biology"].includes(subject) && optionItems.length !== 4) {
+            warnings.push(`Dòng ${index + 2}: mcq môn ${SUBJECTS[subject]?.name} nên có đúng 4 phương án (hiện có ${optionItems.length} phương án).`);
+          }
         }
         if (type === "multiple_select" && (new Set(answers.map(normalize)).size < 2 || new Set(answers.map(normalize)).size !== answers.length)) {
           throw new Error("multiple_select cần ít nhất 2 đáp án đúng khác nhau");
@@ -372,6 +477,7 @@ export function buildCsvPreview(text, filename = "questions.csv") {
         ) {
           throw new Error("answer không dùng đúng tập token trong options");
         }
+        options = optionItems;
         answer = answers;
       }
 
@@ -408,7 +514,7 @@ export function buildCsvPreview(text, filename = "questions.csv") {
   });
 
   if (new Set(rows.map((row) => row.subject)).size > 1) errors.push("Mỗi CSV chỉ chứa một môn. Hãy tách thành file riêng cho từng môn.");
-  return { filename, rows: errors.length ? [] : rows, errors };
+  return { filename, rows: errors.length ? [] : rows, errors, warnings };
 }
 
 export function evaluateAnswer(expected, received, type, settings = {}) {
@@ -423,6 +529,20 @@ export function evaluateAnswer(expected, received, type, settings = {}) {
       },
       received,
     );
+  }
+
+  if (type === "true_false") {
+    if (!Array.isArray(expected) || !Array.isArray(received) || received.length !== 4) return false;
+    return expected.length === 4 && expected.every((ans, idx) => String(received[idx]).toLowerCase() === String(ans).toLowerCase());
+  }
+
+  if (type === "short_answer") {
+    if (typeof received !== "string" || !received.trim()) return false;
+    const expectedList = Array.isArray(expected) ? expected : (typeof expected === "string" ? [expected] : []);
+    if (expectedList.length === 0) return false;
+    const caseSensitive = Boolean(settings?.tags?.includes?.("case-sensitive") || settings?.caseSensitive);
+    const normReceived = normalizeShortAnswer(received, { caseSensitive });
+    return expectedList.some((ans) => normalizeShortAnswer(ans, { caseSensitive }) === normReceived);
   }
 
   const normalize = (value) => normalizeText(value, settings);
@@ -463,6 +583,41 @@ export function evaluateAnswer(expected, received, type, settings = {}) {
   return Boolean(submitted) && expected.some((answer) => normalize(answer) === submitted);
 }
 
+export function evaluateTrueFalseDetails(expected, received, options = []) {
+  const labels = ["a", "b", "c", "d"];
+  const expArr = Array.isArray(expected) ? expected : [];
+  const recArr = Array.isArray(received) ? received : [];
+  const optArr = Array.isArray(options) ? options : [];
+
+  let correctCount = 0;
+  const items = labels.map((label, idx) => {
+    const statement = optArr[idx] || "";
+    const exp = String(expArr[idx] ?? "").toLowerCase();
+    const rec = String(recArr[idx] ?? "").toLowerCase();
+    const isAnswered = rec === "true" || rec === "false";
+    const isCorrect = isAnswered && rec === exp;
+    if (isCorrect) correctCount++;
+    return {
+      label,
+      statement,
+      expected: exp,
+      received: rec,
+      correct: isCorrect,
+    };
+  });
+
+  const isComplete = recArr.length === 4 && recArr.every((r) => r === "true" || r === "false");
+  const correct = isComplete && correctCount === 4;
+
+  return {
+    isComplete,
+    correct,
+    correctCount,
+    total: 4,
+    items,
+  };
+}
+
 export function displayAnswer(expected, optionsOrQuestion) {
   let opts = optionsOrQuestion;
   let target = expected;
@@ -499,6 +654,20 @@ export function displayAnswer(expected, optionsOrQuestion) {
     }
   }
 
+  const isTrueFalse = opts?.type === "true_false" || (
+    Array.isArray(target) && target.length === 4 && target.every((v) => typeof v === "string" && (v.toLowerCase() === "true" || v.toLowerCase() === "false"))
+  );
+  if (isTrueFalse) {
+    const labels = ["a", "b", "c", "d"];
+    return labels
+      .map((lbl, idx) => {
+        const val = String(target[idx] ?? "").toLowerCase();
+        return `${lbl}: ${val === "true" ? "Đúng" : "Sai"}`;
+      })
+      .join(" · ");
+  }
+
+  if (typeof target === "string") return target;
   if (Array.isArray(target)) return target.join(" / ");
   return Object.entries(target ?? {})
     .map(([left, right]) => `${left} → ${right}`)

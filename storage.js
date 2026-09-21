@@ -53,7 +53,8 @@ function validDraft(draft) {
     (draft.text == null || typeof draft.text === "string") &&
     (draft.selected == null || Array.isArray(draft.selected) && draft.selected.every(Number.isInteger)) &&
     (draft.ordered == null || Array.isArray(draft.ordered) && draft.ordered.every(Number.isInteger)) &&
-    (draft.matches == null || isPlainObject(draft.matches) && Object.values(draft.matches).every((item) => typeof item === "string"));
+    (draft.matches == null || isPlainObject(draft.matches) && Object.values(draft.matches).every((item) => typeof item === "string")) &&
+    (draft.trueFalse == null || (Array.isArray(draft.trueFalse) && draft.trueFalse.length === 4 && draft.trueFalse.every((v) => ["", "true", "false"].includes(v))));
 }
 
 function legacyLocal() {
@@ -372,8 +373,24 @@ function validSession(s, w) {
   }
 
   if (!s.queue.every((id) => typeof id === "string" && questions.has(id))) return false;
-  if (!s.log.every((entry) => isPlainObject(entry) && typeof entry.questionId === "string" &&
-      questions.has(entry.questionId) && typeof entry.correct === "boolean" && isStoredAnswer(entry.answer))) return false;
+  if (!s.log.every((entry) => {
+    if (!isPlainObject(entry) || typeof entry.questionId !== "string" || !questions.has(entry.questionId) ||
+        typeof entry.correct !== "boolean" || !isStoredAnswer(entry.answer)) return false;
+    const q = questions.get(entry.questionId);
+    if (q.type === "true_false" && (!Array.isArray(entry.answer) || entry.answer.length !== 4 || !entry.answer.every((item) => item === "true" || item === "false"))) return false;
+    if (q.type === "short_answer" && (typeof entry.answer !== "string" || !entry.answer.trim())) return false;
+    const mode = s.mode;
+    const expectedCorrect = mode === "flashcards"
+      ? (typeof entry.answer === "boolean" ? entry.answer : entry.answer === "Đã nhớ")
+      : evaluateAnswer(q.answer, entry.answer, q.type, {
+          caseSensitive: q.tags?.includes("case-sensitive"),
+          options: q.options,
+          acceptedOrders: q.acceptedOrders ?? q.accepted_orders,
+          starPosition: q.starPosition ?? q.star_position,
+        });
+    if (entry.correct !== expectedCorrect) return false;
+    return true;
+  })) return false;
   if (s.step !== s.log.length - (s.result ? 1 : 0)) return false;
 
   const loggedIds = new Set(s.log.map((entry) => entry.questionId));
@@ -394,8 +411,23 @@ function validSession(s, w) {
   if (!isPlainObject(s.result) || typeof s.result.correct !== "boolean" ||
       typeof s.result.expected !== "string" || !isStoredAnswer(s.result.received) ||
       (s.result.dueAt != null && !validTimestamp(s.result.dueAt)) || !validDraft(s.result.draft)) return false;
-  const latest = s.log.at(-1);
   const current = s.queue[0];
+  const currentQ = questions.get(current);
+  if (currentQ?.type === "true_false" && (!Array.isArray(s.result.received) || s.result.received.length !== 4 || !s.result.received.every((item) => item === "true" || item === "false"))) return false;
+  if (currentQ?.type === "short_answer" && (typeof s.result.received !== "string" || !s.result.received.trim())) return false;
+  if (currentQ) {
+    const resultMode = s.mode;
+    const expectedResultCorrect = resultMode === "flashcards"
+      ? (typeof s.result.received === "boolean" ? s.result.received : s.result.received === "Đã nhớ")
+      : evaluateAnswer(currentQ.answer, s.result.received, currentQ.type, {
+          caseSensitive: currentQ.tags?.includes("case-sensitive"),
+          options: currentQ.options,
+          acceptedOrders: currentQ.acceptedOrders ?? currentQ.accepted_orders,
+          starPosition: currentQ.starPosition ?? currentQ.star_position,
+        });
+    if (s.result.correct !== expectedResultCorrect) return false;
+  }
+  const latest = s.log.at(-1);
   return Boolean(latest && latest.questionId === current && latest.correct === s.result.correct &&
     s.result.expected === displayAnswer(questions.get(current).answer, questions.get(current)));
 }
@@ -456,8 +488,24 @@ function validSummary(summary, w) {
       (summary.filters.type != null && (typeof summary.filters.type !== "string" || (!ALL_QUESTION_TYPES.includes(summary.filters.type) && summary.filters.type !== "all"))) ||
       (summary.filters.limit != null && (!Number.isInteger(summary.filters.limit) || summary.filters.limit < 1 || summary.filters.limit > 30)))) return false;
 
-  if (!summary.results.every((entry) => isPlainObject(entry) && typeof entry.questionId === "string" &&
-      questions.has(entry.questionId) && typeof entry.correct === "boolean" && isStoredAnswer(entry.answer))) return false;
+  if (!summary.results.every((entry) => {
+    if (!isPlainObject(entry) || typeof entry.questionId !== "string" || !questions.has(entry.questionId) ||
+        typeof entry.correct !== "boolean" || !isStoredAnswer(entry.answer)) return false;
+    const q = questions.get(entry.questionId);
+    if (q.type === "true_false" && (!Array.isArray(entry.answer) || entry.answer.length !== 4 || !entry.answer.every((item) => item === "true" || item === "false"))) return false;
+    if (q.type === "short_answer" && (typeof entry.answer !== "string" || !entry.answer.trim())) return false;
+    const mode = summary.mode;
+    const expectedCorrect = mode === "flashcards"
+      ? (typeof entry.answer === "boolean" ? entry.answer : entry.answer === "Đã nhớ")
+      : evaluateAnswer(q.answer, entry.answer, q.type, {
+          caseSensitive: q.tags?.includes("case-sensitive"),
+          options: q.options,
+          acceptedOrders: q.acceptedOrders ?? q.accepted_orders,
+          starPosition: q.starPosition ?? q.star_position,
+        });
+    if (entry.correct !== expectedCorrect) return false;
+    return true;
+  })) return false;
   return new Set(summary.results.map((entry) => entry.questionId)).size === summary.results.length &&
     summary.correct === summary.results.filter((entry) => entry.correct).length;
 }
@@ -648,7 +696,7 @@ export function validateBackup(value) {
     const declaredSubject = sourceSet.subject == null || sourceSet.subject === ""
       ? null
       : String(sourceSet.subject).trim().toLowerCase();
-    if (declaredSubject && !["english", "chemistry", "physics", "biology", "japanese"].includes(declaredSubject)) {
+    if (declaredSubject && !["english", "chemistry", "physics", "biology", "history", "geography", "japanese"].includes(declaredSubject)) {
       fail("Môn học của bộ trong sao lưu không hợp lệ.");
     }
     sets.set(id, {
@@ -701,6 +749,12 @@ export function validateBackup(value) {
         (attempt.purpose != null && !["study", "review"].includes(attempt.purpose))) {
       fail("Lịch sử trong sao lưu không hợp lệ.");
     }
+    if (question.type === "true_false" && (!Array.isArray(answer) || answer.length !== 4 || !answer.every((item) => item === "true" || item === "false"))) {
+      fail("Lịch sử trong sao lưu không hợp lệ: câu Đúng/Sai phải có đủ 4 đáp án true hoặc false.");
+    }
+    if (question.type === "short_answer" && (typeof answer !== "string" || !answer.trim())) {
+      fail("Lịch sử trong sao lưu không hợp lệ: câu trả lời ngắn không được để trống.");
+    }
     const mode = attempt.mode ?? question.domain;
     const isReview = attempt.purpose === "review" || mode === "review";
     const isJapanese = question.subject === "japanese";
@@ -720,6 +774,21 @@ export function validateBackup(value) {
           : mode === question.domain);
     }
     if (!allowedMode || (attempt.setId != null && attempt.setId !== question.setId)) fail("Lịch sử trong sao lưu không hợp lệ.");
+
+    const expectedCorrect = mode === "flashcards"
+      ? (typeof answer === "boolean" ? answer : answer === "Đã nhớ")
+      : evaluateAnswer(question.answer, answer, question.type, {
+          caseSensitive: question.tags?.includes("case-sensitive"),
+          options: question.options,
+          acceptedOrders: question.acceptedOrders ?? question.accepted_orders,
+          starPosition: question.starPosition ?? question.star_position,
+        });
+    if (mode === "flashcards" && typeof answer !== "boolean" && answer !== "Đã nhớ" && answer !== "Chưa nhớ") {
+      fail("Lịch sử trong sao lưu không hợp lệ.");
+    }
+    if (attempt.correct !== expectedCorrect) {
+      fail("Lịch sử trong sao lưu không hợp lệ: kết quả đúng/sai không khớp với đáp án.");
+    }
     attemptIds.add(attempt.id);
     attempts.push({
       ...attempt,
@@ -1169,10 +1238,16 @@ class Repository {
     if (!validSession(s, w) || s.id !== sessionId || s.step !== step) fail("Lượt học đã đổi ở tab khác. Hãy thử lại.");
     if (s.result) return copy(s.result);
     const q = w.questions.find((item) => item.id === s.queue[0]);
+    if (!q) fail("Câu hỏi hiện tại không còn tồn tại. Hãy tải lại trang.");
     if (s.mode === "flashcards" && typeof answer !== "boolean") fail("Hãy chọn Đã nhớ hoặc Chưa nhớ.");
     if (s.mode !== "flashcards" && !isStoredAnswer(answer)) fail("Câu trả lời không hợp lệ.");
+    if (q.type === "true_false" && (!Array.isArray(answer) || answer.length !== 4 || !answer.every((item) => item === "true" || item === "false"))) {
+      fail("Câu trả lời Đúng/Sai không hợp lệ.");
+    }
+    if (q.type === "short_answer" && (typeof answer !== "string" || !answer.trim())) {
+      fail("Câu trả lời ngắn không được để trống.");
+    }
     if (!validDraft(draft)) fail("Bản nháp không hợp lệ.");
-    if (!q) fail("Câu hỏi hiện tại không còn tồn tại. Hãy tải lại trang.");
     const isJapanese = q.subject === "japanese";
     const correct = s.mode === "flashcards"
       ? answer

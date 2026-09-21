@@ -16,7 +16,7 @@ const JAPANESE_SAMPLE_CSV = "schema,subject,id,level,chapter,lesson,section,topi
   "ja-v1,japanese,k003,N4,1,2,kanji,Thời gian & Di chuyển,ja_kanji_reading,Chọn cách đọc của từ được đánh dấu.,\"来週、{東京|とうきょう}へ出発します。\",出発,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"しゅっぱつ\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"しゅつはつ\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"しゅうはつ\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"しゅつぱつ\\\"}]\",o1,,,\"Dịch câu: \\\"Tuần tới, tôi sẽ xuất phát đi Tokyo.\\\" 出発 gồm 出 và Phát, có âm ngắt đọc là しゅっぱつ, nghĩa là xuất phát / khởi hành.\",,,\r\n" +
   "ja-v1,japanese,k004,N4,1,2,kanji,Thời gian & Di chuyển,ja_kanji_writing,Chọn cách viết chữ Hán đúng cho từ được đánh dấu.,計画をじゅんびしています。,じゅんび,\"[{\\\"id\\\":\\\"o1\\\",\\\"text\\\":\\\"準備\\\"},{\\\"id\\\":\\\"o2\\\",\\\"text\\\":\\\"準偏\\\"},{\\\"id\\\":\\\"o3\\\",\\\"text\\\":\\\"基準\\\"},{\\\"id\\\":\\\"o4\\\",\\\"text\\\":\\\"設備\\\"}]\",o1,,,\"Dịch câu: \\\"Tôi đang chuẩn bị cho kế hoạch.\\\" じゅんび viết bằng chữ Hán là 準備 (Chuẩn bị).\",,,\r\n";
 
-import { buildCsvPreview, buildStats, displayAnswer, formatExplanationHtml, formatInlineMarkdown, isReviewDue, resolveEscapeAction, stableShuffle, TYPE_LABELS, learningKeyFor, normalizeText, SUBJECTS, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "./core.js";
+import { buildCsvPreview, buildStats, displayAnswer, evaluateTrueFalseDetails, formatExplanationHtml, formatInlineMarkdown, isReviewDue, resolveEscapeAction, stableShuffle, TYPE_LABELS, learningKeyFor, normalizeText, SUBJECTS, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "./core.js";
 import { createRepository, readDashboard, exportBackup, validateBackup } from "./storage.js";
 import {
   questionsToCsv,
@@ -263,6 +263,7 @@ const icons = {
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>',
   fontSize: '<path d="M4 19h2.4l1.2-3.5h4.8l1.2 3.5H16L11 5H9L4 19zm4.2-5.7L10 8.3l1.8 5H8.2zM18 9v6m-3-3h6"/>',
   bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+  alert: '<path d="m10.29 3.86-8.6 14.86A2 2 0 0 0 3.42 22h17.16a2 2 0 0 0 1.73-3.28l-8.6-14.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>',
 };
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.book}</svg>`;
 const button = (label, action, css = "button", attrs = "") => `<button type="button" class="${css}" data-action="${action}" ${attrs} ${state.busy ? "disabled" : ""}>${label}</button>`;
@@ -328,6 +329,9 @@ function syncDraft() {
       selected: Array.isArray(saved?.selected) ? saved.selected.filter(Number.isInteger) : [],
       ordered: Array.isArray(saved?.ordered) ? saved.ordered.filter(Number.isInteger) : [],
       matches: saved?.matches && typeof saved.matches === "object" ? saved.matches : {},
+      trueFalse: Array.isArray(saved?.trueFalse) && saved.trueFalse.length === 4
+        ? saved.trueFalse.map((v) => ["true", "false"].includes(v) ? v : "")
+        : ["", "", "", ""],
     };
     state.flipped = false;
   }
@@ -899,7 +903,7 @@ function questionSearchCard(q) {
     <div class="question-search-card-top"><span>${html(set?.name || "Bộ bài")}</span><span class="pill">${subjectName(q.subject)} · ${html(TYPE_LABELS[q.type] || q.type)}</span></div>
     <h3>${html(q.prompt)}</h3>
     ${q.context ? `<p class="question-context">${renderQuestionContext(q, true)}</p>` : ""}
-    <div class="search-q-answer"><strong>Đáp án:</strong><span>${q.subject === "japanese" ? renderRubyHtml(displayAnswer(q.answer, q)) : html(displayAnswer(q.answer))}</span></div>
+    <div class="search-q-answer"><strong>Đáp án:</strong><span>${q.subject === "japanese" ? renderRubyHtml(displayAnswer(q.answer, q)) : html(displayAnswer(q.answer, q))}</span></div>
     <div class="question-search-meta"><span class="eyebrow">${html(q.topic)}${q.subtopic ? ` / ${html(q.subtopic)}` : ""}</span>${button(`Xem bộ bài ${icon("arrow")}`, "choose", "button subtle", `data-id="${html(q.setId)}"`)}</div>
   </article>`;
 }
@@ -1011,6 +1015,96 @@ function answerMarkup(q, result) {
     const order = stableShuffle(q.options.map((_, index) => index), q.id);
     return `<div><label class="answer-label">Sắp xếp thành câu hoàn chỉnh</label><div class="sentence-builder" aria-label="Câu đang sắp xếp">${d.ordered.length ? d.ordered.map((index) => button(`${html(q.options[index])}<span aria-hidden="true">×</span>`, "remove-token", "token selected", `data-index="${index}" ${disabled} aria-label="Bỏ ${html(q.options[index])}"`)).join("") : '<span class="muted">Chạm các từ bên dưới để xếp câu...</span>'}</div><div class="token-bank">${order.filter((index) => !d.ordered.includes(index)).map((index) => button(html(q.options[index]), "add-token", "token", `data-index="${index}" ${disabled}`)).join("")}</div></div>`;
   }
+  if (q.type === "true_false") {
+    const labels = ["a", "b", "c", "d"];
+    const statements = q.options || [];
+    const tfDraft = Array.isArray(d.trueFalse) ? d.trueFalse : ["", "", "", ""];
+    const chosenCount = tfDraft.filter((v) => v === "true" || v === "false").length;
+    const details = result ? evaluateTrueFalseDetails(q.answer, result.received, q.options) : null;
+
+    return `
+      <div class="true-false-container" role="group" aria-label="Câu hỏi Đúng Sai 4 ý">
+        <div class="true-false-status">
+          <span>Chọn Đúng hoặc Sai cho từng mệnh đề sau:</span>
+          <span class="tf-counter">${result ? `Đúng ${details?.correctCount ?? 0}/4 ý` : `Đã chọn ${chosenCount}/4 ý`}</span>
+        </div>
+        ${labels.map((lbl, idx) => {
+          const stmt = statements[idx] || "";
+          const userVal = result ? (Array.isArray(result.received) ? result.received[idx] : "") : tfDraft[idx];
+          const isSelectedTrue = userVal === "true";
+          const isSelectedFalse = userVal === "false";
+          const itemDetail = details?.items[idx];
+
+          let cardClass = "tf-card";
+          if (result && itemDetail) {
+            cardClass += itemDetail.correct ? " tf-correct" : " tf-incorrect";
+          } else if (userVal) {
+            cardClass += " tf-answered";
+          }
+
+          let trueBtnClass = "button tf-btn tf-btn-true";
+          let falseBtnClass = "button tf-btn tf-btn-false";
+
+          if (result && itemDetail) {
+            if (itemDetail.expected === "true") trueBtnClass += " tf-result-correct";
+            else if (isSelectedTrue) trueBtnClass += " tf-result-wrong";
+
+            if (itemDetail.expected === "false") falseBtnClass += " tf-result-correct";
+            else if (isSelectedFalse) falseBtnClass += " tf-result-wrong";
+          } else {
+            if (isSelectedTrue) trueBtnClass += " selected";
+            if (isSelectedFalse) falseBtnClass += " selected";
+          }
+
+          return `
+            <div class="${cardClass}" data-tf-card="${idx}">
+              <div class="tf-statement-row">
+                <span class="tf-letter">${lbl})</span>
+                <span class="tf-statement-text">${html(stmt)}</span>
+              </div>
+              <div class="tf-actions" role="radiogroup" aria-label="Mệnh đề ${lbl}">
+                <button type="button" role="radio" data-action="tf-choice" data-index="${idx}" data-value="true" class="${trueBtnClass}" aria-checked="${isSelectedTrue ? "true" : "false"}" tabindex="${isSelectedFalse ? "-1" : "0"}" ${disabled}>
+                  ${icon("check")} Đúng
+                </button>
+                <button type="button" role="radio" data-action="tf-choice" data-index="${idx}" data-value="false" class="${falseBtnClass}" aria-checked="${isSelectedFalse ? "true" : "false"}" tabindex="${isSelectedFalse ? "0" : "-1"}" ${disabled}>
+                  ${icon("close")} Sai
+                </button>
+              </div>
+              ${result && itemDetail ? `
+                <div class="tf-feedback ${itemDetail.correct ? "correct" : "incorrect"}">
+                  ${itemDetail.correct
+                    ? `${icon("check")} Bạn chọn đúng (${itemDetail.expected === "true" ? "Đúng" : "Sai"})`
+                    : `${icon("close")} Bạn chọn: ${userVal === "true" ? "Đúng" : userVal === "false" ? "Sai" : "Chưa chọn"} · Đáp án đúng: ${itemDetail.expected === "true" ? "Đúng" : "Sai"}`
+                  }
+                </div>
+              ` : ""}
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+  }
+  if (q.type === "short_answer") {
+    const placeholder = "Nhập câu trả lời (số, công thức hoặc từ ngắn)...";
+    return `
+      <div class="short-answer-container">
+        <label class="answer-label" for="answer-text">Câu trả lời của bạn</label>
+        <input
+          type="text"
+          id="answer-text"
+          class="short-answer-input"
+          data-answer
+          placeholder="${placeholder}"
+          spellcheck="false"
+          autocomplete="off"
+          autocapitalize="off"
+          maxlength="200"
+          value="${html(d.text)}"
+          ${disabled}
+        />
+      </div>
+    `;
+  }
   const placeholder = q.subject === "english" ? "Nhập câu trả lời bằng tiếng Anh..." : "Nhập câu trả lời đúng theo đáp án đã cho...";
   return `<label class="answer-label" for="answer-text">${["error_correction", "sentence_transformation"].includes(q.type) ? "Viết câu hoàn chỉnh" : "Câu trả lời của bạn"}</label><textarea id="answer-text" data-answer rows="3" placeholder="${placeholder}" spellcheck="false" autocomplete="off" maxlength="10000" ${disabled}>${html(d.text)}</textarea>`;
 }
@@ -1024,6 +1118,8 @@ function receivedAnswer(q) {
     const selIdx = d.selected[0];
     return selIdx != null ? (q.options[selIdx]?.id ?? "") : "";
   }
+  if (q.type === "true_false") return Array.isArray(d.trueFalse) ? d.trueFalse : ["", "", "", ""];
+  if (q.type === "short_answer") return d.text.trim();
   if (q.type === "mcq") return q.options[d.selected[0]] || "";
   if (q.type === "multiple_select") return d.selected.map((index) => q.options[index]);
   if (q.type === "ordering") return d.ordered.map((index) => q.options[index]).join(" ");
@@ -1042,6 +1138,8 @@ function answerReady() {
     }
     return d.selected.length === 1;
   }
+  if (q.type === "true_false") return Array.isArray(d.trueFalse) && d.trueFalse.length === 4 && d.trueFalse.every((v) => v === "true" || v === "false");
+  if (q.type === "short_answer") return Boolean(d.text.trim());
   if (q.type === "mcq") return d.selected.length === 1;
   if (q.type === "multiple_select") return d.selected.length > 0;
   if (q.type === "ordering") return d.ordered.length === q.options.length;
@@ -1182,7 +1280,7 @@ function getFlashcardData(q) {
   }
 
   // 7. Meaning & Explanation (Vietnamese definition for back of card)
-  const rawAnswer = displayAnswer(q.answer);
+  const rawAnswer = displayAnswer(q.answer, q);
   const hasVietnamese = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(rawAnswer);
   if (hasVietnamese && rawAnswer.trim()) {
     meaning = rawAnswer;
@@ -1272,9 +1370,18 @@ function sessionMarkup() {
         </div>
       `;
     } else {
+      let titleText = result.correct ? "Chính xác!" : "Chưa đúng, cùng xem lại nhé.";
+      if (q.type === "true_false") {
+        const details = evaluateTrueFalseDetails(q.answer, result.received, q.options);
+        if (result.correct) {
+          titleText = "Chính xác! (Đúng 4/4 ý)";
+        } else {
+          titleText = `Chưa đúng (Đúng ${details.correctCount}/4 ý)`;
+        }
+      }
       feedbackMarkup = `
         <div class="feedback ${result.correct ? "success" : "wrong"}" role="status">
-          <div class="feedback-title">${icon(result.correct ? "check" : "close")}<strong>${result.correct ? "Chính xác!" : "Chưa đúng, cùng xem lại nhé."}</strong></div>
+          <div class="feedback-title">${icon(result.correct ? "check" : "close")}<strong>${titleText}</strong></div>
           ${!result.correct ? `<p class="expected"><span>Đáp án đúng</span><strong>${html(result.expected)}</strong></p>` : ""}
           ${q.explanation ? `<div class="feedback-explanation">${formatExplanationHtml(q.explanation, { isJapanese: false })}</div>` : ""}
           ${!isReview && isVocabulary(s.mode) && !result.correct ? '<small>Từ này sẽ xuất hiện lại ở cuối lượt học.</small>' : result.dueAt ? `<small>Hẹn ôn lại: ${day(result.dueAt)}</small>` : ""}
@@ -1483,10 +1590,33 @@ function resultMarkup() {
       } else {
         promptDisplay = html(q.context || q.prompt);
       }
-      const answerDisplay = isJa ? renderRubyHtml(displayAnswer(q.answer, q)) : html(displayAnswer(q.answer));
+      if (q.type === "true_false") {
+        const details = evaluateTrueFalseDetails(q.answer, item.answer, q.options);
+        const tfItemsHtml = details.items.map((it) => {
+          const expText = it.expected === "true" ? "Đúng" : "Sai";
+          const recText = it.received === "true" ? "Đúng" : (it.received === "false" ? "Sai" : "Chưa chọn");
+          const statusClass = it.correct ? "tf-review-correct" : "tf-review-wrong";
+          const statusIcon = it.correct ? "✓" : "✗";
+          return `<div class="tf-review-item ${statusClass}">
+            <div class="tf-review-statement"><strong>${it.label.toUpperCase()}.</strong> ${html(it.statement)}</div>
+            <div class="tf-review-meta">
+              <span>Bạn chọn: <strong>${recText}</strong> ${statusIcon}</span>
+              ${!it.correct ? `<span>· Đáp án đúng: <strong>${expText}</strong></span>` : ""}
+            </div>
+          </div>`;
+        }).join("");
+
+        return `<article class="review-article-tf">
+          <h3 lang="vi">${promptDisplay}</h3>
+          <div class="tf-review-score">Kết quả: <strong>Đúng ${details.correctCount}/4 ý</strong></div>
+          <div class="tf-review-list">${tfItemsHtml}</div>
+          ${q.explanation ? `<div class="feedback-explanation" lang="vi">${formatExplanationHtml(q.explanation, { isJapanese: false })}</div>` : ""}
+        </article>`;
+      }
+      const answerDisplay = isJa ? renderRubyHtml(displayAnswer(q.answer, q)) : html(displayAnswer(q.answer, q));
       const yourAnswer = isJa
         ? (item.answer != null && item.answer !== "" ? renderRubyHtml(displayAnswer(item.answer, q)) : "Chưa trả lời")
-        : (!isJapanese && vocabularyMode ? "Tự đánh giá: Chưa nhớ (đã xếp ôn lại)" : html(typeof item.answer === "object" ? displayAnswer(item.answer) : item.answer));
+        : (!isJapanese && vocabularyMode ? "Tự đánh giá: Chưa nhớ (đã xếp ôn lại)" : html(typeof item.answer === "object" ? displayAnswer(item.answer, q) : item.answer));
       return `<article><h3 lang="${isJa && !isOrder ? "ja" : "vi"}">${promptDisplay}</h3><p class="muted">Bạn trả lời: <span lang="${isJa ? "ja" : "vi"}">${yourAnswer}</span></p><p><strong>${answerDisplay}</strong></p>${q.explanation ? `<div class="feedback-explanation" lang="vi">${formatExplanationHtml(q.explanation, { isJapanese: isJa, showRuby: currentFurigana() })}</div>` : ""}</article>`;
     }).join("")}</details>` : ""}</section>`;
 }
@@ -1709,7 +1839,7 @@ function statsMarkup() {
             <span class="pill">${html(q.topic)}</span>
           </div>
           <h3>${html(q.context || q.prompt)}</h3>
-          <p>Đáp án đúng: <strong>${html(displayAnswer(q.answer))}</strong></p>
+          <p>Đáp án đúng: <strong>${html(displayAnswer(q.answer, q))}</strong></p>
         </article>`).join("")}
       </div>
     </section>` : ""}`;
@@ -1798,6 +1928,14 @@ async function loadCsv(file) {
       });
       const lines = Object.entries(counts).filter(([, c]) => c > 0).map(([k, c]) => `${k}: ${c} câu`);
       detailHtml = `Tiếng Nhật ${levels.length ? levels.join(", ") : ""}<br><div style="font-size:0.9em;margin-top:4px;">Thống kê: ${lines.join(" · ")}<br>Mục từ SRS: <strong>${keys.size}</strong></div>`;
+    } else if (["chemistry", "physics", "biology", "history", "geography"].includes(subject)) {
+      const typeCounts = {};
+      csvPreview.rows.forEach((q) => {
+        const typeLabel = TYPE_LABELS[q.type] || q.type;
+        typeCounts[typeLabel] = (typeCounts[typeLabel] || 0) + 1;
+      });
+      const typeBreakdown = Object.entries(typeCounts).map(([label, count]) => `${label}: ${count}`).join(" · ");
+      detailHtml = `${html(subjectName(subject))}${grades.length ? ` · Lớp ${html(grades.join(", "))}` : ""} · Practice<br><div style="font-size:0.9em;margin-top:4px;">Dạng bài: <strong>${html(typeBreakdown)}</strong></div>`;
     } else {
       const detail = subject === "english"
         ? `${grammar} Grammar · ${vocabulary} Vocabulary`
@@ -1805,7 +1943,11 @@ async function loadCsv(file) {
       detailHtml = html(detail);
     }
     const name = file.name.replace(/\.csv$/i, "").replaceAll("_", " ");
-    document.querySelector("#csv-preview").innerHTML = `<div class="validation success"><strong>${icon("check")} ${csvPreview.rows.length} câu hợp lệ</strong><span>${detailHtml}</span></div><label class="field-label" for="set-name">Tên bộ bài<input id="set-name" maxlength="120" value="${html(name)}"></label><div class="modal-actions">${button("Thêm vào kho", "save-csv", "button primary large")}</div>`;
+    let warningHtml = "";
+    if (csvPreview.warnings?.length) {
+      warningHtml = `<div class="validation warning" role="status"><strong>${icon("alert")} Cảnh báo (${csvPreview.warnings.length})</strong><ul>${csvPreview.warnings.map((w) => `<li>${html(w)}</li>`).join("")}</ul><small>Bộ câu hỏi vẫn có thể nhập, nhưng bạn nên điều chỉnh để tối ưu hiển thị.</small></div>`;
+    }
+    document.querySelector("#csv-preview").innerHTML = `<div class="validation success"><strong>${icon("check")} ${csvPreview.rows.length} câu hợp lệ</strong><span>${detailHtml}</span></div>${warningHtml}<label class="field-label" for="set-name">Tên bộ bài<input id="set-name" maxlength="120" value="${html(name)}"></label><div class="modal-actions">${button("Thêm vào kho", "save-csv", "button primary large")}</div>`;
   } catch (error) {
     if (token !== loadToken) return;
     csvPreview = null;
@@ -2033,6 +2175,40 @@ async function invokeAction(target) {
       updateSubmit();
     }
     saveDraft();
+    return;
+  }
+  if (name === "tf-choice") {
+    if (currentSession()?.result) return;
+    const index = Number(target.dataset.index);
+    const val = target.dataset.value;
+    if (Number.isInteger(index) && index >= 0 && index < 4 && (val === "true" || val === "false")) {
+      if (!Array.isArray(state.draft.trueFalse)) {
+        state.draft.trueFalse = ["", "", "", ""];
+      }
+      state.draft.trueFalse[index] = val;
+      const form = root.querySelector("[data-answer-form]");
+      if (form) {
+        const card = form.querySelector(`[data-tf-card="${index}"]`);
+        if (card) {
+          card.classList.add("tf-answered");
+          card.querySelectorAll('[data-action="tf-choice"]').forEach((btn) => {
+            const isSelected = btn.dataset.value === val;
+            btn.classList.toggle("selected", isSelected);
+            btn.setAttribute("aria-checked", String(isSelected));
+            btn.setAttribute("tabindex", isSelected ? "0" : "-1");
+          });
+        }
+        const counter = form.querySelector(".tf-counter");
+        if (counter) {
+          const count = state.draft.trueFalse.filter((v) => v === "true" || v === "false").length;
+          counter.textContent = `Đã chọn ${count}/4 ý`;
+        }
+        updateSubmit();
+      } else {
+        render();
+      }
+      saveDraft();
+    }
     return;
   }
   if (["add-token", "remove-token"].includes(name)) {
@@ -2387,6 +2563,34 @@ document.addEventListener("keydown", (event) => {
       }
     }
   }
+  const tfRadio = target?.closest?.('[data-action="tf-choice"]');
+  if (tfRadio && !session.result) {
+    const cardIdx = Number(tfRadio.dataset.index);
+    const val = tfRadio.dataset.value;
+    const radiogroup = tfRadio.closest('[role="radiogroup"]');
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      const targetVal = event.key === "ArrowLeft" ? "true" : "false";
+      const targetBtn = radiogroup?.querySelector(`[data-action="tf-choice"][data-value="${targetVal}"]`);
+      if (targetBtn && targetBtn !== tfRadio) {
+        targetBtn.focus();
+        void invokeAction(targetBtn);
+      }
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const nextIdx = event.key === "ArrowDown" ? cardIdx + 1 : cardIdx - 1;
+      const nextCard = root.querySelector(`[data-tf-card="${nextIdx}"]`);
+      if (nextCard) {
+        const selectedBtn = nextCard.querySelector(`[data-action="tf-choice"][aria-checked="true"]`);
+        const nextBtn = selectedBtn || nextCard.querySelector(`[data-action="tf-choice"][data-value="${val}"]`) || nextCard.querySelector('[data-action="tf-choice"]');
+        if (nextBtn) nextBtn.focus();
+      }
+      return;
+    }
+  }
+
   if (!interactiveTarget && !session.result && /^[1-9]$/.test(event.key)) {
     const choice = root.querySelector(`[data-action="option"][data-index="${Number(event.key) - 1}"]`);
     if (choice) { event.preventDefault(); void invokeAction(choice); }

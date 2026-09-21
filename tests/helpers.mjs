@@ -20,3 +20,25 @@ export function practice(overrides = {}) {
     hint: "Phân biệt lực với năng lượng.", tags: ["case-sensitive"], learningKey: "", ...overrides,
   });
 }
+
+export function trueFalseQuestion(overrides = {}) {
+  return question({
+    subject: "history", grade: "7", id: "h-tf-1", domain: "practice", type: "true_false", level: "mixed",
+    topic: "Lý", prompt: "Xét tính đúng/sai:", context: "",
+    options: ["Ý A", "Ý B", "Ý C", "Ý D"],
+    answer: ["true", "false", "true", "false"],
+    explanation: "Giải thích", theory: "Lý thuyết",
+    learningKey: "", ...overrides,
+  });
+}
+
+export function shortAnswerQuestion(overrides = {}) {
+  return question({
+    subject: "chemistry", grade: "8", id: "c-sa-1", domain: "practice", type: "short_answer", level: "mixed",
+    topic: "Hóa", prompt: "Khối lượng mol H2O:", context: "",
+    options: [],
+    answer: ["18"],
+    explanation: "Giải thích", theory: "Lý thuyết",
+    learningKey: "", ...overrides,
+  });
+}

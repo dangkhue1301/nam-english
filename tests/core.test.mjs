@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { buildCsvPreview, buildStats, CSV_HEADERS, evaluateAnswer, formatExplanationHtml, formatInlineMarkdown, isReviewDue, nextReview, normalizeText, parseCsv, QUESTION_TYPES, resolveEscapeAction, selectQuestions, splitExplanationSections, stableShuffle, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "../core.js";
+import { buildCsvPreview, buildStats, CSV_HEADERS, evaluateAnswer, evaluateTrueFalseDetails, normalizeShortAnswer, displayAnswer, formatExplanationHtml, formatInlineMarkdown, isReviewDue, nextReview, normalizeText, parseCsv, QUESTION_TYPES, ENGLISH_QUESTION_TYPES, ALLOWED_SUBJECT_TYPES, resolveEscapeAction, selectQuestions, splitExplanationSections, stableShuffle, encodeSharePayload, decodeSharePayload, MAX_SHARE_BYTES } from "../core.js";
 import { questionsToCsv } from "../stats.js";
 import { question, vocabulary } from "./helpers.mjs";
 
@@ -10,7 +10,7 @@ test("24 câu kiểm thử bao phủ cả 8 dạng, xuất CSV rồi nhập lạ
   const parsed = buildCsvPreview(source);
   assert.deepEqual(parsed.errors, []);
   assert.equal(parsed.rows.length, 24);
-  assert.deepEqual([...new Set(parsed.rows.map((q) => q.type))].sort(), [...QUESTION_TYPES].sort());
+  assert.deepEqual([...new Set(parsed.rows.map((q) => q.type))].sort(), [...ENGLISH_QUESTION_TYPES].sort());
   const exported = questionsToCsv(parsed.rows);
   assert.equal(exported[0], "\uFEFF");
   assert.notEqual(exported[1], "\uFEFF");
@@ -20,8 +20,8 @@ test("24 câu kiểm thử bao phủ cả 8 dạng, xuất CSV rồi nhập lạ
 test("mọi ví dụ CSV trong guide nhập được thành từng file một môn", async () => {
   const guide = await readFile(new URL("../QUESTION_CSV_GUIDE.md", import.meta.url), "utf8");
   const blocks = [...guide.matchAll(/```csv\r?\n([\s\S]*?)```/g)].map((m) => m[1]);
-  assert.deepEqual(blocks.length, 4);
-  const expectedSubjects = ["english", "chemistry", "physics", "biology"];
+  assert.deepEqual(blocks.length, 6);
+  const expectedSubjects = ["english", "chemistry", "physics", "biology", "history", "geography"];
   blocks.forEach((block, index) => {
     const parsed = buildCsvPreview(block, `guide-${index}.csv`);
     assert.deepEqual(parsed.errors, []);
@@ -495,6 +495,227 @@ test("splitExplanationSections: không tách nhầm marker nằm bên trong inli
   assert.match(html, /<code>Dịch câu: ví dụ<\/code>/);
   assert.match(html, /<code>Vị trí ★: 3<\/code>/);
 });
+
+test("buildCsvPreview: 13 tổ hợp môn và dạng bài THCS hợp lệ được phân tích chính xác", () => {
+  const header = "subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key\n";
+  const validRows = [
+    // Chemistry (3 types)
+    `"chemistry","8","c1","practice","mcq","mixed","Hóa","","Chọn đáp án","","A||B||C||D","A","gt","lt","","","1",""`,
+    `"chemistry","8","c2","practice","true_false","mixed","Hóa","","Đúng sai","","Ý 1||Ý 2||Ý 3||Ý 4","true||false||true||false","gt","lt","","","2",""`,
+    `"chemistry","8","c3","practice","short_answer","mixed","Hóa","","Trả lời ngắn","","","18","gt","lt","","","2",""`,
+    // Physics (3 types)
+    `"physics","7","p1","practice","mcq","mixed","Lí","","Chọn đáp án","","A||B||C||D","B","gt","lt","","","1",""`,
+    `"physics","7","p2","practice","true_false","mixed","Lí","","Đúng sai","","Ý 1||Ý 2||Ý 3||Ý 4","false||true||false||true","gt","lt","","","2",""`,
+    `"physics","7","p3","practice","short_answer","mixed","Lí","","Trả lời ngắn","","","10 m/s","gt","lt","","","2",""`,
+    // Biology (3 types)
+    `"biology","6","b1","practice","mcq","mixed","Sinh","","Chọn đáp án","","A||B||C||D","C","gt","lt","","","1",""`,
+    `"biology","6","b2","practice","true_false","mixed","Sinh","","Đúng sai","","Ý 1||Ý 2||Ý 3||Ý 4","true||true||true||true","gt","lt","","","2",""`,
+    `"biology","6","b3","practice","short_answer","mixed","Sinh","","Trả lời ngắn","","","lục lạp","gt","lt","","","1",""`,
+    // History (2 types)
+    `"history","9","h1","practice","mcq","mixed","Sử","","Chọn đáp án","","A||B||C||D","D","gt","lt","","","2",""`,
+    `"history","9","h2","practice","true_false","mixed","Sử","","Đúng sai","","Ý 1||Ý 2||Ý 3||Ý 4","false||false||true||false","gt","lt","","","2",""`,
+    // Geography (2 types)
+    `"geography","6","g1","practice","mcq","mixed","Địa","","Chọn đáp án","","A||B||C||D","A","gt","lt","","","1",""`,
+    `"geography","6","g2","practice","true_false","mixed","Địa","","Đúng sai","","Ý 1||Ý 2||Ý 3||Ý 4","true||false||false||true","gt","lt","","","2",""`,
+  ];
+
+  // Test each row individually in its single-subject CSV
+  for (const row of validRows) {
+    const preview = buildCsvPreview(header + row);
+    assert.deepEqual(preview.errors, [], `Lỗi khi parse row: ${row}`);
+    assert.equal(preview.rows.length, 1);
+  }
+
+  // Check true_false properties
+  const tfPreview = buildCsvPreview(header + validRows[1]);
+  assert.equal(tfPreview.rows[0].type, "true_false");
+  assert.deepEqual(tfPreview.rows[0].options, ["Ý 1", "Ý 2", "Ý 3", "Ý 4"]);
+  assert.deepEqual(tfPreview.rows[0].answer, ["true", "false", "true", "false"]);
+
+  // Check short_answer properties
+  const saPreview = buildCsvPreview(header + validRows[2]);
+  assert.equal(saPreview.rows[0].type, "short_answer");
+  assert.deepEqual(saPreview.rows[0].options, []);
+  assert.deepEqual(saPreview.rows[0].answer, ["18"]);
+});
+
+test("buildCsvPreview: từ chối các vi phạm về môn, lớp, dạng bài và cấu trúc câu hỏi THCS", () => {
+  const header = "subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key\n";
+
+  // 1. Tiếng Anh từ chối true_false và short_answer
+  const engTf = buildCsvPreview(header + `"english","","e1","grammar","true_false","B1","T","","P","","A||B||C||D","true||true||true||true","gt","lt","","","1",""`);
+  assert.match(engTf.errors[0], /Tiếng Anh không hỗ trợ dạng bài Đúng\/Sai/);
+  const engSa = buildCsvPreview(header + `"english","","e2","grammar","short_answer","B1","T","","P","","","ans","gt","lt","","","1",""`);
+  assert.match(engSa.errors[0], /Tiếng Anh không hỗ trợ dạng bài Trả lời ngắn/);
+
+  // 2. Sử và Địa từ chối short_answer
+  const hisSa = buildCsvPreview(header + `"history","7","h1","practice","short_answer","mixed","T","","P","","","ans","gt","lt","","","1",""`);
+  assert.match(hisSa.errors[0], /Môn Lịch sử chỉ hỗ trợ dạng mcq và true_false/);
+  const geoSa = buildCsvPreview(header + `"geography","6","g1","practice","short_answer","mixed","T","","P","","","ans","gt","lt","","","1",""`);
+  assert.match(geoSa.errors[0], /Môn Địa lí chỉ hỗ trợ dạng mcq và true_false/);
+
+  // 3. Sử và Địa mcq bắt buộc đúng 4 lựa chọn
+  const hisMcq3 = buildCsvPreview(header + `"history","7","h1","practice","mcq","mixed","T","","P","","A||B||C","A","gt","lt","","","1",""`);
+  assert.match(hisMcq3.errors[0], /mcq môn Sử và Địa bắt buộc phải có đúng 4 phương án/);
+  const geoMcq5 = buildCsvPreview(header + `"geography","6","g1","practice","mcq","mixed","T","","P","","A||B||C||D||E","A","gt","lt","","","1",""`);
+  assert.match(geoMcq5.errors[0], /mcq môn Sử và Địa bắt buộc phải có đúng 4 phương án/);
+
+  // 4. true_false cần đúng 4 mệnh đề không rỗng và đúng 4 đáp án true/false
+  const tf3opt = buildCsvPreview(header + `"chemistry","8","c1","practice","true_false","mixed","T","","P","","A||B||C","true||true||true||true","gt","lt","","","1",""`);
+  assert.match(tf3opt.errors[0], /true_false cần đúng 4 mệnh đề/);
+  const tfEmptyOpt = buildCsvPreview(header + `"chemistry","8","c1","practice","true_false","mixed","T","","P","","A||B||||D","true||true||true||true","gt","lt","","","1",""`);
+  assert.match(tfEmptyOpt.errors[0], /true_false cần đúng 4 mệnh đề/);
+  const tf3ans = buildCsvPreview(header + `"chemistry","8","c1","practice","true_false","mixed","T","","P","","A||B||C||D","true||true||true","gt","lt","","","1",""`);
+  assert.match(tf3ans.errors[0], /true_false cần đúng 4 đáp án true\/false/);
+  const tfBadAns = buildCsvPreview(header + `"chemistry","8","c1","practice","true_false","mixed","T","","P","","A||B||C||D","true||yes||true||false","gt","lt","","","1",""`);
+  assert.match(tfBadAns.errors[0], /Đáp án ý b của true_false phải là "true" hoặc "false"/);
+
+  // 5. short_answer cần đáp án không rỗng
+  const saEmpty = buildCsvPreview(header + `"chemistry","8","c1","practice","short_answer","mixed","T","","P","","","","gt","lt","","","1",""`);
+  assert.match(saEmpty.errors[0], /short_answer cần ít nhất một đáp án hợp lệ/);
+
+  // 6. THCS grade bắt buộc 6-9 và domain=practice
+  const badGrade = buildCsvPreview(header + `"chemistry","5","c1","practice","mcq","mixed","T","","P","","A||B||C||D","A","gt","lt","","","1",""`);
+  assert.match(badGrade.errors[0], /Hóa, Lí, Sinh, Sử và Địa cần grade là 6, 7, 8 hoặc 9/);
+  const badDomain = buildCsvPreview(header + `"history","7","h1","grammar","mcq","mixed","T","","P","","A||B||C||D","A","gt","lt","","","1",""`);
+  assert.match(badDomain.errors[0], /Hóa, Lí, Sinh, Sử và Địa dùng practice/);
+
+  // 7. Cảnh báo warnings cho bộ Hóa/Lí/Sinh cũ
+  const chemLegacy = buildCsvPreview(header + `"chemistry","8","c1","practice","fill_blank","mixed","T","","P","","","18","gt","lt","","","1",""`);
+  assert.equal(chemLegacy.errors.length, 0);
+  assert.ok(chemLegacy.warnings.length > 0);
+  assert.match(chemLegacy.warnings[0], /Dạng bài "fill_blank" là dạng cũ/);
+
+  const chemMcq3 = buildCsvPreview(header + `"chemistry","8","c1","practice","mcq","mixed","T","","P","","A||B||C","A","gt","lt","","","1",""`);
+  assert.equal(chemMcq3.errors.length, 0);
+  assert.ok(chemMcq3.warnings.length > 0);
+  assert.match(chemMcq3.warnings[0], /mcq môn Hóa học nên có đúng 4 phương án/);
+});
+
+test("evaluateAnswer & evaluateTrueFalseDetails: chấm Đúng/Sai chính xác toàn bộ và chi tiết từng ý", () => {
+  const expected = ["true", "false", "true", "false"];
+  const options = ["Ý A", "Ý B", "Ý C", "Ý D"];
+
+  // Đủ 4/4 ý đúng
+  assert.equal(evaluateAnswer(expected, ["true", "false", "true", "false"], "true_false"), true);
+  const d4 = evaluateTrueFalseDetails(expected, ["true", "false", "true", "false"], options);
+  assert.equal(d4.correct, true);
+  assert.equal(d4.correctCount, 4);
+  assert.equal(d4.isComplete, true);
+  assert.equal(d4.items[0].correct, true);
+  assert.equal(d4.items[1].correct, true);
+  assert.equal(d4.items[2].correct, true);
+  assert.equal(d4.items[3].correct, true);
+
+  // Đúng 3/4 ý -> câu trả lời bị tính là sai (correct = false)
+  assert.equal(evaluateAnswer(expected, ["true", "false", "true", "true"], "true_false"), false);
+  const d3 = evaluateTrueFalseDetails(expected, ["true", "false", "true", "true"], options);
+  assert.equal(d3.correct, false);
+  assert.equal(d3.correctCount, 3);
+  assert.equal(d3.isComplete, true);
+  assert.equal(d3.items[3].correct, false);
+  assert.equal(d3.items[3].expected, "false");
+  assert.equal(d3.items[3].received, "true");
+
+  // Đúng 1/4 và 0/4
+  assert.equal(evaluateAnswer(expected, ["true", "true", "false", "true"], "true_false"), false);
+  const d1 = evaluateTrueFalseDetails(expected, ["true", "true", "false", "true"], options);
+  assert.equal(d1.correctCount, 1);
+  assert.equal(d1.correct, false);
+
+  // Nhận chưa đủ 4 ý hoặc chứa chuỗi rỗng
+  assert.equal(evaluateAnswer(expected, ["true", "false", ""], "true_false"), false);
+  const incomplete = evaluateTrueFalseDetails(expected, ["true", "false", "", "true"], options);
+  assert.equal(incomplete.isComplete, false);
+  assert.equal(incomplete.correct, false);
+  assert.equal(incomplete.correctCount, 2);
+});
+
+test("evaluateAnswer & normalizeShortAnswer: Trả lời ngắn chuẩn hóa chữ, khoảng trắng, số, dấu câu và tag case-sensitive", () => {
+  // 1. Không case-sensitive: so sánh không phân biệt hoa thường
+  assert.equal(evaluateAnswer(["18"], "18", "short_answer"), true);
+  assert.equal(evaluateAnswer(["CO2"], "co2", "short_answer"), true);
+  assert.equal(evaluateAnswer(["lục lạp"], "Lục lạp", "short_answer"), true);
+  assert.equal(evaluateAnswer(["lục lạp"], "  lục   lạp  ", "short_answer"), true);
+
+  // 2. Unicode NFKC (ký tự toàn giác/bán giác)
+  assert.equal(evaluateAnswer(["18"], "１８", "short_answer"), true);
+
+  // 3. Giữ nguyên số và dấu câu (không bị normalizeText cắt dấu câu)
+  assert.equal(evaluateAnswer(["1.5"], "1.5", "short_answer"), true);
+  assert.equal(evaluateAnswer(["1,5"], "1,5", "short_answer"), true);
+
+  // 4. Có nhiều đáp án thay thế
+  assert.equal(evaluateAnswer(["1,5", "1.5"], "1.5", "short_answer"), true);
+  assert.equal(evaluateAnswer(["1,5", "1.5"], "1,5", "short_answer"), true);
+  assert.equal(evaluateAnswer(["1,5", "1.5"], "2.0", "short_answer"), false);
+
+  // 5. case-sensitive tag
+  const csSettings = { tags: ["case-sensitive"] };
+  assert.equal(evaluateAnswer(["CO"], "CO", "short_answer", csSettings), true);
+  assert.equal(evaluateAnswer(["CO"], "Co", "short_answer", csSettings), false);
+  assert.equal(evaluateAnswer(["Co"], "Co", "short_answer", csSettings), true);
+  assert.equal(evaluateAnswer(["Co"], "CO", "short_answer", csSettings), false);
+
+  // 6. Rỗng hoặc kiểu dữ liệu không hợp lệ
+  assert.equal(evaluateAnswer(["18"], "", "short_answer"), false);
+  assert.equal(evaluateAnswer(["18"], "   ", "short_answer"), false);
+  assert.equal(evaluateAnswer(["18"], null, "short_answer"), false);
+  assert.equal(evaluateAnswer(["18"], 18, "short_answer"), false);
+});
+
+test("displayAnswer: định dạng hiển thị cho câu hỏi Đúng/Sai và Trả lời ngắn", () => {
+  const tfQ = {
+    type: "true_false",
+    answer: ["true", "false", "true", "false"],
+    options: ["A", "B", "C", "D"],
+  };
+  assert.equal(displayAnswer(tfQ.answer, tfQ), "a: Đúng · b: Sai · c: Đúng · d: Sai");
+
+  const saQ1 = {
+    type: "short_answer",
+    answer: ["18"],
+  };
+  assert.equal(displayAnswer(saQ1.answer, saQ1), "18");
+
+  const saQ2 = {
+    type: "short_answer",
+    answer: ["1,5", "1.5"],
+  };
+  assert.equal(displayAnswer(saQ2.answer, saQ2), "1,5 / 1.5");
+});
+
+test("short_answer: từ chối options không rỗng và từ chối đáp án vượt quá 200 ký tự", () => {
+  const header = `subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key\n`;
+
+  // 1. options không rỗng -> lỗi
+  const withOptions = buildCsvPreview(header + `"chemistry","8","c1","practice","short_answer","mixed","T","","P","","A||B","18","gt","lt","","","1",""`);
+  assert.equal(withOptions.rows.length, 0);
+  assert.match(withOptions.errors[0], /short_answer không dùng options, trường options phải để trống/);
+
+  // 2. answer > 200 ký tự -> lỗi
+  const longAns = "a".repeat(201);
+  const withLongAns = buildCsvPreview(header + `"chemistry","8","c2","practice","short_answer","mixed","T","","P","","","${longAns}","gt","lt","","","1",""`);
+  assert.equal(withLongAns.rows.length, 0);
+  assert.match(withLongAns.errors[0], /đáp án của short_answer không được vượt quá 200 ký tự/);
+
+  // 3. answer đúng 200 ký tự -> hợp lệ
+  const exact200 = "b".repeat(200);
+  const withExact200 = buildCsvPreview(header + `"chemistry","8","c3","practice","short_answer","mixed","T","","P","","","${exact200}","gt","lt","","","1",""`);
+  assert.equal(withExact200.errors.length, 0);
+  assert.equal(withExact200.rows.length, 1);
+  assert.equal(withExact200.rows[0].answer[0], exact200);
+});
+
+test("QUESTION_CSV_GUIDE: câu Lịch sử h-tf-002 có nội dung và đáp án lịch sử chính xác", async () => {
+  const guide = await readFile(new URL("../QUESTION_CSV_GUIDE.md", import.meta.url), "utf8");
+  assert.ok(guide.includes('"h-tf-002"'));
+  assert.ok(guide.includes("false||true||false||true"));
+  assert.ok(guide.includes("Ý a sai vì đạo thủy binh do Ô Mã Nhi và Phàn Tiếp chỉ huy"));
+  assert.ok(guide.includes("Trần Hưng Đạo được phong Quốc công Tiết chế thống lĩnh toàn quân ở lần 2"));
+});
+
+
 
 
 
