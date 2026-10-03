@@ -37,6 +37,14 @@ export const QUESTION_TYPES = [
 
 export const SESSION_QUESTION_LIMIT = 30;
 
+export const isFlashcardQuestion = (q) => q?.subject !== "japanese" && q?.domain === "vocabulary";
+export const isVocabularyExercise = (q) => q?.domain === "vocabulary_practice" || (q?.subject === "japanese" && q?.domain === "vocabulary");
+export const matchesQuestionFilters = (q, f = {}) => q.active !== false &&
+  (!f.setId || q.setId === f.setId) && (!f.setIds?.length || f.setIds.includes(q.setId)) &&
+  (!f.domain || q.domain === f.domain) &&
+  ["grade", "type", "chapter", "lesson", "level", "topic"].every(key =>
+    f[key] == null || f[key] === "all" || String(q[key] ?? "").toLowerCase() === String(f[key]).toLowerCase());
+
 export const SUBJECTS = {
   english: { name: "Tiếng Anh", short: "Anh", description: "Ngữ pháp và từ vựng" },
   chemistry: { name: "Hóa học", short: "Hóa", description: "Chất, phản ứng và tính toán" },
@@ -196,17 +204,102 @@ function tokenBag(parts, settings = {}) {
 }
 
 export function orderingAnswerUsesOptions(options, answers, settings = {}) {
-  const optionTokens = tokenBag(options, settings);
-  return answers.length > 0 && answers.every((answer) => {
-    const answerTokens = tokenBag([answer], settings);
-    return (
-      optionTokens.length === answerTokens.length &&
-      optionTokens.every((token, index) => token === answerTokens[index])
-    );
+  // Match whole chips, including their internal word order and punctuation.
+  const normalize = value => String(value).normalize("NFKC").replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim();
+  const groups = new Map();
+  for (const chip of options) {
+    const value = settings.caseSensitive ? normalize(chip) : normalize(chip).toLowerCase();
+    groups.set(value, (groups.get(value) || 0) + 1);
+  }
+  const chips = [...groups.keys()];
+  return answers.length > 0 && answers.every(answer => {
+    const target = normalizeText(answer, settings);
+    const counts = [...groups.values()], failed = new Set();
+    function visit(prefix, left) {
+      if (!left) return normalizeText(prefix, settings) === target;
+      const key = `${prefix}\0${counts.join(",")}`;
+      if (failed.has(key)) return false;
+      for (let i = 0; i < chips.length; i++) {
+        if (!counts[i]) continue;
+        const next = prefix ? `${prefix} ${chips[i]}` : chips[i];
+        if (left > 1 && !target.startsWith(`${next} `)) continue;
+        counts[i]--;
+        const found = visit(next, left - 1);
+        counts[i]++;
+        if (found) return true;
+      }
+      failed.add(key);
+      return false;
+    }
+    return visit("", options.length);
   });
 }
 
-export function buildCsvPreview(text, filename = "questions.csv") {
+export function safeQuestionHint(q) {
+  const generic = q.type === "ordering" || q.type === "ja_grammar_order" || q.type === "ja_grammar_star"
+    ? "Xét quan hệ giữa các mảnh trước khi sắp xếp."
+    : q.type === "matching" ? "Đối chiếu ý nghĩa và cách dùng của từng mục."
+    : q.type === "true_false" ? "Xét từng mệnh đề độc lập dựa vào dữ kiện của đề."
+    : "Đọc toàn bộ ngữ cảnh và xác định yêu cầu trước khi trả lời.";
+  const raw = String(q.hint || "").trim();
+  if (!raw) return { text: "", blocked: false };
+  if (raw.length > 180 || /[\r\n]/.test(raw)) return { text: generic, blocked: true };
+  const isJapanese = q.subject === "japanese";
+  let hint = raw;
+  if (isJapanese) {
+    try { hint = stripRuby(raw); } catch { return { text: generic, blocked: true }; }
+  }
+  const text = normalizeText(hint);
+  const plainAnswer = answer => {
+    const value = String(answer ?? "");
+    if (!isJapanese) return value;
+    try { return stripRuby(value); } catch { return value; }
+  };
+  let answers = q.type === "matching" ? Object.values(q.answer || {}) : Array.isArray(q.answer) ? q.answer : [q.answer];
+  if (isJapanese) {
+    answers = q.type === "ja_grammar_order"
+      ? (q.acceptedOrders || q.accepted_orders || []).map(order => formatJapaneseSentence(q.options, order))
+      : [q.options?.find(o => o.id === q.answer)?.text || ""];
+  }
+  const contains = phrase => {
+    if (!phrase) return false;
+    if (/[\u3040-\u30ff\u3400-\u9fff]/u.test(phrase)) return text.includes(phrase);
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, "u").test(text);
+  };
+  const compactHint = [...text.replace(/[\p{P}\p{Z}\s]/gu, "")].join("");
+  const reveals = q.type !== "true_false" && answers.some(answer => {
+    const value = normalizeText(plainAnswer(answer));
+    if (contains(value)) return true;
+    if (isJapanese) {
+      const chars = [...value.replace(/[\p{P}\p{Z}\s]/gu, "")];
+      const threshold = Math.max(4, Math.ceil(chars.length / 2));
+      if (threshold <= [...compactHint].length) {
+        for (let i = 0; i + threshold <= chars.length; i++) {
+          if (compactHint.includes(chars.slice(i, i + threshold).join(""))) return true;
+        }
+      }
+    }
+    const words = value.split(" ");
+    return words.length > 2 && words.some((_, i) => i + 1 < words.length && contains(words.slice(i, i + 2).join(" ")));
+  });
+  const optionIdLeak = isJapanese && q.options?.some(option => contains(normalizeText(option.id)));
+  const position = "(?:[a-d]|\\d{1,2}|nhất|một|hai|ba|tư|bốn|năm|sáu|bảy|tám|chín|mười|đầu(?:\\s+tiên)?|cuối(?:\\s+cùng)?)";
+  const choiceLabel = "(?:phương\\s+án|lựa\\s+chọn|mục|ý|mệnh\\s+đề)";
+  const boundary = "(?:^|[^\\p{L}\\p{N}])", end = "(?![\\p{L}\\p{N}])";
+  const choiceInstruction = new RegExp(`${boundary}(?:chọn|loại(?:\\s+bỏ)?|điền)\\s+(?:${choiceLabel}\\s+)?(?:(?:số|thứ)\\s+)?${position}${end}`, "iu").test(text) ||
+    /(?:choose|select|eliminate)\s+(?:(?:option|answer|choice)\s+)?(?:(?:number|no\.?)\s+)?(?:[a-d]|\d{1,2}|first|second|third|fourth)\b/iu.test(text);
+  const choiceVerdict = new RegExp(`${boundary}${choiceLabel}\\s+(?:(?:số|thứ)\\s+)?${position}${end}\\s*(?:[:=→–—-]\\s*|(?:là\\s+)?)(?:không\\s+)?(?:đúng|sai|chính\\s+xác|phù\\s+hợp|hợp\\s+lý)${end}`, "iu").test(text);
+  const verdictInstruction = /(?:ý|mệnh đề|statement|option)?\s*\b[a-d1-4]\s*[):=\.\-–—→]?\s*(?:(?:là|is)\s+)?(?:đúng|sai|true|false)\b/iu.test(text) ||
+    /(?:all|both)\s+(?:the\s+)?(?:statements?|answers?)\s+(?:are\s+)?(?:true|false)/iu.test(text) ||
+    (q.type === "true_false" && (/tất cả|cả bốn/iu.test(text) && /đúng|sai|true|false/iu.test(text) || (text.match(/đúng|sai|true|false/giu) || []).length >= 4));
+  const blocked = reveals ||
+    optionIdLeak || choiceInstruction || choiceVerdict || verdictInstruction ||
+    /đáp án|dịch (câu|ngữ cảnh)|câu hoàn chỉnh|bắt đầu bằng|correct answer|answer is|start with|begin with/iu.test(text);
+  return { text: blocked ? generic : hint, blocked: Boolean(blocked) };
+}
+
+export function buildCsvPreview(text, filename = "questions.csv", { legacyOrdering = false } = {}) {
   const content = String(text).replace(/^\uFEFF/, "");
 
   // Detect Japanese CSV by parsed headers, not raw first line
@@ -237,6 +330,7 @@ export function buildCsvPreview(text, filename = "questions.csv") {
       rows: parsed.rows ?? [],
       questions: parsed.questions ?? [],
       errors: parsed.errors ?? [],
+      warnings: (parsed.rows ?? []).filter(q => q.hint && safeQuestionHint(q).blocked).map(q => `Câu ${q.id}: Gợi ý có thể lộ đáp án hoặc quá dài; website sẽ dùng gợi ý chung trước khi chấm.`),
     };
   }
 
@@ -336,8 +430,8 @@ export function buildCsvPreview(text, filename = "questions.csv") {
           "id chỉ dùng chữ, số, dấu chấm, gạch ngang hoặc gạch dưới",
         );
       }
-      if (subject === "english" ? !["grammar", "vocabulary"].includes(domain) : domain !== "practice") {
-        throw new Error("Tiếng Anh dùng domain grammar/vocabulary; Hóa, Lí, Sinh, Sử và Địa dùng practice");
+      if (subject === "english" ? !["grammar", "vocabulary", "vocabulary_practice"].includes(domain) : domain !== "practice") {
+        throw new Error("Tiếng Anh dùng domain grammar/vocabulary/vocabulary_practice; Hóa, Lí, Sinh, Sử và Địa dùng practice");
       }
       if (!QUESTION_TYPES.includes(type)) {
         throw new Error(`type không hỗ trợ: ${raw.type}`);
@@ -471,9 +565,9 @@ export function buildCsvPreview(text, filename = "questions.csv") {
         }
         if (
           type === "ordering" &&
-          !orderingAnswerUsesOptions(optionItems, answers, {
+          !(legacyOrdering ? answers.every(a => JSON.stringify(tokenBag([a], { caseSensitive: tags.includes("case-sensitive") })) === JSON.stringify(tokenBag(optionItems, { caseSensitive: tags.includes("case-sensitive") }))) : orderingAnswerUsesOptions(optionItems, answers, {
             caseSensitive: tags.includes("case-sensitive"),
-          })
+          }))
         ) {
           throw new Error("answer không dùng đúng tập token trong options");
         }
@@ -506,6 +600,7 @@ export function buildCsvPreview(text, filename = "questions.csv") {
         learningKey: raw.learning_key,
         active: true,
       });
+      if (raw.hint && safeQuestionHint(rows.at(-1)).blocked) warnings.push(`Dòng ${index + 2}: Gợi ý có thể lộ đáp án hoặc quá dài; website sẽ dùng gợi ý chung trước khi chấm.`);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "dữ liệu không hợp lệ";
@@ -526,6 +621,7 @@ export function evaluateAnswer(expected, received, type, settings = {}) {
         options: settings?.options,
         type,
         starPosition: settings?.starPosition ?? settings?.star_position,
+        gradingVersion: settings?.gradingVersion,
       },
       received,
     );
@@ -824,52 +920,11 @@ export function selectQuestions(
 
   const isJapanese = filtered.some((q) => q.subject === "japanese");
 
-  if (isJapanese) {
-    if (domain !== "vocabulary") {
-      if (dueOnly) return [];
-      return shuffle(
-        filtered.filter((question) => !completedQuestions.has(question.id)),
-      ).slice(0, limit);
-    }
-
-    // Japanese Vocabulary
-    if (dueOnly) {
-      const reviewByKey = new Map(
-        reviews.map((review) => [review.learningKey, review]),
-      );
-      const attemptedByKey = new Map();
-      for (const question of filtered) {
-        if (completedQuestions.has(question.id)) {
-          const key = learningKeyFor(question);
-          if (!attemptedByKey.has(key)) attemptedByKey.set(key, []);
-          attemptedByKey.get(key).push(question);
-        }
-      }
-
-      const dueVariants = [];
-      for (const [key, variants] of attemptedByKey) {
-        const review = reviewByKey.get(key);
-        if (isReviewDue(review, now)) {
-          let picked = variants[0];
-          if (variants.length > 1 && review?.lastQuestionId) {
-            const lastIdx = variants.findIndex((v) => v.id === review.lastQuestionId);
-            if (lastIdx !== -1) {
-              picked = variants[(lastIdx + 1) % variants.length];
-            } else {
-              picked = shuffle(variants)[0];
-            }
-          }
-          dueVariants.push(picked);
-        }
-      }
-
-      return shuffle(dueVariants).slice(0, limit);
-    } else {
-      // Câu mới tiếng Nhật: KHÔNG KHỬ TRÙNG THEO learning_key
-      const unseen = filtered.filter((question) => !completedQuestions.has(question.id));
-      return shuffle(unseen).slice(0, limit);
-    }
+  if (isJapanese || domain === "vocabulary_practice") {
+    if (dueOnly) return [];
+    return shuffle(filtered.filter(q => !completedQuestions.has(q.id))).slice(0, limit);
   }
+
 
   if (domain !== "vocabulary") {
     if (dueOnly) return [];
@@ -967,15 +1022,17 @@ export function buildStats(
   const completedGrammarIds = new Set();
   const completedPracticeIds = new Set();
   const completedVocabularyKeys = new Set();
+  const completedExerciseIds = new Set();
 
   attempts.forEach((attempt) => {
     const question = activeById.get(attempt.questionId);
-    if (!question) return;
+    if (!question || attempt.purpose === "review") return;
+    if (isVocabularyExercise(question)) completedExerciseIds.add(question.id);
     if (question.domain === "grammar") {
       completedGrammarIds.add(question.id);
     } else if (question.domain === "practice") {
       completedPracticeIds.add(question.id);
-    } else if (question.domain === "vocabulary" && attempt.correct) {
+    } else if (isFlashcardQuestion(question) && attempt.correct) {
       completedVocabularyKeys.add(learningKeyFor(question));
     }
   });
@@ -985,7 +1042,7 @@ export function buildStats(
   );
   const vocabularyKeys = new Set(
     active
-      .filter((question) => question.domain === "vocabulary")
+      .filter(isFlashcardQuestion)
       .map(learningKeyFor),
   );
   const unseenKeys = new Set();
@@ -1027,6 +1084,8 @@ export function buildStats(
       (question) => question.domain === "vocabulary",
     ).length,
     vocabularyRemaining: unseenKeys.size,
+    vocabularyPractice: active.filter(isVocabularyExercise).length,
+    vocabularyPracticeRemaining: active.filter(q => isVocabularyExercise(q) && !completedExerciseIds.has(q.id)).length,
     due: dueKeys.size,
     today: todayAttempts.length,
     topics: new Set(active.map((question) => question.topic)).size,

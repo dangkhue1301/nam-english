@@ -1,197 +1,143 @@
-# Hướng dẫn tạo bộ CSV cho NẮM Học tập
+# Hướng dẫn AI tạo CSV cho NẮM Học tập
 
-NẮM là website tự luyện trên trình duyệt cho **Tiếng Anh** và **5 môn THCS lớp 6–9: Hóa học, Vật lí, Sinh học, Lịch sử và Địa lí**. Mỗi file CSV tạo thành **một bộ riêng**; một file chỉ được chứa **một môn**. Website chấm bằng đáp án đã có trong CSV trên máy của học sinh, không cần tài khoản và không gửi câu hỏi lên AI hay máy chủ.
+Cập nhật: 02/10/2026. Tài liệu này đưa trực tiếp cho AI khác để tạo bộ câu hỏi. Website chấm trên trình duyệt; AI phải tự soạn và kiểm tra nội dung trước khi giao file.
 
-## Triết lý học tập của NẮM
+## 1. Chọn đúng phần học
 
-1. **Tiếng Anh (Vocabulary & Grammar)**:
-   - **Nạp từ vựng bằng Thẻ ghi nhớ (Flashcards)**: Học sinh học thuộc từ vựng (từ/cụm từ, phát âm, từ loại, câu ví dụ minh họa và nghĩa tiếng Việt) theo chu trình lặp lại ngắt quãng (SRS). Chưa nhớ thì thẻ sẽ quay lại ở cuối buổi học để ôn cho thuộc, không tính là bài tập sai.
-   - **Áp dụng bằng Bài tập nhiều dạng (Grammar)**: Làm bài tập (trắc nghiệm, điền từ, sắp xếp câu, viết lại câu, tìm lỗi sai, ghép nối, dạng từ, chọn nhiều đáp án) để áp dụng vào câu hoàn chỉnh.
+| Nội dung | subject | domain | Tiến độ |
+|---|---|---|---|
+| Flashcard tiếng Anh | english | vocabulary | SRS theo từ/nghĩa; Chưa nhớ sẽ học lại |
+| Bài tập từ vựng tiếng Anh | english | vocabulary_practice | Theo từng câu; không SRS, sai chuyển Ôn câu sai |
+| Bài tập ngữ pháp tiếng Anh | english | grammar | Theo từng câu; không SRS |
+| Hóa, Lí, Sinh, Sử, Địa lớp 6–9 | chemistry / physics / biology / history / geography | practice | Theo từng câu; không SRS |
 
-2. **Năm môn THCS lớp 6–9 (Hóa, Lí, Sinh, Sử, Địa)**:
-   - Mượn cách trình bày câu hỏi hiện đại tương tự THPT nhưng **toàn bộ kiến thức thuộc chương trình THCS (lớp 6–9)**.
-   - Năm môn THCS luôn dùng chế độ luyện tập (`domain: "practice"`), không dùng thẻ ghi nhớ hay chu trình SRS.
-   - Ba dạng bài trọng tâm:
-     - **Trắc nghiệm một đáp án (`mcq`)**: Chọn 1 trong 4 phương án A–D.
-     - **Đúng/Sai 4 ý độc lập (`true_false`)**: 1 câu gồm 4 mệnh đề độc lập a, b, c, d. Hệ thống chấm chi tiết từng ý; câu được tính là đúng hoàn toàn khi học sinh trả lời đúng cả 4/4 ý.
-     - **Trả lời ngắn (`short_answer`)**: Chỉ dành cho Hóa học, Vật lí và Sinh học; học sinh tự nhập số, công thức hoặc cụm từ ngắn với tập đáp án máy chấm xác định trước. Môn Lịch sử và Địa lí **không** có dạng trả lời ngắn.
+Một CSV tạo một bộ riêng và chỉ chứa một môn. Một bộ tiếng Anh có thể có cả ba domain, nhưng mỗi dòng phải khai báo đúng mục đích. Không gắn bài tập từ vựng vào grammar chỉ vì có trắc nghiệm. Tiếng Nhật dùng JAPANESE_CSV_GUIDE.md riêng.
 
----
+Bài tập chấm xong đi tiếp dù đúng hay sai, tối đa 30 câu/lượt. Bộ 50 câu đi 30 + 20. Mỗi dòng khác ID đều phải được làm; không gộp bài tập theo từ. Flashcard là từ/cụm từ và nghĩa, không phải câu bài tập điền từ.
 
-## Prompt dùng ngay cho AI
+## 2. Prompt dùng ngay
 
-Gửi cả file hướng dẫn này cho AI tạo câu hỏi, rồi dùng một trong các prompt dưới đây. Thay phần trong ngoặc vuông `[...]`.
-
-### 1. Tiếng Anh — vocabulary (Thẻ ghi nhớ / Flashcards)
+Gửi cả tài liệu này cùng prompt sau; thay phần trong ngoặc vuông:
 
 ```text
-Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo hướng dẫn tôi đính kèm.
-
-- Môn: english
-- Phần học: vocabulary (thẻ ghi nhớ - flashcards)
-- Trình độ: [A1/A2/B1/B2/mixed]
-- Chủ đề hoặc danh sách từ: [ví dụ: Work & Employment]
-- Số mục từ: [50]
-- Tên file: [english-work-vocabulary.csv]
-
-Mục tiêu là HỌC TỪ VỰNG BẰNG THẺ GHI NHỚ (FLASHCARDS):
-- Mỗi dòng là MỘT MỤC TỪ VỰNG cần học thuộc trước khi áp dụng vào bài tập.
-- Cột prompt: Ghi từ hoặc cụm từ tiếng Anh, kèm phiên âm IPA và từ loại trong ngoặc đơn, ví dụ: "allocate /ˈæləkeɪt/ (v)" hoặc "reliable /rɪˈlaɪəbl/ (adj)".
-- Cột context: Bắt buộc viết MỘT CÂU VÍ DỤ tiếng Anh tự nhiên minh họa cách dùng từ đó trong ngữ cảnh.
-- Cột type: Đặt là "fill_blank".
-- Cột options: Để trống ("").
-- Cột answer: Ghi nghĩa tiếng Việt ngắn gọn, súc tích (đây là mặt sau thẻ ghi nhớ).
-- Cột explanation: Giải thích chi tiết, họ từ, cách dùng trong câu bằng tiếng Việt có dấu.
-- Cột theory: Có thể để trống ("").
-- Cột learning_key: Bắt buộc chuẩn "vocab:word:pos:sense" theo từ/cụm từ + từ loại + nghĩa, ví dụ "vocab:allocate:verb:set-aside".
-
-Trả đúng một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
+Tạo đúng một file CSV UTF-8 theo QUESTION_CSV_GUIDE.md đính kèm.
+- Môn: [english / chemistry / physics / biology / history / geography]
+- Phần học/domain: [vocabulary / vocabulary_practice / grammar / practice]
+- Trình độ tiếng Anh: [A1/A2/B1/B2/C1/C2/mixed]; hoặc lớp THCS: [6/7/8/9]
+- Chủ điểm/danh sách từ: [...]
+- Số dòng dữ liệu: [...]
+- Phân bổ dạng bài: [...]; tổng phải bằng số dòng yêu cầu.
+- Tên file: [...csv]
+Tự soạn nội dung tự nhiên, đúng trình độ và có đáp án xác định. Chỉ tạo phần được giao.
+Bài tập từ vựng cần kiểm tra nghĩa trong ngữ cảnh, collocation, phrasal verb, dạng từ,
+đồng/trái nghĩa hoặc cách dùng. Không biến chúng thành flashcard.
+Giải thích và lý thuyết bằng tiếng Việt có dấu. Lời giải tiếng Anh cần câu hoàn chỉnh,
+bản dịch và lý do chọn đáp án; câu trắc nghiệm phải giải thích phương án nhiễu.
+Hint chỉ là một câu nhẹ về cách suy nghĩ, tối đa 180 ký tự; không viết đáp án,
+dịch câu đã điền, chỉ cách loại phương án hoặc nêu công thức gần như giải xong bài.
+Kiểm tra dữ liệu bằng checklist cuối tài liệu. Trả file CSV 18 cột,
+không thêm Markdown, lời dẫn, cột mới hay giải thích ngoài file.
 ```
 
-### 2. Tiếng Anh — grammar (Bài tập áp dụng nhiều dạng)
+Riêng flashcard: đặt type=fill_blank; prompt là từ/cụm từ + IPA + từ loại; context là một câu ví dụ tự nhiên; answer là nghĩa tiếng Việt; options trống; learning_key ổn định theo từ/từ loại/nghĩa. Không dùng prompt kiểu “Choose…” hoặc câu có chỗ trống.
 
-```text
-Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo hướng dẫn tôi đính kèm.
+## 3. Hợp đồng CSV
 
-- Môn: english
-- Phần học: grammar (bài tập áp dụng)
-- Trình độ: [A1/A2/B1/B2/mixed]
-- Chủ điểm được giao: [ví dụ: Present perfect]
-- Số câu: [50]
-- Tên file: [english-present-perfect.csv]
-
-Mục tiêu là BÀI TẬP ÁP DỤNG NGỮ PHÁP:
-- Tự soạn câu bài tập theo chủ điểm; dùng đa dạng các dạng bài phù hợp (mcq, fill_blank, error_correction, sentence_transformation, word_formation, ordering, matching, multiple_select).
-- Mỗi câu phải có theory (nhắc lý thuyết ngắn gọn) và explanation (giải thích chi tiết vì sao đúng/sai) bằng tiếng Việt có dấu.
-
-Trả đúng một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
-```
-
-### 3. Hóa học, Vật lí hoặc Sinh học THCS (Lớp 6–9)
-
-```text
-Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo hướng dẫn tôi đính kèm.
-
-- Môn: [chemistry / physics / biology]
-- Lớp: [6/7/8/9]
-- Chủ điểm: [ví dụ: Công thức hóa học / Lực và chuyển động / Quang hợp]
-- Số câu: [30]
-- Tên file: [mon-lop-chudiem.csv]
-
-Định dạng bài tập THCS:
-- Sử dụng 3 dạng bài hiện đại:
-  1. mcq: Trắc nghiệm 4 lựa chọn A-D. Cột options gồm đúng 4 phương án phân cách bằng ||. Cột answer là đúng 1 phương án.
-  2. true_false: Câu hỏi Đúng/Sai 4 ý. Cột options gồm đúng 4 mệnh đề độc lập phân cách bằng ||. Cột answer gồm đúng 4 giá trị true hoặc false phân cách bằng || (ví dụ: true||false||true||false).
-  3. short_answer: Trả lời ngắn. Cột options bắt buộc để trống (""). Cột answer ghi đáp án ngắn gọn (số, công thức hoặc từ khóa, tối đa 200 ký tự mỗi đáp án để đồng bộ với ô nhập giao diện). Với đáp án số hoặc nhiều cách viết, phân tách bằng || (ví dụ: "1,5||1.5").
-- Đặt subject đúng môn (chemistry, physics, biology), grade đúng lớp (6, 7, 8, 9) và domain=practice cho mọi dòng.
-- Viết prompt, context, explanation, theory, hint bằng tiếng Việt có dấu; dùng kiến thức cơ bản trong chương trình THCS, đáp án xác định được bằng máy.
-- Khi cần phân biệt ký hiệu viết hoa/thường (ví dụ CO và Co), thêm tags=case-sensitive.
-
-Trả đúng một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
-```
-
-### 4. Lịch sử hoặc Địa lí THCS (Lớp 6–9)
-
-```text
-Hãy tạo đúng một file CSV UTF-8 để nhập vào NẮM Học tập theo hướng dẫn tôi đính kèm.
-
-- Môn: [history hoặc geography]
-- Lớp: [6/7/8/9]
-- Chủ điểm: [ví dụ: Đại Việt thời Lý / Trái Đất trong hệ Mặt Trời]
-- Số câu: [30]
-- Tên file: [su-hoac-dia-lop-chudiem.csv]
-
-Định dạng bài tập THCS:
-- Chỉ dùng 2 dạng bài:
-  1. mcq: Trắc nghiệm 4 lựa chọn. Cột options bắt buộc có đúng 4 phương án phân cách bằng ||. Cột answer là đúng 1 phương án.
-  2. true_false: Câu hỏi Đúng/Sai 4 ý. Cột options bắt buộc có đúng 4 mệnh đề độc lập phân cách bằng ||. Cột answer bắt buộc có đúng 4 giá trị true hoặc false phân cách bằng || (ví dụ: true||true||false||true).
-- TUYỆT ĐỐI KHÔNG dùng dạng short_answer hay tự luận.
-- Đặt subject đúng môn (history hoặc geography), grade đúng lớp (6, 7, 8, 9) và domain=practice cho mọi dòng.
-- Viết prompt, context, explanation, theory, hint bằng tiếng Việt có dấu; dùng kiến thức chuẩn trong sách giáo khoa THCS.
-
-Trả đúng một file CSV 18 cột, không thêm Markdown, lời dẫn hay cột khác.
-```
-
----
-
-## Hợp đồng dữ liệu CSV
-
-- File `.csv` dùng UTF-8 (có hoặc không BOM), dấu phân cách là dấu phẩy `,`.
-- Mỗi file nhận 1–2.000 câu, tối đa 5 MB; mỗi ô tối đa 10.000 ký tự.
-- Dòng đầu phải đúng **18 cột**, đúng thứ tự sau:
+UTF-8, chấp nhận BOM; dấu phân cách là dấu phẩy. Từ 1–2.000 dòng, tối đa 5 MB/file và 10.000 ký tự/ô. Header đúng 18 cột và đúng thứ tự:
 
 ```text
 subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
 ```
 
-- Mỗi dòng dữ liệu phải có đúng 18 ô. Bọc các ô chứa dấu phẩy, dấu nháy kép hoặc xuống dòng bằng dấu ngoặc kép thẳng `"`. Dấu `"` bên trong ô phải viết thành `""`; ô trống viết `""`.
-- Không dùng dấu chấm phẩy để ngăn cột. Không dùng `||` như văn bản thông thường vì ký hiệu này phân tách lựa chọn/đáp án.
-- ID phải duy nhất trong **file**, dùng chữ Latin, số, `.`, `_`, `-`. ID trùng ở hai file khác vẫn an toàn vì mỗi file là một bộ riêng.
-- Mỗi file CSV chỉ chứa **một môn duy nhất**. Không trộn Tiếng Anh với các môn khác hoặc trộn giữa các môn THCS với nhau.
+Ô có dấu phẩy, dấu nháy hoặc xuống dòng phải bọc bằng nháy kép thẳng; nháy kép bên trong phải gấp đôi. Newline trong ô không phải câu mới. Không dùng dấu chấm phẩy để ngăn cột. Mọi dòng giữ đủ cột trống cuối dòng.
 
-| Cột | Cách điền |
+| Cột | Quy tắc |
 |---|---|
-| `subject` | Bắt buộc: `english`, `chemistry`, `physics`, `biology`, `history`, hoặc `geography`. Mọi dòng trong một file phải cùng giá trị. |
-| `grade` | Tiếng Anh để trống `""`. Năm môn THCS (Hóa, Lí, Sinh, Sử, Địa) bắt buộc là đúng một trong `6`, `7`, `8`, `9`. |
-| `id` | Bắt buộc, duy nhất trong file; ví dụ `h-ly-001` hoặc `c-formula-001`. |
-| `domain` | Tiếng Anh: `vocabulary` (thẻ từ vựng) hoặc `grammar` (bài tập). Năm môn THCS: luôn là `practice`. |
-| `type` | Một trong các dạng bài hợp lệ theo môn (xem bảng quy định dạng bài bên dưới). |
-| `level` | Tiếng Anh (`A1`…`C2`, `mixed`); các môn THCS để `mixed`. |
-| `topic` | Bắt buộc; tên chủ điểm nhất quán để lọc. |
-| `subtopic` | Trọng tâm nhỏ; có thể để trống. |
-| `prompt` | Bắt buộc. Yêu cầu câu hỏi hoặc mục từ vựng. |
-| `context` | Đoạn văn, số liệu, ngữ cảnh câu hỏi hoặc câu ví dụ minh họa từ vựng. |
-| `options` | Lựa chọn/mệnh đề ngăn bằng `||`; với `short_answer` hoặc `vocabulary` để trống `""`. |
-| `answer` | Đáp án đúng; với `vocabulary` là nghĩa tiếng Việt (mặt sau thẻ). |
-| `explanation` | Bắt buộc; giải thích chi tiết vì sao đúng/sai bằng tiếng Việt có dấu. |
-| `theory` | Bắt buộc với `grammar` và `practice`; nhắc lý thuyết ngắn bằng tiếng Việt có dấu. `vocabulary` có thể trống. |
-| `hint` | Gợi ý ngắn không lộ đáp án; có thể để trống. |
-| `tags` | Nhãn ngăn bằng `||`; dùng `case-sensitive` khi cần phân biệt hoa/thường (ví dụ `CO` vs `Co`). |
-| `difficulty` | Số nguyên `1`–`5`; để trống thì mặc định `2`. |
-| `learning_key` | Bắt buộc với Tiếng Anh `vocabulary` theo cú pháp `vocab:word:pos:sense`; các môn và domain khác để trống `""`. |
+| subject | Một môn như bảng trên; mọi dòng cùng môn. |
+| grade | Tiếng Anh để trống; THCS dùng 6, 7, 8 hoặc 9. |
+| id | Duy nhất trong file; chữ Latin/số/dấu chấm/gạch ngang/gạch dưới, bắt đầu bằng chữ hoặc số. |
+| domain | Dùng đúng bảng ở mục 1. |
+| type | Dùng đúng dạng theo mục 4; không tự tạo mã mới. |
+| level | Tiếng Anh A1…C2 hoặc mixed; THCS dùng mixed. |
+| topic | Chủ điểm nhất quán, bắt buộc. |
+| subtopic | Trọng tâm nhỏ, có thể trống. |
+| prompt | Hướng dẫn rõ cần chọn từ, điền cụm hay viết cả câu; bắt buộc. |
+| context | Câu/đoạn ngữ cảnh, số liệu hoặc ví dụ của flashcard. |
+| options | Theo từng dạng bên dưới; dùng || chỉ để phân tách mục. |
+| answer | Đáp án máy chấm, theo từng dạng; không dùng A/B/C/D. |
+| explanation | Bắt buộc; lời giải chi tiết, chỉ hiển thị sau chấm. |
+| theory | Bắt buộc với grammar, vocabulary_practice, practice; quy tắc/cách dùng liên quan, chỉ hiển thị sau chấm. Flashcard có thể trống. |
+| hint | Tùy chọn; một câu nhẹ tối đa 180 ký tự, hiển thị khi người học mở trước chấm. Không dùng lời giải rút gọn. |
+| tags | Nhãn ngăn bằng ||; case-sensitive khi cần phân biệt CO với Co hoặc kí hiệu tương tự. |
+| difficulty | Số nguyên 1–5; trống mặc định 2. |
+| learning_key | Flashcard bắt buộc dạng vocab:word:pos:sense; bài tập để trống. |
 
----
+CSV cũ khai báo grammar vẫn được giữ ở Grammar. Để nhập một bộ bài tập từ vựng vào mục mới, sửa domain của các dòng tương ứng thành vocabulary_practice và để learning_key trống; không đổi câu ngữ pháp thành bài từ vựng chỉ theo tên file. Nhập lại tạo bộ riêng, không tự chuyển tiến độ từ bộ cũ.
 
-## Bảng quy định dạng bài theo Môn học
+## 4. Quy cách dạng bài
 
-| Môn học | `subject` | Dạng bài được phép | Quy định đặc thù |
-|---|---|---|---|
-| **Tiếng Anh** | `english` | `mcq`, `multiple_select`, `fill_blank`, `error_correction`, `sentence_transformation`, `word_formation`, `ordering`, `matching` | Không hỗ trợ `true_false` và `short_answer`. Thẻ từ vựng dùng `type: "fill_blank"` và `domain: "vocabulary"`. |
-| **Hóa học** | `chemistry` | `mcq`, `true_false`, `short_answer` | Khuyến nghị 4 phương án cho `mcq`. Hỗ trợ các dạng cũ của bộ bài trước. |
-| **Vật lí** | `physics` | `mcq`, `true_false`, `short_answer` | Khuyến nghị 4 phương án cho `mcq`. Hỗ trợ các dạng cũ của bộ bài trước. |
-| **Sinh học** | `biology` | `mcq`, `true_false`, `short_answer` | Khuyến nghị 4 phương án cho `mcq`. Hỗ trợ các dạng cũ của bộ bài trước. |
-| **Lịch sử** | `history` | `mcq`, `true_false` | **Chỉ nhận `mcq` (bắt buộc đúng 4 phương án) và `true_false` (4 ý)**. Không có trả lời ngắn. |
-| **Địa lí** | `geography` | `mcq`, `true_false` | **Chỉ nhận `mcq` (bắt buộc đúng 4 phương án) và `true_false` (4 ý)**. Không có trả lời ngắn. |
+Tiếng Anh nhận: mcq, multiple_select, fill_blank, error_correction, sentence_transformation, word_formation, ordering, matching. Bài tập từ vựng dùng các dạng này phù hợp mục tiêu; ngữ pháp dùng cùng mã nhưng domain=grammar.
 
-### Quy cách 3 dạng bài hiện đại cho THCS:
+- **mcq:** khuyến nghị 4 lựa chọn khác nhau trong options, ngăn bằng ||; answer là nguyên văn đúng một lựa chọn. Mỗi câu có đúng một đáp án phù hợp ngữ cảnh.
+- **multiple_select:** options có các lựa chọn khác nhau; answer có ít nhất hai lựa chọn đúng khác nhau ngăn bằng ||. Phải yêu cầu chọn tất cả; chọn thừa hoặc thiếu đều sai.
+- **fill_blank:** options trống; answer là từ/cụm cần điền. Nếu nhiều chỗ trống, prompt phải nói rõ nhập tất cả phần thiếu theo thứ tự, ngăn bằng khoảng trắng; không thêm những từ đã có sẵn trong context vào answer. Tốt nhất dùng một chỗ trống/câu.
+- **word_formation:** cho từ gốc trong prompt/context; options trống; answer là dạng từ cần điền. Đáp án phải xác định được từ cấu trúc và nghĩa.
+- **error_correction:** cho câu có lỗi rõ ràng; yêu cầu viết lại cả câu; options trống, answer là câu đã sửa hoàn chỉnh.
+- **sentence_transformation:** nêu yêu cầu và từ/cấu trúc bắt buộc; options trống; answer là câu viết lại đầy đủ, giữ nghĩa gốc.
+- **ordering:** options là mảnh nguyên vẹn ngăn bằng ||, tối đa 30 mảnh; answer là câu tạo bằng hoán vị toàn bộ mảnh, mỗi mảnh đúng một lần. Không đảo từ bên trong một mảnh. Đáp án khác hợp lệ ngăn bằng ||. Gắn dấu câu vào mảnh phù hợp.
+- **matching:** options là ít nhất hai cặp left=>right ngăn bằng ||; không trùng vế trái hoặc phải sau chuẩn hóa. answer để trống: hệ thống lấy các cặp làm đáp án. Không dùng => hoặc || trong văn bản của cặp.
 
-1. **Trắc nghiệm một đáp án (`mcq`)**:
-   - `options`: 4 lựa chọn phân cách bằng `||`. Với Sử và Địa bắt buộc đúng 4 lựa chọn; với Hóa, Lí, Sinh khuyến nghị 4 lựa chọn.
-   - `answer`: Ghi nguyên văn đúng 1 lựa chọn (không ghi A/B/C/D).
+Với đáp án nhập văn bản, các cách viết được chấp nhận phải liệt kê rõ trong answer, ngăn bằng ||. Hệ thống chuẩn hóa Unicode, khoảng trắng, hoa/thường và dấu kết câu .!?; không chấm theo ý nghĩa bằng AI. Không kê các đáp án mơ hồ chỉ để tăng số phương án. Không có đánh giá một phần cho multiple_select hoặc matching.
 
-2. **Đúng/Sai 4 ý độc lập (`true_false`)**:
-   - `options`: Đúng **4 mệnh đề** không rỗng phân cách bằng `||` (tương ứng với 4 ý a, b, c, d).
-   - `answer`: Đúng **4 giá trị `true` hoặc `false`** phân cách bằng `||` (ví dụ: `true||false||true||false`).
-   - Đánh giá: Hệ thống lưu 1 attempt duy nhất; hiển thị số ý đúng (ví dụ: *Đúng 3/4 ý*), câu chỉ đạt khi học sinh chọn đúng toàn bộ 4/4 ý.
+THCS:
 
-3. **Trả lời ngắn (`short_answer`)**:
-   - Chỉ áp dụng cho Hóa học, Vật lí và Sinh học.
-   - `options`: Bắt buộc để trống `""` (parser sẽ báo lỗi nếu điền dữ liệu vào cột này).
-   - `answer`: Một hoặc nhiều đáp án máy chấm chấp nhận, phân cách bằng `||` (tối đa 200 ký tự mỗi đáp án, đồng bộ với giới hạn nhập 200 ký tự của giao diện). Ví dụ: `18` hoặc `1,5||1.5`. Hệ thống chuẩn hóa khoảng trắng thừa và ký tự tương đương nhưng **giữ nguyên số và dấu câu**. Thêm tag `case-sensitive` khi cần phân biệt chữ hoa/thường.
+| Môn | Dạng bài |
+|---|---|
+| chemistry, physics, biology | mcq, true_false, short_answer; ưu tiên các dạng này cho dữ liệu mới |
+| history, geography | Chỉ mcq và true_false; mcq phải có đúng 4 lựa chọn |
 
----
+- **true_false:** options có đúng 4 mệnh đề độc lập không rỗng ngăn bằng ||; answer có đúng 4 giá trị true/false theo cùng thứ tự. Chỉ đúng toàn câu khi đúng 4/4 ý.
+- **short_answer:** chỉ Hóa/Lí/Sinh; options trống; answer là số, công thức hoặc cụm ngắn, mỗi đáp án tối đa 200 ký tự. Các cách viết như 1,5||1.5 cần khai báo tường minh. Máy giữ số và dấu câu, chỉ chuẩn hóa chữ/khoảng trắng; thêm case-sensitive khi cần.
 
-## Ví dụ CSV chuẩn cho từng môn
+## 5. Gợi ý và lời giải
 
-### 1. Tiếng Anh
+Gợi ý tốt: “Đối chiếu ý nghĩa của cả câu và cách kết hợp từ.” / “Xác định vai trò của chỗ trống trong câu.”
+
+Gợi ý không đạt: “Chọn voyage vì đây là đi bằng tàu.” / “Đáp án B.” / “Loại A và C.” / “Dùng will have rồi thêm finished.” / bản dịch câu đã điền.
+
+Không viết công thức hay từ đồng nghĩa chỉ ra duy nhất đáp án vào hint. Nội dung đó thuộc theory/explanation sau chấm. Website có bộ lọc phát hiện gợi ý quá dài, chứa đáp án hoặc chỉ dẫn phương án, nhưng AI vẫn phải kiểm tra việc tiết lộ gián tiếp. Gợi ý bị chặn được thay bằng gợi ý chung; dữ liệu gốc được giữ.
+
+## 6. Ví dụ hợp lệ
+
+### Flashcard tiếng Anh
 
 ```csv
 subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
-"english","","v-work-001","vocabulary","fill_blank","B1","Work","","reliable /ˈrɪlaɪəbl/ (adj)","A reliable colleague always keeps promises and finishes tasks on time.","","đáng tin cậy","reliable (tính từ): có thể tin tưởng được để hoàn thành công việc tốt. Trái nghĩa: unreliable. Danh từ: reliability.","","","","1","vocab:reliable:adjective:trusted"
-"english","","g-ptc-001","grammar","mcq","B1","Present continuous","","Choose the correct option.","Mia ___ a lesson right now.","takes||is taking||took||has taken","is taking","Cụm right now cho biết hành động đang diễn ra, nên dùng is taking.","Hiện tại tiếp diễn: S + am/is/are + V-ing.","Chú ý cụm chỉ thời gian.","present-continuous","1",""
+english,,card-01,vocabulary,fill_blank,B1,Present simple,,reliable /rɪˈlaɪəbl/ (adj),A reliable colleague keeps promises.,,đáng tin cậy,Reliable là tính từ chỉ người/vật có thể tin tưởng.,,,,1,vocab:reliable:adjective:trusted
 ```
 
-### 2. Hóa học lớp 8
+### Tám dạng bài tập từ vựng tiếng Anh
+
+```csv
+subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
+english,,vp-01,vocabulary_practice,mcq,B1,Work,,Complete the sentence.,A ___ colleague keeps promises.,reliable||scarce||remote||brief,reliable,Dịch câu: Một đồng nghiệp đáng tin cậy giữ lời hứa. Reliable phù hợp với keeps promises.,Từ được chọn phải phù hợp ngữ cảnh và cấu trúc câu.,Xét quan hệ giữa các từ trong ngữ cảnh.,,1,
+english,,vp-02,vocabulary_practice,multiple_select,B1,Work,,Select all words that describe dependable people.,,reliable||trustworthy||careless||unreliable,reliable||trustworthy,Reliable và trustworthy diễn tả sự đáng tin cậy; hai từ còn lại không phù hợp.,Từ được chọn phải phù hợp ngữ cảnh và cấu trúc câu.,Xét quan hệ giữa các từ trong ngữ cảnh.,,1,
+english,,vp-03,vocabulary_practice,fill_blank,B1,Work,,Complete with one suitable word.,We must meet the project ___ by Friday.,,deadline,Dịch câu: Chúng ta phải đáp ứng hạn chót của dự án trước thứ Sáu. Meet a deadline là hoàn thành đúng hạn.,Từ được chọn phải phù hợp ngữ cảnh và cấu trúc câu.,Xét quan hệ giữa các từ trong ngữ cảnh.,,1,
+english,,vp-04,vocabulary_practice,word_formation,B1,Work,,Complete with the correct form of RELY.,She is a ___ assistant.,,reliable,Chỗ trống trước assistant cần tính từ reliable: đáng tin cậy.,Từ được chọn phải phù hợp ngữ cảnh và cấu trúc câu.,Xét quan hệ giữa các từ trong ngữ cảnh.,,1,
+english,,vp-05,vocabulary_practice,error_correction,B1,Work,,Correct the word choice. Write the complete sentence.,Please make attention to the safety instructions.,,Please pay attention to the safety instructions.,Dịch câu: Hãy chú ý các hướng dẫn an toàn. Collocation đúng là pay attention to.,Từ được chọn phải phù hợp ngữ cảnh và cấu trúc câu.,Xét quan hệ giữa các từ trong ngữ cảnh.,,1,
+english,,vp-06,vocabulary_practice,sentence_transformation,B1,Work,,Rewrite using PUT OFF without changing the meaning.,They postponed the meeting.,,They put off the meeting.,Dịch câu: Họ hoãn cuộc họp. Put off đồng nghĩa với postpone trong ngữ cảnh này.,Từ được chọn phải phù hợp ngữ cảnh và cấu trúc câu.,Xét quan hệ giữa các từ trong ngữ cảnh.,,1,
+english,,vp-07,vocabulary_practice,ordering,B1,Work,,Put all the chips in the correct order.,,the deadline||We||met,We met the deadline,Dịch câu: Chúng tôi đã hoàn thành đúng hạn. Thứ tự: We + met + the deadline.,Từ được chọn phải phù hợp ngữ cảnh và cấu trúc câu.,Xét quan hệ giữa các từ trong ngữ cảnh.,,1,
+english,,vp-08,vocabulary_practice,matching,B1,Work,,Match each expression with its meaning.,,put off=>postpone||carry out=>perform,,Put off nghĩa là hoãn; carry out nghĩa là thực hiện.,Từ được chọn phải phù hợp ngữ cảnh và cấu trúc câu.,Xét quan hệ giữa các từ trong ngữ cảnh.,,1,
+```
+
+### Ngữ pháp tiếng Anh
+
+```csv
+subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
+english,,g-01,grammar,mcq,B1,Present simple,,Complete the sentence.,Mia ___ a lesson right now.,takes||is taking||took||has taken,is taking,"Dịch câu: Mia đang học ngay lúc này. Right now cho thấy hành động đang diễn ra, dùng is taking.",Hiện tại tiếp diễn: S + am/is/are + V-ing.,Chú ý mốc thời gian của hành động.,,1,
+```
+
+### Hóa học
 
 ```csv
 subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
@@ -200,7 +146,7 @@ subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,
 "chemistry","8","c-sa-003","practice","short_answer","mixed","Khối lượng mol","Tính toán","Khối lượng mol phân tử của nước (H2O) bằng bao nhiêu g/mol? (Nhập số)","","","18","M(H2O) = 2 × 1 + 16 = 18 g/mol.","Khối lượng mol phân tử bằng tổng khối lượng các nguyên tử trong phân tử.","H = 1, O = 16.","","2",""
 ```
 
-### 3. Vật lí lớp 8
+### Vật lí
 
 ```csv
 subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
@@ -209,7 +155,7 @@ subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,
 "physics","8","p-sa-003","practice","short_answer","mixed","Vận tốc","Tính toán","Một ô tô đi được quãng đường 120 km trong thời gian 2 giờ. Vận tốc của ô tô là bao nhiêu km/h? (Chỉ nhập số)","","","60","Vận tốc v = s / t = 120 / 2 = 60 km/h.","Công thức tính vận tốc: v = s / t.","Lấy quãng đường chia thời gian.","","1",""
 ```
 
-### 4. Sinh học lớp 7
+### Sinh học
 
 ```csv
 subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
@@ -218,7 +164,7 @@ subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,
 "biology","7","b-sa-003","practice","short_answer","mixed","Tế bào","Cấu tạo tế bào","Bào quan nào chứa chất diệp lục và là nơi diễn ra quá trình quang hợp ở tế bào thực vật?","","","lục lạp","Lục lạp là bào quan chứa sắc tố diệp lục, có chức năng hấp thụ năng lượng ánh sáng để quang hợp.","Tế bào thực vật quang hợp nhờ bào quan lục lạp.","Tên bào quan mang màu lục của lá.","","1",""
 ```
 
-### 5. Lịch sử lớp 7
+### Lịch sử
 
 ```csv
 subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
@@ -226,10 +172,22 @@ subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,
 "history","7","h-tf-002","practice","true_false","mixed","Ba lần kháng chiến chống Mông - Nguyên","Thời Trần","Xét tính đúng/sai của các sự kiện sau về ba lần kháng chiến chống Mông - Nguyên của nhà Trần:","","Đạo thủy binh giặc trong trận Bạch Đằng năm 1288 do Thoát Hoan trực tiếp chỉ huy||Hội nghị Diên Hồng là nơi vua Trần hỏi ý kiến các bô lão về việc đánh hay hàng||Trần Hưng Đạo được phong làm Quốc công Tiết chế thống lĩnh toàn quân trong cả ba lần kháng chiến||Nhà Trần đã ba lần thực hiện kế sách 'Vườn không nhà trống' để đánh bại giặc","false||true||false||true","Ý a sai vì đạo thủy binh do Ô Mã Nhi và Phàn Tiếp chỉ huy; Thoát Hoan chỉ huy cánh bộ binh tháo chạy theo đường bộ. Ý b đúng vì Hội nghị Diên Hồng năm 1285 trưng cầu ý kiến các bô lão. Ý c sai vì Trần Hưng Đạo được phong Quốc công Tiết chế thống lĩnh toàn quân ở lần 2 (1285) và lần 3 (1287–1288); lần 1 (1258) do vua Trần Thái Tông và Lê Phụ Trần trực tiếp chỉ huy phản công tại Đông Bộ Đầu. Ý d đúng vì cả 3 lần nhà Trần đều chủ động rút khỏi kinh thành để thực hiện 'Vườn không nhà trống'.","Nhà Trần đại thắng Mông - Nguyên nhờ tinh thần đoàn kết toàn dân, kế sách 'Vườn không nhà trống' và nghệ thuật quân sự độc đáo.","Nhớ lại người chỉ huy thủy quân giặc ở Bạch Đằng và thời điểm Trần Hưng Đạo được cử làm Tiết chế.","","2",""
 ```
 
-### 6. Địa lí lớp 6
+### Địa lí
 
 ```csv
 subject,grade,id,domain,type,level,topic,subtopic,prompt,context,options,answer,explanation,theory,hint,tags,difficulty,learning_key
 "geography","6","g-earth-001","practice","mcq","mixed","Trái Đất trong hệ Mặt Trời","Vị trí và hình dạng","Trái Đất đứng ở vị trí thứ mấy theo thứ tự xa dần Mặt Trời?","","Thứ nhất||Thứ hai||Thứ ba||Thứ tư","Thứ ba","Theo thứ tự từ Mặt Trời ra xa: Thủy tinh, Kim tinh, Trái Đất, Hỏa tinh, Mộc tinh, Thổ tinh, Thiên Vương tinh, Hải Vương tinh.","Trái Đất là hành tinh thứ ba tính từ Mặt Trời trong Hệ Mặt Trời.","Nằm giữa Kim tinh và Hỏa tinh.","","1",""
 "geography","6","g-tf-002","practice","true_false","mixed","Chuyển động của Trái Đất","Hệ quả","Xét tính đúng/sai của các nhận định sau về sự chuyển động tự quay quanh trục của Trái Đất:","","Trái Đất tự quay quanh trục theo hướng từ tây sang đông||Thời gian Trái Đất tự quay một vòng quanh trục là khoảng 24 giờ (một ngày đêm)||Hiện tượng ngày đêm luân phiên là hệ quả của chuyển động tự quay của Trái Đất||Sự lệch hướng chuyển động của các vật thể ở hai bán cầu không phụ thuộc vào chuyển động tự quay","true||true||true||false","Lực Coriolis làm lệch hướng chuyển động của các vật thể ở hai bán cầu là hệ quả trực tiếp sinh ra từ chuyển động tự quay quanh trục của Trái Đất.","Trái Đất tự quay quanh trục sinh ra: ngày đêm luân phiên, giờ trên Trái Đất và lực Coriolis làm lệch hướng vật chuyển động.","Lực Coriolis sinh ra do Trái Đất tự quay.","","2",""
 ```
+
+## 7. Checklist trước khi giao
+
+1. Đủ số câu, đúng 18 cột mỗi dòng, đúng UTF-8 và escape; một file chỉ một môn.
+2. ID duy nhất; domain đúng mục tiêu; grade/level/type phù hợp.
+3. Đáp án đúng có trong lựa chọn; nhiễu hợp lí và không có hai đáp án đúng ngoài yêu cầu multiple_select.
+4. Mảnh ordering ghép được nguyên vẹn, dùng đủ mảnh; matching không trùng vế; prompt nói rõ kiểu trả lời.
+5. Đủ các biến thể hợp lệ cho đáp án gõ; không dùng máy chấm theo ý nghĩa hay giải tự luận dài.
+6. Mọi câu có explanation; bài tập có theory; tiếng Việt có dấu, dịch câu và phân tích rõ sau chấm.
+7. Hint không lộ đáp án trực tiếp hoặc gián tiếp; prompt/context không vô tình chứa lời giải.
+8. Flashcard có key ổn định, bài tập không có lịch ôn; không dùng lại ID cho các câu khác về cùng từ.
+9. Không HTML/script, công thức bảng tính, type/cột tự chế hay lời dẫn ngoài CSV.

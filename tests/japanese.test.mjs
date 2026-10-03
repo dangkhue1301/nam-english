@@ -231,7 +231,7 @@ test("Parse bộ mẫu 8 câu trong JAPANESE_CSV_GUIDE.md thành công 0 lỗi",
   assert.equal(v1.id, "v001");
   assert.equal(v1.type, "ja_vocab_context");
   assert.equal(v1.target, "約束");
-  assert.equal(v1.learning_key, "ja:vocab:yakusoku:promise");
+  assert.equal(v1.learning_key, "");
   assert.ok(v1.context.includes("\n"));
 
   // V2
@@ -486,7 +486,7 @@ test("Negative: missing learning_key ở vocabulary hoặc có learning_key ở 
     answer: "o1",
     learning_key: "",
   });
-  assert.match(parseJapaneseCsv(questionRowToCsv(v1NoKey)).errors[0], /ja_vocab_context cần learning_key/);
+  assert.deepEqual(parseJapaneseCsv(questionRowToCsv(v1NoKey)).errors, []);
 
   const v1BadKey = baseQuestion({
     ...v1NoKey,
@@ -657,7 +657,8 @@ test("evaluateJapaneseAnswer: G3 hỗ trợ mảnh tương đương (hoán đổ
     ],
   };
   assert.equal(evaluateJapaneseAnswer(qDifferentRuby, ["p1", "p2"]), true);
-  assert.equal(evaluateJapaneseAnswer(qDifferentRuby, ["p2", "p1"]), false); // đảo ruby là sai!
+  assert.equal(evaluateJapaneseAnswer(qDifferentRuby, ["p2", "p1"]), true); // cùng chữ hiển thị
+  assert.equal(evaluateJapaneseAnswer({ ...qDifferentRuby, gradingVersion: 1 }, ["p2", "p1"]), false);
 });
 
 test("formatJapaneseSentence: nối các mảnh tiếng Nhật bằng chuỗi rỗng không chèn khoảng trắng", () => {

@@ -90,7 +90,7 @@ test("nguồn UI chỉ nối PWA tùy chọn và Enter tôn trọng control tư�
   assert.match(app, /onUpdateReady:/);
   assert.match(app, /onInstallAvailable:/);
   assert.match(app, /const interactiveTarget = target\?\.closest\("button, a, summary/);
-  assert.match(app, /if \(session\.result\) invokeAction\(\{ dataset: \{ action: "next" \} \}\);/);
+  assert.match(app, /if \(session\.result\) void dispatchAction\(\{ dataset: \{ action: "next" \} \}\);/);
   assert.doesNotMatch(app, /serviceWorker\.register\("\.\/sw\.js"\)/);
   assert.match(index, /id="pwa-status"/);
   assert.match(index, /id="pwa-install"/);
@@ -99,7 +99,7 @@ test("nguồn UI chỉ nối PWA tùy chọn và Enter tôn trọng control tư�
 test("nguồn UI tích hợp đầy đủ thống kê, theme toggle, phím tắt và timer", async () => {
   const root = new URL("../", import.meta.url);
   const app = await readFile(new URL("app.js", root), "utf8");
-  assert.match(app, /\["stats",\s*"Thống kê"\]/);
+  assert.match(app, /\["stats",\s*"Thống kê",\s*"chart"\]/);
   assert.match(app, /function statsMarkup\(\)/);
   assert.match(app, /activity-chart/);
   assert.match(app, /heatmap/);

@@ -2,17 +2,19 @@
 
 [Mở website](https://dangkhue1301.github.io/nam-english/) · [Hướng dẫn tạo CSV cho AI](./QUESTION_CSV_GUIDE.md)
 
-Website tự luyện Tiếng Anh, Hóa học, Vật lí và Sinh học lớp 6–9 từ bộ CSV do giáo viên chuẩn bị. Ứng dụng chấm ngay trên trình duyệt, có giao diện tiếng Việt và chạy tĩnh trên GitHub Pages.
+Website tự luyện Tiếng Anh, Tiếng Nhật, Hóa học, Vật lí và Sinh học từ bộ CSV do giáo viên hoặc AI chuẩn bị. Ứng dụng chấm ngay trên trình duyệt, có giao diện tiếng Việt và chạy tĩnh trên GitHub Pages.
 
 ## Cách dùng
 
 1. Gửi `QUESTION_CSV_GUIDE.md` cho AI tạo câu hỏi, kèm môn/lớp/chủ điểm và số câu.
 2. Chọn **Thêm bộ CSV**. Mỗi file chỉ có một môn và tạo một bộ riêng; ID trùng giữa hai file không ghi đè nhau.
-3. Chọn môn, bộ, lớp và chủ điểm để bắt đầu. Mỗi lượt tối đa 30 câu.
+3. Chọn bộ bài, chọn chế độ luyện rồi bấm **Bắt đầu**. Có thể mở bộ lọc trình độ, lớp, chủ điểm hoặc chương/bài. Mỗi lượt tối đa 30 câu.
 
-Tiếng Anh dùng `grammar` hoặc `vocabulary`. Grammar và Hóa/Lí/Sinh (`practice`) có nhắc lý thuyết, giải thích tiếng Việt; câu đã chấm không lặp trong bộ, dù đúng hay sai. Một bộ 50 câu sẽ đi theo 30 rồi 20.
+Trang Luyện tập hiển thị chuỗi ngày, XP/cấp độ và huy hiệu, cùng lối vào ôn thẻ đến hạn và ôn câu sai. Điện thoại dùng thanh điều hướng dưới; lúc làm bài chỉ giữ **Lưu và thoát**. Trang Kết quả ghi XP của lượt và cho mở từng câu chưa đúng để xem lại. Thư viện hỗ trợ tìm theo bộ/câu hỏi và lọc môn; trang Dữ liệu tập trung nhập CSV, báo cáo, sao lưu và cài đặt.
 
-Vocabulary dùng `learning_key`: làm sai quay lại cuối lượt đến khi đúng, còn lịch ôn được dùng chung cho cùng một nghĩa giữa các bộ. Có thẻ ghi nhớ và giọng đọc tiếng Anh của thiết bị; bài khoa học không gọi giọng đọc tiếng Anh.
+Tiếng Anh dùng `grammar` (ngữ pháp), `vocabulary` (flashcard) hoặc `vocabulary_practice` (bài tập từ vựng). Grammar và Hóa/Lí/Sinh (`practice`) có nhắc lý thuyết, giải thích tiếng Việt; câu đã chấm không lặp trong bộ, dù đúng hay sai. Một bộ 50 câu sẽ đi theo 30 rồi 20.
+
+Flashcard dùng `learning_key`: chưa nhớ quay lại cuối lượt, lịch SRS dùng chung cho cùng một nghĩa giữa các bộ. Bài tập từ vựng Anh và Nhật tính theo từng câu, không dùng SRS; chấm xong đi tiếp, câu sai vào Ôn câu sai. Gợi ý CSV được kiểm tra trước khi hiển thị; lý thuyết và lời giải chỉ hiện sau chấm. Tiếng Nhật không hiển thị furigana. Có thẻ ghi nhớ và giọng đọc tiếng Anh của thiết bị; bài khoa học không gọi giọng đọc tiếng Anh.
 
 ## Dữ liệu và giới hạn
 
@@ -39,4 +41,4 @@ Mở `http://127.0.0.1:4173/nam-english/`. Sau khi sửa mã, chạy build rồi
 
 Đẩy lên `main`; workflow sẽ cài thư viện kiểm thử, chạy test, build `dist/` và xuất bản bằng GitHub Actions. Nguồn trong **Settings → Pages** phải là **GitHub Actions**.
 
-Các tài nguyên dùng đường dẫn tương đối để chạy dưới `/nam-english/`. Build gắn cùng phiên bản cho mô-đun và CSS; service worker cũ được gỡ để tránh trộn phiên bản. Bản mới không cam kết chạy offline.
+Các tài nguyên dùng đường dẫn tương đối để chạy dưới `/nam-english/`. Build gắn cùng phiên bản cho mô-đun, CSS và cache PWA để tránh trộn bản cũ/mới. Sau lần tải thành công, các tài nguyên được lưu để học ngoại tuyến. Khi có bản cập nhật, ứng dụng báo và chờ đóng các tab cũ rồi mở lại để áp dụng, giữ lượt đang học trên cùng một phiên bản.

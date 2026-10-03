@@ -20,12 +20,12 @@ test("24 câu kiểm thử bao phủ cả 8 dạng, xuất CSV rồi nhập lạ
 test("mọi ví dụ CSV trong guide nhập được thành từng file một môn", async () => {
   const guide = await readFile(new URL("../QUESTION_CSV_GUIDE.md", import.meta.url), "utf8");
   const blocks = [...guide.matchAll(/```csv\r?\n([\s\S]*?)```/g)].map((m) => m[1]);
-  assert.deepEqual(blocks.length, 6);
-  const expectedSubjects = ["english", "chemistry", "physics", "biology", "history", "geography"];
+  assert.deepEqual(blocks.length, 8);
+  const expectedSubjects = ["english", "english", "english", "chemistry", "physics", "biology", "history", "geography"];
   blocks.forEach((block, index) => {
     const parsed = buildCsvPreview(block, `guide-${index}.csv`);
     assert.deepEqual(parsed.errors, []);
-    assert.ok(parsed.rows.length >= 2);
+    assert.ok(parsed.rows.length >= 1);
     assert.deepEqual([...new Set(parsed.rows.map((q) => q.subject))], [expectedSubjects[index]]);
     assert.ok(parseCsv(block).every((row) => row.length === CSV_HEADERS.length));
   });

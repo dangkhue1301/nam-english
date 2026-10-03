@@ -16,57 +16,42 @@ test("Phase C: app.js contains Japanese tree navigation, filters, and numerical 
   assert.match(app, /\.sort\(\(a, b\) => String\(a\)\.localeCompare\(String\(b\), undefined, \{ numeric: true \}\)\)/);
 
   // Verify tree filter selectors
-  assert.match(app, /data-filter="chapter"/);
-  assert.match(app, /data-filter="lesson"/);
-  assert.match(app, /data-filter="section"/);
+  assert.match(app, /field\("chapter", "Chương"/);
+  assert.match(app, /field\("lesson", "Bài"/);
+  assert.match(app, /field\("section", "Mục"/);
 
   // Verify section mapping: Hán tự (kanji), Ngữ pháp (grammar), Từ vựng (vocabulary)
   assert.match(app, /val: "kanji", label: "Hán tự/);
   assert.match(app, /val: "grammar", label: "Ngữ pháp/);
   assert.match(app, /val: "vocabulary", label: "Từ vựng/);
 
-  // Verify 3 distinct metrics in tree scope card
-  assert.match(app, /ja-tree-scope-card/);
+  // Japanese exercise progress has no due-date metric.
+  assert.match(app, /class="ja-tree-scope-card"/);
   assert.match(app, /Đã làm/);
-  assert.match(app, /Câu từ vựng cần luyện lại/);
-  assert.match(app, /Đến hạn ôn/);
+  assert.match(app, /class="home-review"/);
+  assert.doesNotMatch(app, /ja-metric-label">Đến hạn ôn/);
 });
 
 test("Phase C: app.js strictly blocks flashcards for Japanese", async () => {
   const app = await readFile(new URL("../app.js", import.meta.url), "utf8");
 
-  // In homeMarkup: jaModeCards() does not render flashcards
-  assert.match(app, /isJapanese \? jaModeCards\(\) :/);
-  assert.doesNotMatch(app, /jaModeCards[\s\S]*?modeCard\("flashcards"/);
+  // Japanese mode choices stay in exercise domains.
+  const japaneseModes = app.slice(app.indexOf(': set.subject === "japanese" ? ['), app.indexOf('] : [{ mode: "practice"'));
+  assert.match(japaneseModes, /mode: "grammar"/);
+  assert.match(japaneseModes, /mode: "vocabulary"/);
+  assert.match(japaneseModes, /mode: "kanji"/);
+  assert.doesNotMatch(japaneseModes, /flashcards/);
 
-  // In vocabulary mode card for Japanese, only practice exercises and SRS due review
-  assert.match(app, /câu từ vựng/);
-  assert.match(app, /start-due-vocab/);
-  assert.match(app, /từ đến hạn ôn/);
-
-  // In start-due-vocab, Japanese uses mode: "vocabulary", NOT "flashcards"
-  assert.match(app, /mode: isJapanese \? "vocabulary" : "flashcards"/);
+  // Japanese vocabulary uses one-pass exercises and the separate mistakes list.
+  assert.match(app, /title: "Từ vựng", description: "Ngữ cảnh/);
+  assert.match(app, /Chấm xong chuyển câu mới; câu sai được lưu vào mục Ôn câu sai/);
+  assert.match(app, /Bài tập tính theo từng câu, không có lịch SRS/);
 
   // In setCard, Japanese labels do not mention flashcards/mục đã học
   assert.match(app, /isJapanese \? "câu đã làm" : "mục đã học"/);
 
   // In resultMarkup, unit is "câu", not "thẻ"
   assert.match(app, /unit = isReview \? "câu sai" : isJapanese \? "câu" :/);
-});
-
-test("Phase C: Anti-leak rules in app.js and furigana toggle", async () => {
-  const app = await readFile(new URL("../app.js", import.meta.url), "utf8");
-
-  // Furigana toggle exists
-  assert.match(app, /currentFurigana\(\)/);
-  assert.match(app, /toggle-furigana/);
-  assert.match(app, /nam-furigana/);
-
-  // Anti-leak K1: Target kanji in context must hide ruby before grading
-  assert.match(app, /hideTarget: result \? null : q\.target/);
-
-  // Anti-leak K2: Kanji options must not show ruby before grading
-  assert.match(app, /isKanjiWriting && !result \? false/);
 });
 
 test("Phase C: 8 Japanese question type renderers in app.js", async () => {
@@ -122,7 +107,7 @@ test("Phase C: styles.css contains Japanese system font stack, ruby/rt, G2/G3 st
   // Ruby styles
   assert.match(css, /ruby\s*\{[\s\S]*?ruby-position:\s*over;/);
   assert.match(css, /rt\s*\{[\s\S]*?font-size:\s*0\.55em;/);
-  assert.match(css, /\.furigana-toggle/);
+
 
   // G2 slots
   assert.match(css, /\.ja-slots-group/);
@@ -139,7 +124,7 @@ test("Phase C: styles.css contains Japanese system font stack, ruby/rt, G2/G3 st
   assert.match(css, /\.ja-target-badge/);
   assert.match(css, /\.ja-target-highlight/);
   assert.match(css, /\.ja-tree-scope-card/);
-  assert.match(css, /\.ja-scope-metrics/);
+  assert.match(css, /\.mode-picker/);
   assert.match(css, /\.retry-pill/);
 });
 
@@ -182,11 +167,11 @@ test("Vietnamese font protection and Japanese responsive filter layout", async (
   // Dedicated Vietnamese context & placeholder classes
   assert.match(css, /\.ja-order-meaning/);
   assert.match(css, /\.ja-builder-placeholder/);
-  assert.match(css, /\.ja-filter-row/);
+  assert.match(css, /\.filter-row/);
 
   // Prompt does not force lang="ja"
   assert.doesNotMatch(app, /<h1 lang="ja">\$\{html\(q\.prompt\)\}<\/h1>/);
-  assert.match(app, /<h1>\$\{html\(q\.prompt\)\}<\/h1>/);
+  assert.match(app, /<h1>\$\{html\(q\.subject === "japanese" \? stripRuby\(q\.prompt\) : q\.prompt\)\}<\/h1>/);
 
   // Sentence builder wrapper does not force lang="ja"
   assert.doesNotMatch(app, /class="ja-sentence-builder"[^>]*lang="ja"/);
@@ -199,54 +184,19 @@ test("Vietnamese font protection and Japanese responsive filter layout", async (
   assert.match(app, /class="question-context ja-order-meaning" lang="vi"/);
 });
 
-test("Furigana toggle: controlled by preference, anti-leak preserved", async () => {
+test("Theory disclosure sits inside the question card after grading", async () => {
   const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
   const app = await readFile(new URL("../app.js", import.meta.url), "utf8");
-  // Toggle uses currentFurigana() preference
-  assert.match(app, /options\.showRuby\s*\?\?\s*currentFurigana\(\)/);
-  // Anti-leak: K1 still uses hideTarget
-  assert.match(app, /hideTarget/);
-  // CSS does not force-hide rt
-  assert.doesNotMatch(css, /rt\s*\{[\s\S]*?display:\s*none\s*!important/);
-  // Toggle button exists in CSS
-  assert.match(css, /\.furigana-toggle/);
-});
-
-test("Collapsible topic details with expand and collapse toggle", async () => {
-  const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
-  const app = await readFile(new URL("../app.js", import.meta.url), "utf8");
-
-  // app.js has collapsible details markup with state persistence
-  assert.match(app, /class="topic-details"/);
-  assert.match(app, /data-topic-details/);
-  assert.match(app, /class="topic-summary"/);
-  assert.match(app, /class="topic-toggle-pill"/);
-  assert.match(app, /Thu lại/);
-  assert.match(app, /Mở rộng/);
-  assert.match(app, /state\.topicOpen/);
-  assert.match(app, /localStorage\.getItem\("nam-topic-open"\)/);
-  assert.match(app, /localStorage\.setItem\("nam-topic-open",/);
-
-  // styles.css styles topic-details and toggle pill
-  assert.match(css, /\.topic-details/);
-  assert.match(css, /\.topic-summary/);
-  assert.match(css, /\.topic-toggle-pill/);
-  assert.match(css, /\.topic-details\[open\][\s\S]*?\.topic-summary-title::before/);
+  assert.match(app, /!isFlash && result \? `<details class="study-reference"/);
+  assert.match(app, /<summary>Chủ điểm và lý thuyết<\/summary>/);
+  assert.match(css, /\.study-reference/);
+  assert.doesNotMatch(app, /<aside class="study-aside"/);
 });
 
 test("HTML attribute injection: G3 chip aria-label escapes quotes", async () => {
   const { readFile } = await import("fs/promises");
   const app = await readFile(new URL("../app.js", import.meta.url), "utf8");
   assert.match(app, /aria-label="Bỏ mảnh \$\{html\(stripRuby\(opt\?\.text \?\? ""\)\)\}"/);
-});
-
-test("Anti-leak: Topic, theory và hint ẩn trước khi chấm đối với tiếng Nhật", async () => {
-  const app = await readFile(new URL("../app.js", import.meta.url), "utf8");
-  // Topic drawer chỉ hiển thị khi !isJapanese || result
-  assert.match(app, /\$\{[\s\S]*?\(!isJapanese\s*\|\|\s*result\)[\s\S]*?class="topic-details"/);
-  // Theory và hint chỉ hiển thị khi (!isJapanese || result)
-  assert.match(app, /\(!isJapanese\s*\|\|\s*result\)\s*&&\s*q\.theory/);
-  assert.match(app, /\(!isJapanese\s*\|\|\s*result\)\s*&&\s*q\.hint/);
 });
 
 test("Unified question context renderer: không lộ literal \\u2605, \\u2026, hiển thị ngôi sao đúng vị trí", async () => {
@@ -284,4 +234,3 @@ test("Explanation renderer (U1 & U3): truyền currentFurigana() và tuân thủ
   assert.doesNotMatch(css, /\.furigana-toggle\s*\{[^}]*var\(--card\)/);
   assert.doesNotMatch(css, /\.furigana-toggle\s*\{[^}]*var\(--text\)/);
 });
-

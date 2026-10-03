@@ -424,10 +424,7 @@ export function parseJapaneseCsv(text, filename = "japanese.csv") {
       // 8. learning_key
       const isVocab = ["ja_vocab_context", "ja_vocab_paraphrase", "ja_vocab_usage"].includes(raw.type);
       if (isVocab) {
-        if (!raw.learning_key) {
-          throw new Error(`${raw.type} cần learning_key`);
-        }
-        if (!/^ja:vocab:[a-z0-9][a-z0-9:_-]*$/.test(raw.learning_key) || raw.learning_key.length > 200) {
+        if (raw.learning_key && (!/^ja:vocab:[a-z0-9][a-z0-9:_-]*$/.test(raw.learning_key) || raw.learning_key.length > 200)) {
           throw new Error(`learning_key phải bắt đầu bằng ja:vocab: và đúng định dạng ASCII (tối đa 200 ký tự): "${raw.learning_key}"`);
         }
       } else {
@@ -815,7 +812,9 @@ export function evaluateJapaneseAnswer(question, received) {
     // Equivalence map: each option ID maps to its NFC-normalized text (and ruby)
     const idToNormalizedText = new Map();
     for (const opt of options) {
-      idToNormalizedText.set(opt.id, String(opt.text ?? "").normalize("NFC"));
+      idToNormalizedText.set(opt.id, question.gradingVersion === 1
+        ? String(opt.text ?? "").normalize("NFC")
+        : stripRuby(String(opt.text ?? "")).normalize("NFC"));
     }
 
     const submittedTexts = submittedIds.map((id) => idToNormalizedText.get(id));

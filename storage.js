@@ -1,12 +1,12 @@
-import { buildCsvPreview, buildLibrary, buildStats, displayAnswer, evaluateAnswer, isReviewDue, learningKeyFor, nextReview, QUESTION_TYPES, JA_QUESTION_TYPES, selectQuestions } from "./core.js";
-import { questionsToCsv, mistakeQuestions } from "./stats.js";
+import { buildCsvPreview, buildLibrary, buildStats, displayAnswer, evaluateAnswer, isReviewDue, learningKeyFor, nextReview, QUESTION_TYPES, JA_QUESTION_TYPES, selectQuestions, isFlashcardQuestion, isVocabularyExercise } from "./core.js";
+import { questionsToCsv, mistakeQuestions, xpFromAttempts } from "./stats.js";
 
 const DB_NAME = "nam-english-local";
 const STORE = "workspace";
 const LOCAL_KEY = "nam-english:workspace-v5";
 const PARTS = ["questions", "reviews", "attempts", "imports"];
 const CHANNEL = "nam-english-workspace";
-const MODES = ["grammar", "practice", "vocabulary", "flashcards", "kanji", "review"];
+const MODES = ["grammar", "practice", "vocabulary", "flashcards", "kanji", "review", "vocabulary_practice"];
 const ALL_QUESTION_TYPES = [...QUESTION_TYPES, ...JA_QUESTION_TYPES];
 const MAX_TIMESTAMP = 8.64e15;
 const copy = (value) => structuredClone(value);
@@ -16,7 +16,7 @@ export const questionSetIdOf = (q) => q?.setId || "legacy-v1";
 const emptyData = () => ({ questions: [], reviews: [], attempts: [], imports: [] });
 const fresh = () => ({ ...emptyData(), revision: 0, session: null, summary: null, selectedSetId: null, recovery: null, srsEvents: [] });
 const dataOnly = (w) => {
-  if (w?.session) migrateSessionSrsEvents(w);
+  // Existing SRS events are archived data; exercise sessions never create events.
   const allEvents = copy(w?.srsEvents ?? []);
   const allPending = allEvents.filter((e) => !e.applied);
   const pending = allPending.length > 5000
@@ -135,7 +135,6 @@ function migrateSessionSrsEvents(w) {
 
 function checkWorkspace(w) {
   if (!w || !PARTS.every((part) => Array.isArray(w[part]))) fail("Kho dữ liệu không hợp lệ. Hãy thử mở lại trang hoặc dùng bản sao lưu.");
-  migrateSessionSrsEvents(w);
   return w;
 }
 function storageError(error) {
@@ -231,7 +230,7 @@ class LocalBackend {
 }
 
 const setQuestions = (w, setId) => w.questions.filter((q) => questionSetIdOf(q) === setId);
-function selection(w, { setId, setIds, domain, level = "all", topic = "all", grade = "all", type = "all", chapter = "all", lesson = "all", limit = 30, now, dueOnly = false }) {
+function selection(w, { setId, setIds, domain, level = "all", topic = "all", grade = "all", type = "all", chapter = "all", lesson = "all", limit = 30, now, dueOnly = false, countOnly = false }) {
   const targetSets = Array.isArray(setIds) && setIds.length > 0 ? new Set(setIds) : (setId ? new Set([setId]) : null);
   const questions = targetSets ? w.questions.filter((q) => targetSets.has(questionSetIdOf(q))) : w.questions;
   const byId = new Map(questions.map((q) => [q.id, q]));
@@ -267,7 +266,7 @@ function selection(w, { setId, setIds, domain, level = "all", topic = "all", gra
       chapter,
       lesson,
       now,
-      limit: Math.max(1, Math.min(30, Number(limit) || 30)),
+      limit: countOnly ? questions.length : Math.max(1, Math.min(30, Number(limit) || 30)),
       completedQuestionIds: [...done],
       completedLearningKeys: [],
       dueOnly: Boolean(dueOnly),
@@ -320,7 +319,7 @@ function selection(w, { setId, setIds, domain, level = "all", topic = "all", gra
   }
 
   return selectQuestions(candidateQuestions, w.reviews, {
-    setId: null, domain, level, topic, grade, type, now, limit: Math.max(1, Math.min(30, Number(limit) || 30)),
+    setId: null, domain, level, topic, grade, type, now, limit: countOnly ? questions.length : Math.max(1, Math.min(30, Number(limit) || 30)),
     completedQuestionIds: [...done], completedLearningKeys: vocabularyKeysCompleted,
     dueOnly: Boolean(dueOnly),
   });
@@ -387,6 +386,7 @@ function validSession(s, w) {
           options: q.options,
           acceptedOrders: q.acceptedOrders ?? q.accepted_orders,
           starPosition: q.starPosition ?? q.star_position,
+          gradingVersion: entry.gradingVersion ?? 1,
         });
     if (entry.correct !== expectedCorrect) return false;
     return true;
@@ -424,6 +424,7 @@ function validSession(s, w) {
           options: currentQ.options,
           acceptedOrders: currentQ.acceptedOrders ?? currentQ.accepted_orders,
           starPosition: currentQ.starPosition ?? currentQ.star_position,
+          gradingVersion: s.result.gradingVersion ?? 1,
         });
     if (s.result.correct !== expectedResultCorrect) return false;
   }
@@ -438,6 +439,7 @@ function validSummary(summary, w) {
       !Number.isInteger(summary.correct) || summary.correct < 0 || summary.correct > summary.total ||
       !Number.isInteger(summary.repeats) || summary.repeats < 0 || !Array.isArray(summary.results) ||
       summary.results.length !== summary.total || !Number.isFinite(summary.durationMs) || summary.durationMs < 0) return false;
+  if (summary.earnedXp != null && (!Number.isSafeInteger(summary.earnedXp) || summary.earnedXp < 0)) return false;
 
   const purpose = summary.purpose || "study";
   if (!["study", "review"].includes(purpose)) return false;
@@ -502,151 +504,13 @@ function validSummary(summary, w) {
           options: q.options,
           acceptedOrders: q.acceptedOrders ?? q.accepted_orders,
           starPosition: q.starPosition ?? q.star_position,
+          gradingVersion: entry.gradingVersion ?? 1,
         });
     if (entry.correct !== expectedCorrect) return false;
     return true;
   })) return false;
   return new Set(summary.results.map((entry) => entry.questionId)).size === summary.results.length &&
     summary.correct === summary.results.filter((entry) => entry.correct).length;
-}
-
-function applyJapaneseSrs(w, learningKey, correct, q, now = Date.now()) {
-  const index = w.reviews.findIndex((r) => r.learningKey === learningKey);
-  const previous = index !== -1 ? w.reviews[index] : null;
-
-  if (previous) {
-    if (correct) {
-      if (!isReviewDue(previous, now)) {
-        const updated = {
-          ...previous,
-          lastReviewedAt: now,
-          updatedAt: now,
-        };
-        w.reviews[index] = updated;
-        return updated;
-      }
-    } else {
-      if (previous.intervalDays === 0 && previous.dueAt > now) {
-        const updated = {
-          ...previous,
-          lastReviewedAt: now,
-          updatedAt: now,
-        };
-        w.reviews[index] = updated;
-        return updated;
-      }
-    }
-  }
-
-  const reviewUpdate = nextReview(previous, correct, now);
-  const review = {
-    ...reviewUpdate,
-    learningKey,
-    lastQuestionId: q?.id,
-    lastSetId: q ? questionSetIdOf(q) : undefined,
-    firstCompletedAt: previous?.firstCompletedAt ?? (correct ? now : undefined),
-  };
-
-  if (index === -1) {
-    w.reviews.push(review);
-  } else {
-    w.reviews[index] = review;
-  }
-  return review;
-}
-
-function handleJapaneseSrsSubmit(w, s, q, received, correct, isRetry) {
-  const now = Date.now();
-  addAttempt(w, q, received, correct, {
-    id: `${s.id}:${s.step}`,
-    mode: s.mode,
-    purpose: s.purpose || "study",
-    isRetry,
-    dueOnly: Boolean(s.filters?.dueOnly),
-  });
-
-  const key = learningKeyFor(q);
-  if (!key) return null;
-
-  s.firstAnswers ??= {};
-  s.keyEvaluated ??= {};
-
-  w.srsEvents ??= [];
-  const eventId = `${s.id}:${key}`;
-  let srsEvent = w.srsEvents.find((e) => e.id === eventId);
-  const targetQIds = s.keyQuestions?.[key] ?? [q.id];
-  if (!srsEvent) {
-    srsEvent = {
-      id: eventId,
-      sessionId: s.id,
-      learningKey: key,
-      questionIds: targetQIds,
-      firstAnswers: {},
-      applied: false,
-      appliedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    w.srsEvents.push(srsEvent);
-  }
-
-  if (!isRetry && s.firstAnswers[q.id] === undefined) {
-    s.firstAnswers[q.id] = correct;
-  }
-  srsEvent.firstAnswers[q.id] = s.firstAnswers[q.id];
-  srsEvent.updatedAt = now;
-
-  const allAnswered = targetQIds.every((id) => s.firstAnswers[id] !== undefined);
-  if (allAnswered && !s.keyEvaluated[key]) {
-    const allCorrect = targetQIds.every((id) => s.firstAnswers[id] === true);
-    const rev = applyJapaneseSrs(w, key, allCorrect, q, now);
-    s.keyEvaluated[key] = true;
-    srsEvent.applied = true;
-    srsEvent.appliedAt = now;
-    return rev;
-  }
-
-  return w.reviews.find((r) => r.learningKey === key) ?? null;
-}
-
-function finalizeSessionSrsEvents(w, s) {
-  if (!s || s.mode !== "vocabulary" || !s.keyQuestions) return;
-  const now = Date.now();
-  s.firstAnswers ??= {};
-  s.keyEvaluated ??= {};
-  w.srsEvents ??= [];
-  for (const [key, qIds] of Object.entries(s.keyQuestions)) {
-    if (!s.keyEvaluated[key]) {
-      const answeredIds = qIds.filter((id) => s.firstAnswers[id] !== undefined);
-      if (answeredIds.length > 0) {
-        const allCorrect = answeredIds.every((id) => s.firstAnswers[id] === true);
-        const q = w.questions.find((item) => item.id === answeredIds[0]);
-        applyJapaneseSrs(w, key, allCorrect, q, now);
-        s.keyEvaluated[key] = true;
-
-        const eventId = `${s.id}:${key}`;
-        let srsEvent = w.srsEvents.find((e) => e.id === eventId);
-        if (!srsEvent) {
-          srsEvent = {
-            id: eventId,
-            sessionId: s.id,
-            learningKey: key,
-            questionIds: qIds,
-            firstAnswers: { ...s.firstAnswers },
-            applied: true,
-            appliedAt: now,
-            createdAt: now,
-            updatedAt: now,
-          };
-          w.srsEvents.push(srsEvent);
-        } else {
-          srsEvent.applied = true;
-          srsEvent.appliedAt = now;
-          srsEvent.updatedAt = now;
-        }
-      }
-    }
-  }
 }
 
 function addAttempt(w, q, answer, correct, extra = {}) {
@@ -666,9 +530,9 @@ function addAttempt(w, q, answer, correct, extra = {}) {
   );
   w.attempts.push({ id: attemptId, questionId: q.id, originalQuestionId: q.originalId || q.id,
     setId: questionSetIdOf(q), answer, correct, grade: correct ? 4 : 1, attemptedAt: now, mode: extra.mode || q.domain, purpose,
-    ...(origin ? { origin } : {}), ...(isRetry ? { isRetry: true } : {}) });
+    gradingVersion: extra.gradingVersion ?? 2, ...(origin ? { origin } : {}), ...(isRetry ? { isRetry: true } : {}) });
   if (purpose === "review") return null;
-  if (q.domain !== "vocabulary") return null;
+  if (!isFlashcardQuestion(q)) return null;
   if (isJapanese) return null;
   const learningKey = learningKeyFor(q);
   const index = w.reviews.findIndex((r) => r.learningKey === learningKey);
@@ -717,7 +581,7 @@ export function validateBackup(value) {
     if (!["domain", "type", "topic", "prompt", "explanation"].every((field) => typeof q[field] === "string") ||
         !Array.isArray(q.options) || (q.tags != null && !Array.isArray(q.tags))) fail("Nội dung câu hỏi trong sao lưu không hợp lệ.");
     let preview;
-    try { preview = buildCsvPreview(questionsToCsv([{ ...q, type: q.type.toLowerCase(), id: "backup-check", originalId: "backup-check" }])); }
+    try { preview = buildCsvPreview(questionsToCsv([{ ...q, type: q.type.toLowerCase(), id: "backup-check", originalId: "backup-check" }]), "backup.csv", { legacyOrdering: true }); }
     catch { fail("Đáp án hoặc lựa chọn trong sao lưu không hợp lệ."); }
     if (preview.errors.length) fail(`Sao lưu có câu không hợp lệ: ${preview.errors[0]}`);
     const canonical = preview.rows[0];
@@ -782,6 +646,7 @@ export function validateBackup(value) {
           options: question.options,
           acceptedOrders: question.acceptedOrders ?? question.accepted_orders,
           starPosition: question.starPosition ?? question.star_position,
+          gradingVersion: attempt.gradingVersion ?? 1,
         });
     if (mode === "flashcards" && typeof answer !== "boolean" && answer !== "Đã nhớ" && answer !== "Chưa nhớ") {
       fail("Lịch sử trong sao lưu không hợp lệ.");
@@ -1016,7 +881,7 @@ class Repository {
         for (const id of Object.keys(w.session.firstAnswers)) {
           if (removed.has(id)) delete w.session.firstAnswers[id];
         }
-        finalizeSessionSrsEvents(w, w.session);
+
       }
       w.session = null;
     }
@@ -1029,45 +894,6 @@ class Repository {
     const data = validateBackup(value);
     return this.change((w) => {
       archive(w);
-      if (Array.isArray(data.srsEvents)) {
-        const pending = data.srsEvents
-          .filter((event) => !event.applied && event.firstAnswers)
-          .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-
-        // Dedup: chỉ gộp trong cùng phiên (sessionId + learningKey), giữ event mới nhất trong phiên đó
-        const bestBySessionAndKey = new Map();
-        for (const event of pending) {
-          const comboKey = `${event.sessionId}:${event.learningKey}`;
-          const existing = bestBySessionAndKey.get(comboKey);
-          if (!existing || (event.createdAt || 0) > (existing.createdAt || 0)) {
-            bestBySessionAndKey.set(comboKey, event);
-          }
-        }
-        const uniquePending = [];
-        for (const event of pending) {
-          const comboKey = `${event.sessionId}:${event.learningKey}`;
-          if (bestBySessionAndKey.get(comboKey) === event) {
-            uniquePending.push(event);
-          } else {
-            event.applied = true;
-            event.appliedAt = event.createdAt || Date.now();
-          }
-        }
-
-        for (const event of uniquePending) {
-          const answeredIds = Object.keys(event.firstAnswers);
-          if (answeredIds.length > 0) {
-            const allCorrect = answeredIds.every((id) => event.firstAnswers[id] === true);
-            const q = data.questions.find((item) => (item.learningKey || learningKeyFor(item)) === event.learningKey);
-            if (q) {
-              const ts = validTimestamp(event.updatedAt) ? event.updatedAt : (validTimestamp(event.createdAt) ? event.createdAt : Date.now());
-              applyJapaneseSrs(data, event.learningKey, allCorrect, q, ts);
-              event.applied = true;
-              event.appliedAt = ts;
-            }
-          }
-        }
-      }
       Object.assign(w, data, { session: null, summary: null, selectedSetId: data.imports[0]?.id ?? null, srsEvents: data.srsEvents ?? [] });
       return { warning: data.warning ?? null };
     });
@@ -1150,6 +976,7 @@ class Repository {
     if (!sets.every((s) => (s.subject || "english") === firstSubject)) {
       fail(domain === "practice" ? "Chỉ có thể trộn các bộ bài cùng môn." : (firstSubject === "japanese" ? "Chỉ có thể trộn các bộ bài Tiếng Nhật." : "Chỉ có thể trộn các bộ bài Tiếng Anh."));
     }
+    if (domain === "vocabulary_practice" && firstSubject !== "english") fail("Bài tập từ vựng này chỉ dành cho Tiếng Anh.");
     if (domain === "grammar" || domain === "vocabulary") {
       if (firstSubject !== "english" && firstSubject !== "japanese") {
         fail("Chỉ có thể trộn các bộ bài Tiếng Anh.");
@@ -1194,13 +1021,6 @@ class Repository {
       fail("Đã hết câu phù hợp. Đổi bộ lọc hoặc quay lại khi có từ đến hạn.");
     }
     const keyQuestions = {};
-    for (const q of questions) {
-      if (q.subject === "japanese" && q.domain === "vocabulary") {
-        const k = learningKeyFor(q);
-        keyQuestions[k] ??= [];
-        keyQuestions[k].push(q.id);
-      }
-    }
     w.session = {
       id: newId(),
       setId: primarySetId,
@@ -1219,6 +1039,8 @@ class Repository {
       keyQuestions,
       firstAnswers: {},
       keyEvaluated: {},
+      policyVersion: 2,
+      draftRevision: 0,
     };
     if (!isMixed || targetSetIds.length <= 1) {
       w.selectedSetId = primarySetId;
@@ -1226,17 +1048,21 @@ class Repository {
     w.summary = null;
     return copy(w.session);
   }); }
-  saveDraft(sessionId, step, draft) { return this.change((w) => {
+  saveDraft(sessionId, step, draft, expectedRevision = null) { return this.change((w) => {
     const s = w.session;
     if (s?.id === sessionId && s.step === step && !s.result) {
       if (!validDraft(draft)) fail("Bản nháp không hợp lệ.");
+      if (expectedRevision != null && expectedRevision !== (s.draftRevision || 0)) fail("Bản nháp đã đổi ở tab khác. Nội dung đang nhập vẫn được giữ; hãy tải bản nháp mới hoặc sao chép nội dung trước khi tiếp tục.");
       s.draft = copy(draft);
+      s.draftRevision = (s.draftRevision || 0) + 1;
+      return s.draftRevision;
     }
   }); }
-  submit(sessionId, step, answer, draft = null) { return this.change((w) => {
+  submit(sessionId, step, answer, draft = null, expectedRevision = null) { return this.change((w) => {
     const s = w.session;
     if (!validSession(s, w) || s.id !== sessionId || s.step !== step) fail("Lượt học đã đổi ở tab khác. Hãy thử lại.");
     if (s.result) return copy(s.result);
+    if (expectedRevision != null && expectedRevision !== (s.draftRevision || 0)) fail("Bản nháp đã đổi ở tab khác. Hãy kiểm tra bản nháp trước khi chấm.");
     const q = w.questions.find((item) => item.id === s.queue[0]);
     if (!q) fail("Câu hỏi hiện tại không còn tồn tại. Hãy tải lại trang.");
     if (s.mode === "flashcards" && typeof answer !== "boolean") fail("Hãy chọn Đã nhớ hoặc Chưa nhớ.");
@@ -1256,28 +1082,15 @@ class Repository {
           options: q.options,
           acceptedOrders: q.acceptedOrders ?? q.accepted_orders,
           starPosition: q.starPosition ?? q.star_position,
+          gradingVersion: 2,
         });
     const received = s.mode === "flashcards" ? (answer ? "Đã nhớ" : "Chưa nhớ") : answer;
     let isRetry = false;
     let review = null;
-    if (isJapanese) {
-      isRetry = Boolean(s.firstAnswers && s.firstAnswers[q.id] !== undefined);
-      if (s.mode === "vocabulary" && s.purpose !== "review") {
-        review = handleJapaneseSrsSubmit(w, s, q, received, correct, isRetry);
-      } else {
-        addAttempt(w, q, received, correct, {
-          id: `${s.id}:${step}`,
-          mode: s.mode,
-          purpose: s.purpose || "study",
-          isRetry,
-          dueOnly: Boolean(s.filters?.dueOnly),
-        });
-      }
-    } else {
-      review = addAttempt(w, q, received, correct, { id: `${s.id}:${step}`, mode: s.mode, purpose: s.purpose || "study" });
-    }
-    s.log.push({ questionId: q.id, correct, answer: received });
-    s.result = { correct, received, expected: displayAnswer(q.answer, q), dueAt: review?.dueAt ?? null, draft: copy(draft), isRetry };
+    isRetry = Boolean(isJapanese && s.firstAnswers && s.firstAnswers[q.id] !== undefined);
+    review = addAttempt(w, q, received, correct, { id: `${s.id}:${step}`, mode: s.mode, purpose: s.purpose || "study", isRetry, gradingVersion: 2 });
+    s.log.push({ questionId: q.id, correct, answer: received, gradingVersion: 2 });
+    s.result = { correct, received, expected: displayAnswer(q.answer, q), dueAt: review?.dueAt ?? null, draft: copy(draft), isRetry, gradingVersion: 2 };
     s.draft = null;
     return copy(s.result);
   }); }
@@ -1285,25 +1098,40 @@ class Repository {
     const s = w.session;
     if (!validSession(s, w) || s.id !== sessionId || s.step !== step || !s.result) fail("Lượt học đã đổi. Hãy tải lại trạng thái.");
     const current = s.queue.shift();
-    if (s.purpose !== "review" && ["vocabulary", "flashcards"].includes(s.mode) && !s.result.correct) s.queue.push(current); else s.done += 1;
+    if (s.purpose !== "review" && (s.mode === "flashcards" || (s.mode === "vocabulary" && w.questions.find(q => q.id === current)?.subject !== "japanese")) && !s.result.correct) s.queue.push(current); else s.done += 1;
     s.step += 1; s.result = null; s.draft = null;
     if (!s.queue.length) {
-      finalizeSessionSrsEvents(w, s);
+
       const first = new Map();
       for (const a of s.log) if (!first.has(a.questionId)) first.set(a.questionId, a);
       w.summary = { setId: s.setId, setIds: s.setIds, mode: s.mode, purpose: s.purpose || "study", total: s.target, correct: [...first.values()].filter((a) => a.correct).length,
-        repeats: s.log.length - first.size, results: [...first.values()], durationMs: Date.now() - s.startedAt,
+        repeats: s.log.length - first.size, results: [...first.values()], earnedXp: xpFromAttempts(s.log), durationMs: Date.now() - s.startedAt,
         filters: copy(s.filters ?? { level: "all", topic: "all", grade: "all" }) };
       w.session = null;
     }
   }); }
   endSession(sessionId) { return this.change((w) => {
     if (!w.session || w.session.id !== sessionId) fail("Lượt học đã đổi ở tab khác. Hãy tải lại trạng thái.");
-    finalizeSessionSrsEvents(w, w.session);
+
     w.session = null;
   }); }
   dismissSummary() { return this.change((w) => { w.summary = null; }); }
   async repairSession() {
+    const original = await this.snapshot();
+    if (original.session && original.session.policyVersion !== 2 && original.questions.some(q => q.id === original.session.queue?.[0] && isVocabularyExercise(q))) {
+      await this.change(w => {
+        const s = w.session;
+        if (!s || s.policyVersion === 2 || !validSession(s, w)) return;
+        const logged = new Set(s.log.map(e => e.questionId));
+        s.queue = s.queue.filter((id, index) => index === 0 || !logged.has(id));
+        const queued = new Set(s.queue);
+        s.done = [...logged].filter(id => !queued.has(id)).length;
+        s.target = new Set([...logged, ...queued]).size;
+        if (s.filters) delete s.filters.dueOnly;
+        if (s.result) s.result.dueAt = null;
+        s.policyVersion = 2;
+      });
+    }
     const w = await this.snapshot();
     const sessionIsValid = !w.session || validSession(w.session, w);
     const summaryIsValid = validSummary(w.summary, w);
@@ -1356,3 +1184,5 @@ export async function readDashboard(repository, requestedSetId = null) {
 }
 export async function getSessionQuestions(repository, filters) { return selection(await repository.snapshot(), filters); }
 export function exportBackup(snapshot) { return { app: "nam-english", version: 3, exportedAt: new Date().toISOString(), snapshot: dataOnly(snapshot) }; }
+
+export function remainingQuestionCount(snapshot, filters) { return selection(snapshot, { ...filters, countOnly: true }).length; }

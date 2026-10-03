@@ -1,7 +1,7 @@
 // Các hàm thống kê, gamification và xuất dữ liệu. Tất cả đều thuần
 // (không đụng DOM hay storage) để test được bằng Node.
 
-import { CSV_HEADERS, learningKeyFor, displayAnswer, SUBJECTS, isReviewDue, japaneseQuestionsToCsv, stripRuby } from "./core.js";
+import { CSV_HEADERS, learningKeyFor, displayAnswer, SUBJECTS, isReviewDue, japaneseQuestionsToCsv, stripRuby, isFlashcardQuestion } from "./core.js";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
@@ -154,7 +154,7 @@ export function levelInfo(xp) {
 
 export function accuracyByDomain(questions, attempts) {
   const domainById = new Map(
-    questions.map((question) => [question.id, question.domain]),
+    questions.map((question) => [question.id, question.domain === "vocabulary_practice" ? "vocabulary" : question.domain]),
   );
   const totals = {
     grammar: { total: 0, correct: 0 },
@@ -275,7 +275,7 @@ export function mistakeQuestions(questions, attempts) {
     .filter((question) => {
       if (question.active === false) return false;
       // Thẻ từ vựng học theo chu trình SRS riêng; "Chưa nhớ" là để học lại chứ không phải bài tập sai
-      if (question.domain === "vocabulary") return false;
+      if (isFlashcardQuestion(question)) return false;
       const attempt = latest.get(question.id);
       return attempt && !attempt.correct;
     })
@@ -711,7 +711,7 @@ export function collectVocabularyKeys(questions) {
       questions
         .filter(
           (question) =>
-            question.active !== false && question.domain === "vocabulary",
+            question.active !== false && isFlashcardQuestion(question),
         )
         .map(learningKeyFor),
     ),
